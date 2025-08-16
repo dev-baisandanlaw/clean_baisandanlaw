@@ -53,6 +53,19 @@ export const PAYMONGO_CONFIG = {
   },
 };
 
+export const CLERK_ORG_IDS = {
+  client: "org_31IqY6sWeNzuAE3mfzy70x17KeY",
+  attorney: "org_31IqTFWQIBZGQv3FaQTlBw91XK4",
+};
+
+export const CLERK_API_CONFIG = {
+  baseUrl: "https://api.clerk.com/v1",
+  headers: {
+    Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}`,
+    "Content-Type": "application/json",
+  },
+};
+
 export const REGULAR_HOLIDAYS = [
   { name: "New Year", date: "01/01", id: "new-year" },
   { name: "Araw ng Kagitingan", date: "04/09", id: "kagitingan" },

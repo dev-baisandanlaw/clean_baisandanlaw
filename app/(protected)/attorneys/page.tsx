@@ -1,3 +1,5 @@
-export default async function AttorneysPage() {
-  return <div>Attorneys</div>;
+import AttorneyListing from "@/features/protected/attorneys/AttorneyListing";
+
+export default function AttorneysPage() {
+  return <AttorneyListing />;
 }

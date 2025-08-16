@@ -27,6 +27,8 @@ import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import { useMediaQuery } from "@mantine/hooks";
+import axios from "axios";
+import { CLERK_ORG_IDS } from "@/constants/constants";
 
 export default function Page() {
   const shrink = useMediaQuery(`(max-width: ${em(576)})`);
@@ -109,12 +111,18 @@ export default function Page() {
         code,
       });
 
+      await axios.post("/api/clerk/organization/post-user-to-org", {
+        user_id: completeSignUp.createdUserId,
+        organization_id: CLERK_ORG_IDS.client,
+      });
+
       if (completeSignUp.status === "complete") {
         await setActive({ session: completeSignUp.createdSessionId });
         toast.success("Account created successfully");
         router.push("/");
       }
     } catch (error) {
+      console.log(error);
       setErrors(isClerkAPIResponseError(error) ? error.errors : []);
     } finally {
       setIsLoading(false);
