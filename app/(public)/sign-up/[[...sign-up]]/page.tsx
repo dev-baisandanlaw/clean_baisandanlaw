@@ -84,6 +84,7 @@ export default function Page() {
         emailAddress: values.email,
         password: values.password,
         unsafeMetadata: {
+          role: "client",
           phoneNumber: values.phoneNumber,
         },
       });

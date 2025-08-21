@@ -3,8 +3,10 @@
 import EmptyTableComponent from "@/components/EmptyTableComponent";
 import { CLERK_ORG_IDS } from "@/constants/constants";
 import { Client } from "@/types/user";
+import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 
 import {
+  Badge,
   Flex,
   Group,
   LoadingOverlay,
@@ -17,7 +19,6 @@ import {
 import { useDebouncedValue } from "@mantine/hooks";
 import { IconSearch } from "@tabler/icons-react";
 import axios from "axios";
-import dayjs from "dayjs";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 
@@ -130,13 +131,21 @@ export default function ClientListing() {
                     {client.unsafe_metadata.involvedCases || 0}
                   </Table.Td>
                   <Table.Td>
-                    {client.unsafe_metadata.subscription?.isSubscribed
-                      ? "Premium"
-                      : "Free"}
+                    <Badge
+                      size="xs"
+                      radius="xs"
+                      color={
+                        client.unsafe_metadata.subscription?.isSubscribed
+                          ? "green"
+                          : "blue"
+                      }
+                    >
+                      {client.unsafe_metadata.subscription?.isSubscribed
+                        ? "Premium"
+                        : "Free"}
+                    </Badge>
                   </Table.Td>
-                  <Table.Td>
-                    {dayjs(client.created_at).format("DD MMM YYYY")}
-                  </Table.Td>
+                  <Table.Td>{getDateFormatDisplay(client.created_at)}</Table.Td>
                 </Table.Tr>
               ))}
 

@@ -2,6 +2,7 @@
 
 import { CLERK_ORG_IDS } from "@/constants/constants";
 import { Attorney } from "@/types/user";
+import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 
 import {
   ActionIcon,
@@ -20,7 +21,6 @@ import {
 import { useDebouncedValue } from "@mantine/hooks";
 import { IconCirclePlus, IconDownload, IconSearch } from "@tabler/icons-react";
 import axios from "axios";
-import dayjs from "dayjs";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "react-toastify";
 
@@ -46,8 +46,8 @@ export default function AttorneyListing() {
           {
             params: {
               organization_id: CLERK_ORG_IDS.attorney,
-              limit: 5,
-              offset: (page - 1) * 5,
+              limit: 25,
+              offset: (page - 1) * 25,
               search: searchTerm,
             },
           }
@@ -162,7 +162,7 @@ export default function AttorneyListing() {
                     </Group>
                   </Table.Td>
                   <Table.Td>
-                    {dayjs(attorney.created_at).format("DD MMM YYYY")}
+                    {getDateFormatDisplay(attorney.created_at)}
                   </Table.Td>
                   <Table.Td>
                     {attorney.unsafe_metadata.involvedCases || 0}
@@ -176,8 +176,8 @@ export default function AttorneyListing() {
       <Group align="center">
         {totalCount > 0 ? (
           <Text size="sm">
-            Showing {(currentPage - 1) * 5 + 1}-
-            {Math.min(currentPage * 5, totalCount)} of {totalCount} attorneys
+            Showing {(currentPage - 1) * 25 + 1}-
+            {Math.min(currentPage * 25, totalCount)} of {totalCount} attorneys
           </Text>
         ) : (
           <Text size="sm">No attorneys found</Text>
@@ -185,7 +185,7 @@ export default function AttorneyListing() {
 
         <Pagination
           ml="auto"
-          total={Math.ceil(totalCount / 5) || 1}
+          total={Math.ceil(totalCount / 25) || 1}
           value={currentPage}
           onChange={setCurrentPage}
         />

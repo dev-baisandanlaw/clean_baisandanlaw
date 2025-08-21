@@ -28,8 +28,8 @@ export const NAV_LINKS = [
     icon: IconUsers,
   },
   {
-    label: "Cases",
-    href: "/cases",
+    label: "Matters",
+    href: "/matters",
     icon: IconBriefcase,
   },
 ];

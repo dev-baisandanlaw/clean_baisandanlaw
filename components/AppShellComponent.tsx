@@ -105,7 +105,7 @@ export default function AppShellComponent({
           </Text>
 
           <Box ml="auto">
-            <UserButton showName={!isMobile} />
+            <UserButton showName={!isMobile} afterSignOutUrl="/sign-in" />
           </Box>
         </Group>
       </AppShell.Header>

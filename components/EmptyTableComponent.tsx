@@ -3,10 +3,12 @@ import emptyTable from "@/public/images/no-results.png";
 
 interface EmptyTableComponentProps {
   colspan: number;
+  message?: string;
 }
 
 export default function EmptyTableComponent({
   colspan,
+  message,
 }: EmptyTableComponentProps) {
   return (
     <Table.Tr>
@@ -19,9 +21,7 @@ export default function EmptyTableComponent({
             h={100}
             w="auto"
           />
-          <Text size="lg" c="red">
-            No records found
-          </Text>
+          <Text size="xl">{message || "No records found"}</Text>
         </Stack>
       </Table.Td>
     </Table.Tr>

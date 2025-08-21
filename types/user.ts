@@ -3,7 +3,7 @@ export interface User {
   first_name: string;
   last_name: string;
   unsafe_metadata: {
-    role: "client" | "attorney" | string;
+    role: "client" | "attorney" | "admin" | string;
     phoneNumber?: string;
     involvedCases?: number;
   };
@@ -19,6 +19,7 @@ export interface Client extends User {
   unsafe_metadata: {
     role: "client";
     involvedCases?: number;
+    phoneNumber?: string;
     subscription?: {
       lastPaymentDate: string | Date;
       renewsAt: string | Date;

@@ -1,22 +1,22 @@
-export interface Case {
+export interface Matter {
   id: string;
-  clientData: {
-    id: string;
-    fullname: string;
-  };
-  caseNumber: string;
-  status: string;
-  leadAttorney: {
-    id: string;
-    fullname: string;
-  };
-  documents: Document[];
-  caseType: string[];
-  createdAt: string;
-  updatedAt: string;
   caseDescription: string;
-  schedules: Schedule[];
+  caseNumber: string;
+  caseType: string[];
+  clientData: LocalUser;
+  createdAt: string;
+  documents: Document[];
+  involvedAttorneys: LocalUser[];
+  leadAttorney: LocalUser;
+  status: string;
+  updatedAt: string;
 }
+
+type LocalUser = {
+  id: string;
+  fullname: string;
+  imageUrl?: string;
+};
 
 type Document = {
   id: string;
@@ -25,6 +25,10 @@ type Document = {
   originalSize: number;
   sizeInMb: number;
   uploadedAt: string;
+  uploadedBy: {
+    id: string;
+    fullname: string;
+  };
 };
 
 export type Schedule = {
