@@ -6,7 +6,7 @@ export interface Matter {
   clientData: LocalUser;
   createdAt: string;
   documents: Document[];
-  involvedAttorneys: LocalUser[];
+  // involvedAttorneys: LocalUser[];
   leadAttorney: LocalUser;
   status: string;
   updatedAt: string;
@@ -16,9 +16,10 @@ type LocalUser = {
   id: string;
   fullname: string;
   imageUrl?: string;
+  email: string;
 };
 
-type Document = {
+export type Document = {
   id: string;
   name: string;
   mimeType: string;

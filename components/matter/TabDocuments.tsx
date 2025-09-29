@@ -61,7 +61,7 @@ export default function TabDocuments({
 
                 <Button
                   leftSection={<IconCirclePlus />}
-                  size="sm"
+                  size="xs"
                   variant="outline"
                   onClick={openUploadModalFile}
                 >
@@ -115,7 +115,13 @@ export default function TabDocuments({
                   <Table.Tr key={doc.id}>
                     <Table.Td>
                       <Tooltip label={doc.name} position="top">
-                        <Text truncate maw={175} size="sm" fw={600} c="green">
+                        <Text
+                          truncate
+                          maw="calc(100% - 250px)"
+                          size="sm"
+                          fw={600}
+                          c="green"
+                        >
                           {doc.name}
                         </Text>
                       </Tooltip>

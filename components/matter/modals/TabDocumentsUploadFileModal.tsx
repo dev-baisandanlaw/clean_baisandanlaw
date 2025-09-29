@@ -89,7 +89,6 @@ export default function TabDocumentsUploadFileModal({
   };
 
   const handleUploadFiles = async () => {
-    console.log(user);
     setIsUploading(true);
 
     const { successes, failures } = await appwriteHandleUploadFile(

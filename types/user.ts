@@ -2,39 +2,50 @@ export interface User {
   id: string;
   first_name: string;
   last_name: string;
-  unsafe_metadata: {
-    role: "client" | "attorney" | "admin" | string;
-    phoneNumber?: string;
-    involvedCases?: number;
-  };
   created_at: number;
   profile_image_url: string;
   email_addresses: {
     email_address: string;
     id: string;
   }[];
+  unsafe_metadata: BaseMetadata;
 }
 
-export interface Client extends User {
-  unsafe_metadata: {
-    role: "client";
-    involvedCases?: number;
-    phoneNumber?: string;
-    subscription?: {
-      lastPaymentDate: string | Date;
-      renewsAt: string | Date;
-      paymentId: string;
-      subscribedStartDate: string | Date;
-      subscribedEndDate: string | Date;
-      isSubscribed: boolean;
-    };
+interface BaseMetadata {
+  role: string; // narrowed by union
+  phoneNumber?: string;
+  involvedCases?: number;
+}
+
+interface ClientMetadata extends BaseMetadata {
+  role: "client";
+  subscription?: {
+    lastPaymentDate: string | Date;
+    renewsAt: string | Date;
+    paymentId: string;
+    subscribedStartDate: string | Date;
+    subscribedEndDate: string | Date;
+    isSubscribed: boolean;
   };
 }
 
-export interface Attorney extends User {
-  unsafe_metadata: {
-    role: "attorney";
-    practiceAreas?: string[];
-    involvedCases?: number;
-  };
+interface AttorneyMetadata extends BaseMetadata {
+  role: "attorney";
+  practiceAreas?: string[];
 }
+
+interface AdminMetadata extends BaseMetadata {
+  role: "admin";
+}
+
+export type Client = Omit<User, "unsafe_metadata"> & {
+  unsafe_metadata: ClientMetadata;
+};
+
+export type Attorney = Omit<User, "unsafe_metadata"> & {
+  unsafe_metadata: AttorneyMetadata;
+};
+
+export type Admin = Omit<User, "unsafe_metadata"> & {
+  unsafe_metadata: AdminMetadata;
+};

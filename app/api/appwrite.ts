@@ -1,8 +1,19 @@
 import { COLLECTIONS } from "@/constants/constants";
 import { db } from "@/firebase/config";
+import { NotaryRequest, NotaryRequestStatus } from "@/types/notary-requests";
 import { User } from "@/types/user";
-import { Client, ID, Storage } from "appwrite";
-import { arrayUnion, doc, getDoc, updateDoc } from "firebase/firestore";
+import { UserResource } from "@clerk/types";
+import { Client, ID, Models, Storage } from "appwrite";
+import dayjs from "dayjs";
+import { nanoid } from "nanoid";
+import {
+  arrayUnion,
+  deleteDoc,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+} from "firebase/firestore";
 import { toast } from "react-toastify";
 
 const client = new Client()
@@ -75,6 +86,222 @@ export const appwriteHandleUploadFile = async (
   return { successes, failures };
 };
 
+export const appwriteCreateNotaryRequest = async (
+  file: File | null,
+  user: UserResource,
+  description: string
+) => {
+  const uploaderName = `${user.firstName} ${user.lastName}`;
+
+  const handleUploadFile = async (file: File) => {
+    const res = await storage.createFile(BUCKET_ID, ID.unique(), file);
+
+    return res;
+  };
+
+  const firebaseFn = async (id: string, res: Models.File | null) => {
+    const document =
+      res && res?.$id
+        ? {
+            id: res.$id,
+            name: res.name,
+            mimeType: res.mimeType,
+            originalSize: res.sizeOriginal,
+            sizeInMb: res.sizeOriginal / 1024 / 1024,
+            uploadedAt: res.$createdAt,
+            uploadedBy: { fullname: uploaderName, id: user.id },
+          }
+        : null;
+
+    await setDoc(doc(db, COLLECTIONS.NOTARY_REQUESTS, id), {
+      createdAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
+      updatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
+      description,
+      document,
+      status: NotaryRequestStatus.SUBMITTED,
+      timeline: [
+        {
+          id: nanoid(8),
+          title: "SUBMITTED",
+          description,
+          dateAndTime: dayjs().format("YYYY-MM-DD HH:mm:ss"),
+          status: NotaryRequestStatus.SUBMITTED,
+          user: {
+            id: user.id,
+            fullname: uploaderName,
+            email: user.emailAddresses[0].emailAddress,
+          },
+        },
+      ],
+      requestor: {
+        id: user.id,
+        fullname: uploaderName,
+        email: user.emailAddresses[0].emailAddress,
+      },
+      finishedDocument: null,
+      finishedAt: null,
+      isPaid: false,
+    });
+  };
+
+  if (file) {
+    const resFile = await handleUploadFile(file);
+    await firebaseFn(resFile?.$id, resFile);
+  } else {
+    await firebaseFn(nanoid(8), null);
+  }
+};
+
+export const appwriteUpdateNotaryRequest = async (
+  file: File | null | { uploadedBy: { id: string } },
+  user: UserResource,
+  description: string,
+  notaryRequest: NotaryRequest
+) => {
+  const uploaderName = `${user.firstName} ${user.lastName}`;
+  const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
+
+  // Helper function to create document object
+  const createDocumentObject = (
+    uploadedFile: Models.File,
+    uploaderName: string,
+    userId: string
+  ) => ({
+    id: uploadedFile.$id,
+    name: uploadedFile.name,
+    mimeType: uploadedFile.mimeType,
+    originalSize: uploadedFile.sizeOriginal,
+    sizeInMb: uploadedFile.sizeOriginal / 1024 / 1024,
+    uploadedAt: uploadedFile.$createdAt,
+    uploadedBy: { fullname: uploaderName, id: userId },
+  });
+
+  // Helper function to create timeline entry
+  const createTimelineEntry = (
+    uploaderName: string,
+    userId: string,
+    userEmail: string
+  ) => ({
+    id: nanoid(8),
+    title: "SUBMITTED",
+    description,
+    dateAndTime: now,
+    status: NotaryRequestStatus.SUBMITTED,
+    user: {
+      id: userId,
+      fullname: uploaderName,
+      email: userEmail,
+    },
+  });
+
+  // Determine the update type
+  const isFileUnchanged =
+    file && typeof file === "object" && "uploadedBy" in file;
+  const isNewFile = file && !isFileUnchanged; // Real File object
+  const isRemovingFile = file === null;
+
+  let document = notaryRequest.document;
+
+  // Handle file operations based on scenario
+  if (isFileUnchanged) {
+    // Scenario 1: File unchanged, just update description
+    // document stays the same
+  } else if (isNewFile) {
+    // Scenario 2 & 3: New file (replace existing or add new)
+    if (notaryRequest.document) {
+      // Delete existing file if replacing
+      await storage.deleteFile(BUCKET_ID, notaryRequest.document.id);
+    }
+    // Upload new file
+    const uploadedFile = await storage.createFile(
+      BUCKET_ID,
+      ID.unique(),
+      file as File
+    );
+    document = createDocumentObject(uploadedFile, uploaderName, user.id);
+  } else if (isRemovingFile && notaryRequest.document) {
+    // Scenario 4: Remove existing file
+    await storage.deleteFile(BUCKET_ID, notaryRequest.document.id);
+    document = null;
+  }
+  // Scenario 5: No file at all - document stays null
+
+  // Single Firebase update for all scenarios
+  await setDoc(
+    doc(db, COLLECTIONS.NOTARY_REQUESTS, notaryRequest.id),
+    {
+      updatedAt: now,
+      document,
+      description,
+      status: NotaryRequestStatus.SUBMITTED,
+      timeline: [
+        ...(notaryRequest.timeline || []),
+        createTimelineEntry(
+          uploaderName,
+          user.id,
+          user.emailAddresses[0].emailAddress
+        ),
+      ],
+    },
+    { merge: true }
+  );
+};
+
+// export const appwriteHandleUpdateNotaryRequest = async (
+//   notaryRequest: NotaryRequest,
+//   user: UserResource
+// ) => {
+//   const uploaderName = `${user.firstName} ${user.lastName}`;
+// };
+
+export const appwriteHandleApproveNotaryRequest = async (
+  notaryRequest: NotaryRequest,
+  file: File,
+  user: UserResource
+) => {
+  const uploaderName = `${user.firstName} ${user.lastName}`;
+  const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
+
+  if (notaryRequest?.finishedDocument?.id) {
+    await storage.deleteFile(BUCKET_ID, notaryRequest.finishedDocument.id);
+  }
+
+  const res = await storage.createFile(BUCKET_ID, ID.unique(), file);
+  await setDoc(
+    doc(db, COLLECTIONS.NOTARY_REQUESTS, notaryRequest.id),
+    {
+      status: NotaryRequestStatus.FOR_CLIENT_REVIEW,
+      finishedDocument: {
+        id: res.$id,
+        name: res.name,
+        mimeType: res.mimeType,
+        originalSize: res.sizeOriginal,
+        sizeInMb: res.sizeOriginal / 1024 / 1024,
+        uploadedAt: res.$createdAt,
+        uploadedBy: { fullname: uploaderName, id: user.id },
+      },
+      timeline: [
+        ...(notaryRequest.timeline || []),
+        {
+          id: nanoid(8),
+          title: "FOR CLIENT REVIEW",
+          description: "Notary request notarized and is now for client review.",
+          dateAndTime: now,
+          status: NotaryRequestStatus.FOR_CLIENT_REVIEW,
+          user: {
+            id: user.id,
+            fullname: uploaderName,
+            email: user.emailAddresses[0].emailAddress,
+          },
+        },
+      ],
+      finishedAt: now,
+      updatedAt: now,
+    },
+    { merge: true }
+  );
+};
+
 export const appwriteDownloadFile = async (fileId: string) => {
   try {
     const downloadURL = storage.getFileDownload(BUCKET_ID, fileId);
@@ -116,6 +343,25 @@ export const appwriteDeleteFile = async (fileId: string, caseId: string) => {
 
   if (firebaseRes.status === "rejected")
     throw new Error("Failed to update Firestore document");
+};
+
+export const appwriteDeleteNotaryRequest = async (fileId: string) => {
+  // Prepare firebase doc ref
+  const caseRef = doc(db, COLLECTIONS.NOTARY_REQUESTS, fileId);
+  const caseSnap = await getDoc(caseRef);
+
+  if (!caseSnap.exists()) throw new Error("Firebase cannot find the document");
+
+  const [fileRes, firebaseRes] = await Promise.allSettled([
+    storage.deleteFile(BUCKET_ID, fileId),
+    deleteDoc(caseRef),
+  ]);
+
+  if (fileRes.status === "rejected")
+    throw new Error("Failed to delete file from Appwrite");
+
+  if (firebaseRes.status === "rejected")
+    throw new Error("Failed to delete Firestore document");
 };
 
 // listings

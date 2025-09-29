@@ -1,5 +1,6 @@
 import { Booking } from "@/types/booking";
 import {
+  ActionIcon,
   Badge,
   LoadingOverlay,
   Table,
@@ -8,6 +9,7 @@ import {
 import EmptyTableComponent from "../EmptyTableComponent";
 import dayjs from "dayjs";
 import { getBookingViaColor } from "@/utils/getBookingStatusColor";
+import { IconCopyOff } from "@tabler/icons-react";
 
 interface AppointmentsListProps {
   data: Booking[];
@@ -20,6 +22,10 @@ export default function AppointmentsList({
   isLoading,
   selectedDate,
 }: AppointmentsListProps) {
+  const todayAppointments = data.filter(
+    (booking) => booking.date === selectedDate
+  );
+
   return (
     <TableScrollContainer
       minWidth={500}
@@ -47,11 +53,12 @@ export default function AppointmentsList({
             </Table.Tr>
           )}
 
-          {!isLoading && data.length === 0 && (
+          {!isLoading && todayAppointments.length === 0 && (
             <EmptyTableComponent colspan={7} />
           )}
 
           {!isLoading &&
+            todayAppointments.length > 0 &&
             data
               .filter(
                 (booking) =>
@@ -63,7 +70,7 @@ export default function AppointmentsList({
                   <Table.Td>
                     {dayjs(`${booking.date} ${booking.time}`).format("h:mm A")}
                   </Table.Td>
-                  <Table.Td>{booking.fullname}</Table.Td>
+                  <Table.Td>{booking.client.fullname}</Table.Td>
                   <Table.Td>-</Table.Td>
                   <Table.Td>-</Table.Td>
                   <Table.Td>

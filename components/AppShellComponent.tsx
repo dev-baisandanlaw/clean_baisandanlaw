@@ -16,10 +16,10 @@ import styles from "./Appshell.module.css";
 import { useDisclosure, useMediaQuery } from "@mantine/hooks";
 import Image from "next/image";
 import logo from "@/public/images/logo.png";
-import { UserButton } from "@clerk/nextjs";
+import { UserButton, useUser } from "@clerk/nextjs";
 import { NAV_LINKS } from "@/constants/constants";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export default function AppShellComponent({
@@ -27,7 +27,9 @@ export default function AppShellComponent({
 }: {
   children: React.ReactNode;
 }) {
+  const { user } = useUser();
   const pathname = usePathname();
+  const router = useRouter();
   const theme = useMantineTheme();
   const [opened, { toggle, close }] = useDisclosure();
   const [mounted, setMounted] = useState(false);
@@ -37,6 +39,18 @@ export default function AppShellComponent({
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    const currentPath = NAV_LINKS.find(({ href }) => pathname.startsWith(href));
+
+    if (
+      user &&
+      user?.unsafeMetadata?.role &&
+      !currentPath?.roles.includes(user?.unsafeMetadata?.role as string)
+    ) {
+      router.push("/dashboard");
+    }
+  }, [pathname, user, router]);
 
   useEffect(() => {
     if (isMobile) {
@@ -55,6 +69,7 @@ export default function AppShellComponent({
         breakpoint: "md",
         collapsed: { mobile: !opened },
       }}
+      zIndex={100}
       styles={{
         header: {
           boxShadow: theme.other.customBoxShadow,
@@ -74,6 +89,7 @@ export default function AppShellComponent({
           height: isMobile ? "calc(100vh - 80px)" : "98.5%",
           width: isMobile ? "calc(100vw - 10px)" : "250px",
           borderRadius: "10px",
+          zIndex: 100,
         },
         main: {
           paddingLeft: isMobile ? 0 : 266,
@@ -118,7 +134,9 @@ export default function AppShellComponent({
         <Divider my="sm" />
 
         <AppShell.Section component={ScrollArea}>
-          {NAV_LINKS.map((link) => (
+          {NAV_LINKS.filter((n) =>
+            n.roles.includes(user?.unsafeMetadata?.role as string)
+          ).map((link) => (
             <NavLink
               active
               component={Link}

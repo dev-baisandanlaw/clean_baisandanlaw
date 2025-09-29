@@ -32,6 +32,7 @@ export default function AppointmentsDatePicker({
         position="top-end"
         styles={{ indicator: { fontSize: 10 } }}
         disabled={bookingsForDay === 0}
+        zIndex={50}
       >
         <div>{day}</div>
       </Indicator>

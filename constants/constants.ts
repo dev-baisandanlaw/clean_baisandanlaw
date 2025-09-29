@@ -1,9 +1,11 @@
+import { NotaryRequestStatus } from "@/types/notary-requests";
 import {
   IconLayoutDashboard,
   IconCalendar,
   IconUsers,
   IconGavel,
   IconBriefcase,
+  IconRubberStamp,
 } from "@tabler/icons-react";
 
 export const NAV_LINKS = [
@@ -11,26 +13,37 @@ export const NAV_LINKS = [
     label: "Dashboard",
     href: "/dashboard",
     icon: IconLayoutDashboard,
+    roles: ["admin", "attorney", "client"],
   },
   {
     label: "Appointments",
     href: "/appointments",
     icon: IconCalendar,
+    roles: ["admin", "attorney", "client"],
   },
   {
     label: "Attorneys",
     href: "/attorneys",
     icon: IconGavel,
+    roles: ["admin"],
   },
   {
     label: "Clients",
     href: "/clients",
     icon: IconUsers,
+    roles: ["admin"],
   },
   {
     label: "Matters",
     href: "/matters",
     icon: IconBriefcase,
+    roles: ["admin", "attorney", "client"],
+  },
+  {
+    label: "Notary Requests",
+    href: "/notary-requests",
+    icon: IconRubberStamp,
+    roles: ["admin", "attorney", "client"],
   },
 ];
 
@@ -42,6 +55,8 @@ export const COLLECTIONS = {
   CASES: "cases",
   TASKS: "tasks",
   CHANNELS: "channels",
+  NOTARY_REQUESTS: "notary_requests",
+  MATTER_TIMELINES: "matter_timelines",
 };
 
 export const PAYMONGO_CONFIG = {
@@ -115,3 +130,67 @@ export const HOUR_INTERVAL = [
   { name: "5 Hours", value: "05:00" },
   { name: "6 Hours", value: "06:00" },
 ];
+
+export const ATTY_PRACTICE_AREAS = [
+  "Civil Law",
+  "Criminal Law",
+  "Family Law",
+  "Labor Law",
+  "Tax Law",
+  "Real Estate Law",
+  "Corporate Law",
+  "Intellectual Property Law",
+  "Immigration Law",
+  "Environmental Law",
+  "Bankruptcy Law",
+  "Consumer Protection Law",
+  "Human Rights Law",
+  "Health Law",
+  "Entertainment & Media Law",
+  "International Law",
+  "Elder Law",
+  "Estate Planning & Probate Law",
+  "Insurance Law",
+  "Construction Law",
+  "Maritime & Admiralty Law",
+  "Military Law",
+  "Education Law",
+  "Sports Law",
+  "Technology & Data Privacy Law",
+  "Securities & Investment Law",
+];
+
+export const NOTARY_STEPS = [
+  {
+    title: "Request for Notary",
+    description: "Start by telling us what you need notarized",
+  },
+  {
+    title: "Process",
+    description:
+      "Our team carefully reviews your request and prepares your document",
+  },
+  {
+    title: "Feedback",
+    description:
+      "You’ll get the chance to preview and confirm everything before we notarize.",
+  },
+  {
+    title: "Notify",
+    description:
+      "Once it’s ready, we’ll notify you right away so you can pick it up.",
+  },
+];
+
+export const NOTARY_STEPS_ORDER = {
+  [NotaryRequestStatus.SUBMITTED]: 1,
+  [NotaryRequestStatus.PROCESSING]: 2,
+  [NotaryRequestStatus.FOR_CLIENT_REVIEW]: 3,
+  [NotaryRequestStatus.FOR_PICKUP]: 4,
+  [NotaryRequestStatus.COMPLETED]: 5,
+  [NotaryRequestStatus.CANCELLED]: 6,
+
+  [NotaryRequestStatus.CLIENT_APPROVED]: 33,
+  [NotaryRequestStatus.CLIENT_REJECTED]: -33,
+  [NotaryRequestStatus.REJECTED]: -4,
+};

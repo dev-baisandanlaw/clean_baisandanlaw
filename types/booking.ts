@@ -1,11 +1,16 @@
 export interface Booking {
   id: string;
-  fullname: string;
-  email: string;
+  client: {
+    fullname: string;
+    id: string;
+  };
+  attorney: {
+    fullname: string;
+    id: string;
+  };
   message: string;
   date: string;
   time: string;
-  userId: string;
   phoneNumber?: string;
   isPaid: boolean;
   via:

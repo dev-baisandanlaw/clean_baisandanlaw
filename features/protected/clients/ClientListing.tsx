@@ -11,6 +11,7 @@ import {
   Group,
   LoadingOverlay,
   Pagination,
+  Stack,
   Table,
   TableScrollContainer,
   Text,
@@ -119,6 +120,10 @@ export default function ClientListing() {
               </Table.Tr>
             )}
 
+            {!isFetching && !clients?.length && (
+              <EmptyTableComponent colspan={5} />
+            )}
+
             {!isFetching &&
               clients &&
               clients.map((client) => (
@@ -126,7 +131,16 @@ export default function ClientListing() {
                   <Table.Td>
                     {client.first_name + " " + client.last_name}
                   </Table.Td>
-                  <Table.Td>{client.email_addresses[0].email_address}</Table.Td>
+                  <Table.Td>
+                    <Stack gap={2}>
+                      <Text size="sm">
+                        {client.email_addresses[0].email_address}
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        {client.unsafe_metadata.phoneNumber}
+                      </Text>
+                    </Stack>
+                  </Table.Td>
                   <Table.Td>
                     {client.unsafe_metadata.involvedCases || 0}
                   </Table.Td>
@@ -148,10 +162,6 @@ export default function ClientListing() {
                   <Table.Td>{getDateFormatDisplay(client.created_at)}</Table.Td>
                 </Table.Tr>
               ))}
-
-            {!isFetching && clients.length === 0 && (
-              <EmptyTableComponent colspan={5} />
-            )}
           </Table.Tbody>
         </Table>
       </TableScrollContainer>
@@ -167,6 +177,7 @@ export default function ClientListing() {
         )}
 
         <Pagination
+          size="sm"
           ml="auto"
           total={Math.ceil(totalCount / 25) || 1}
           value={currentPage}

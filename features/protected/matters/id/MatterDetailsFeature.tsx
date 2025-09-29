@@ -2,10 +2,11 @@
 
 import TabDocuments from "@/components/matter/TabDocuments";
 import TabOverview from "@/components/matter/TabOverview";
-import { CLERK_ORG_IDS, COLLECTIONS } from "@/constants/constants";
+import TabTasks from "@/components/matter/TabTasks";
+import { COLLECTIONS } from "@/constants/constants";
 import { db } from "@/firebase/config";
 import { Matter } from "@/types/case";
-import { Attorney, Client, User } from "@/types/user";
+import { Attorney, Client } from "@/types/user";
 import { LoadingOverlay, ScrollArea, Tabs } from "@mantine/core";
 import {
   IconCategory,
@@ -16,13 +17,7 @@ import {
 } from "@tabler/icons-react";
 import axios from "axios";
 import { doc, getDoc } from "firebase/firestore";
-import {
-  createContext,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { createContext, useCallback, useEffect, useState } from "react";
 
 interface MatterDetailsFeatureProps {
   matterId: string | null | undefined;
@@ -172,6 +167,12 @@ export default function MatterDetailsFeature({
               matterData={matterData}
               setDataChanged={setDataChanged}
             />
+          </Tabs.Panel>
+        )}
+
+        {!isMatterLoading && matterData && (
+          <Tabs.Panel value="tasks">
+            <TabTasks matterData={matterData} />
           </Tabs.Panel>
         )}
       </ScrollArea>

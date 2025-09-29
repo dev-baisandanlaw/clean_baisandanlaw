@@ -38,6 +38,7 @@ const now = dayjs();
 
 export default function BookingPage() {
   const { user } = useUser();
+
   const { document: settings, loading } = useDocument<GlobalSettings>({
     collectionName: COLLECTIONS.GLOBAL_SETTINGS,
     documentId: process.env.NEXT_PUBLIC_FIREBASE_SETTINGS_ID!,

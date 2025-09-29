@@ -1,11 +1,27 @@
+export enum TaskStatus {
+  Pending = "Pending",
+  Completed = "Completed",
+}
+
+export enum TaskDivision {
+  Client = "Client",
+  Attorney = "Attorney",
+}
+
 export interface Task {
-  assignee: string;
+  assignee: {
+    fullname: string;
+    id: string;
+    email: string;
+    division: TaskDivision;
+  };
   description: string;
   dueDate: string;
   priority: string;
-  status: "Pending" | "Completed";
+  status: TaskStatus;
   createdAt: string;
   updatedAt: string;
+  completedAt: string;
   taskId: string;
   taskName: string;
 }

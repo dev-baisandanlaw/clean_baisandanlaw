@@ -15,7 +15,14 @@ import { UserResource } from "@clerk/types";
 import dayjs from "dayjs";
 import { TimeValue } from "@mantine/dates";
 import { useEffect, useState } from "react";
-import { addDoc, collection, getDocs, query, where } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  getDocs,
+  query,
+  serverTimestamp,
+  where,
+} from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { toast } from "react-toastify";
 import axios from "axios";
@@ -41,9 +48,15 @@ export default function BookingModal({
 
   const form = useForm({
     initialValues: {
-      fullname: "",
-      userId: "",
-      email: "",
+      client: {
+        fullname: "",
+        id: "",
+        email: "",
+      },
+      attorney: {
+        fullname: "",
+        id: "",
+      },
       message: "",
       date: "",
       time: "",
@@ -51,9 +64,11 @@ export default function BookingModal({
     },
 
     validate: {
-      fullname: (value) =>
-        !!value.length ? null : "Full name must be at least 3 characters",
-      email: (value) => (/^\S+@\S+$/.test(value) ? null : "Invalid email"),
+      client: {
+        fullname: (value) =>
+          !!value.length ? null : "Full name must be at least 3 characters",
+        email: (value) => (/^\S+@\S+$/.test(value) ? null : "Invalid email"),
+      },
     },
 
     validateInputOnChange: true,
@@ -123,6 +138,10 @@ export default function BookingModal({
   const handleAddBooking = (values: typeof form.values) => {
     addDoc(collection(db, COLLECTIONS.BOOKINGS), {
       ...values,
+      via: "Website",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      isPaid: true,
       phoneNumber: values.phoneNumber || "",
     })
       .then(() => {
@@ -199,9 +218,15 @@ export default function BookingModal({
   useEffect(() => {
     if (opened && !!user) {
       form.setValues({
-        fullname: user.fullName as string,
-        email: user.emailAddresses[0].emailAddress as string,
-        userId: user.id,
+        client: {
+          fullname: user.fullName || "",
+          id: user.id,
+          email: user.emailAddresses[0].emailAddress as string,
+        },
+        attorney: {
+          fullname: "",
+          id: "",
+        },
         phoneNumber: (user.unsafeMetadata?.phoneNumber as string) || "",
       });
     }
@@ -265,7 +290,7 @@ export default function BookingModal({
           data-autofocus
           label="Full Name"
           placeholder="Enter your full name"
-          {...form.getInputProps("fullname")}
+          {...form.getInputProps("client.fullname")}
           readOnly={!!user?.fullName}
           mb={16}
         />
@@ -274,7 +299,7 @@ export default function BookingModal({
           withAsterisk
           label="Email"
           placeholder="Enter your email"
-          {...form.getInputProps("email")}
+          {...form.getInputProps("client.email")}
           readOnly={!!user?.emailAddresses[0].emailAddress}
           mb={16}
         />
@@ -306,6 +331,7 @@ export default function BookingModal({
           label="Message"
           placeholder="Something you might want to share before the appointment"
           {...form.getInputProps("message")}
+          styles={{ input: { paddingBlock: 6 } }}
           rows={5}
           mb={16}
         />

@@ -21,6 +21,7 @@ import { IconAlertCircle } from "@tabler/icons-react";
 import { useForm } from "@mantine/form";
 import { useState } from "react";
 import { useSignIn } from "@clerk/nextjs";
+import { useClerk } from "@clerk/nextjs";
 import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
 import { ClerkAPIError } from "@clerk/types";
 import { useMediaQuery } from "@mantine/hooks";
@@ -29,6 +30,8 @@ import { useRouter } from "next/navigation";
 export default function Page() {
   const router = useRouter();
   const shrink = useMediaQuery(`(max-width: ${em(576)})`);
+
+  const { signOut } = useClerk();
 
   const { isLoaded, signIn, setActive } = useSignIn();
 
@@ -59,6 +62,20 @@ export default function Page() {
         router.push("/");
       }
     } catch (err) {
+      if (
+        (err as { message: string }).message === "You're already signed in."
+      ) {
+        await signOut();
+        setErrors([
+          {
+            code: "Error",
+            message: "Please try again.",
+            longMessage: "Please try again.",
+          },
+        ]);
+        return;
+      }
+
       if (isClerkAPIResponseError(err)) setErrors(err.errors);
     } finally {
       setIsLoggingIn(false);
