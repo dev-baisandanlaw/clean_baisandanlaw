@@ -5,7 +5,7 @@ import { User } from "@/types/user";
 import { UserResource } from "@clerk/types";
 import { Client, ID, Models, Storage } from "appwrite";
 import dayjs from "dayjs";
-import { nanoid } from "nanoid";
+import { nanoid, customAlphabet } from "nanoid";
 import {
   arrayUnion,
   deleteDoc,
@@ -121,7 +121,7 @@ export const appwriteCreateNotaryRequest = async (
       status: NotaryRequestStatus.SUBMITTED,
       timeline: [
         {
-          id: nanoid(8),
+          id: customAlphabet("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", 8)(),
           title: "SUBMITTED",
           description,
           dateAndTime: dayjs().format("YYYY-MM-DD HH:mm:ss"),

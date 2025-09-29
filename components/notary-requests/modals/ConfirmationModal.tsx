@@ -3,6 +3,7 @@ import { db } from "@/firebase/config";
 import { NotaryRequest, NotaryRequestStatus } from "@/types/notary-requests";
 import { useUser } from "@clerk/nextjs";
 import { Button, Group, Modal, Stack, Text } from "@mantine/core";
+import axios from "axios";
 import dayjs from "dayjs";
 import { doc, setDoc } from "firebase/firestore";
 import { useState } from "react";
@@ -26,6 +27,18 @@ export default function ConfirmationModal({
 
   const isForPickup =
     notaryRequest.status === NotaryRequestStatus.CLIENT_APPROVED;
+
+  const sendEmail = async () => {
+    await axios.post("/api/resend/send", {
+      to: notaryRequest.requestor.email,
+      subject: "Your Notary Request is Ready for Pickup!",
+      template: "for-pickup",
+      data: {
+        fullname: notaryRequest.requestor.fullname,
+        referenceNumber: notaryRequest.id,
+      },
+    });
+  };
 
   const handleReadyForPickup = async () => {
     setIsLoading(true);
@@ -54,6 +67,8 @@ export default function ConfirmationModal({
           },
           { merge: true }
         );
+
+        await sendEmail();
 
         toast.success("Notary request marked as for pickup");
         onClose();
@@ -108,7 +123,7 @@ export default function ConfirmationModal({
               Are you sure you want to notify the client that this notarization
               is ready for pickup? This will send the finished document to their
               email (
-              <Text style={{ fontWeight: "bold" }}>
+              <Text span style={{ fontWeight: "bold" }}>
                 {notaryRequest.requestor.email}
               </Text>
               ). Modifications are no longer allowed.
