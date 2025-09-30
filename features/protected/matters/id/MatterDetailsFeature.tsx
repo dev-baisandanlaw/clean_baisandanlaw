@@ -2,6 +2,7 @@
 
 import TabDocuments from "@/components/matter/TabDocuments";
 import TabOverview from "@/components/matter/TabOverview";
+import TabSchedules from "@/components/matter/TabSchedules";
 import TabTasks from "@/components/matter/TabTasks";
 import { COLLECTIONS } from "@/constants/constants";
 import { db } from "@/firebase/config";
@@ -173,6 +174,15 @@ export default function MatterDetailsFeature({
         {!isMatterLoading && matterData && (
           <Tabs.Panel value="tasks">
             <TabTasks matterData={matterData} />
+          </Tabs.Panel>
+        )}
+
+        {!isMatterLoading && matterData && (
+          <Tabs.Panel value="schedule">
+            <TabSchedules
+              matterData={matterData}
+              setDataChanged={setDataChanged}
+            />
           </Tabs.Panel>
         )}
       </ScrollArea>

@@ -10,6 +10,7 @@ export interface Matter {
   leadAttorney: LocalUser;
   status: string;
   updatedAt: string;
+  schedules?: Schedule[];
 }
 
 type LocalUser = {
@@ -35,7 +36,8 @@ export type Document = {
 export type Schedule = {
   scheduleId: string;
   title: string;
-  dateAndTime: string;
+  date: string;
+  time: string;
   location: string;
   description: string;
   createdAt: string;
