@@ -56,8 +56,9 @@ export default function AppointmentSummary({
             <Table.Td>
               <Text c="green" fw={600} size="sm">
                 {
-                  bookings.filter((booking) => booking.date === selectedDate)
-                    .length
+                  bookings.filter(
+                    (booking) => booking.date === dayjs().format("YYYY-MM-DD")
+                  ).length
                 }
               </Text>
             </Table.Td>

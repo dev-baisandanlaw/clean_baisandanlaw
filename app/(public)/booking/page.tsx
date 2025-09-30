@@ -44,10 +44,15 @@ export default function BookingPage() {
     documentId: process.env.NEXT_PUBLIC_FIREBASE_SETTINGS_ID!,
   });
 
+  // const timeSlots = getTimeRange({
+  //   startTime: settings?.startOfDay ?? "08:00",
+  //   endTime: settings?.endOfDay ?? "16:30",
+  //   interval: settings?.hourInterval ?? "00:30",
+  // });
   const timeSlots = getTimeRange({
-    startTime: settings?.startOfDay ?? "08:00",
-    endTime: settings?.endOfDay ?? "16:30",
-    interval: settings?.hourInterval ?? "00:30",
+    startTime: "08:00",
+    endTime: "17:00",
+    interval: "01:00",
   });
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);

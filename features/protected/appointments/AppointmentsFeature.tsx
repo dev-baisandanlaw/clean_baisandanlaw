@@ -3,6 +3,9 @@
 import AppointmentsList from "@/components/appointments/AppointmentsList";
 import AppointmentSummary from "@/components/appointments/AppointmentSummary";
 import AppointmentsDatePicker from "@/components/appointments/DatePickerFilter";
+import UpsertAppointmentModal from "@/components/appointments/modals/UpsertAppointmentModal";
+import DeleteDuplicateModal from "@/components/appointments/modals/DeleteDuplicateModal";
+import ViewAppointmentModal from "@/components/appointments/modals/ViewAppointmentModal";
 import { COLLECTIONS } from "@/constants/constants";
 import { db } from "@/firebase/config";
 import { useDocument } from "@/hooks/useDocument";
@@ -10,7 +13,7 @@ import { Booking } from "@/types/booking";
 import { GlobalSettings } from "@/types/global-settings";
 import { useUser } from "@clerk/nextjs";
 import { Button, Flex, Group, Stack } from "@mantine/core";
-import { useDebouncedValue } from "@mantine/hooks";
+import { useDebouncedValue, useDisclosure } from "@mantine/hooks";
 import { IconCirclePlus, IconSettings } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
@@ -30,11 +33,42 @@ export default function AppointmentsFeature() {
     documentId: process.env.NEXT_PUBLIC_FIREBASE_SETTINGS_ID!,
   });
 
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [isFetchingBookings, setIsFetchingBookings] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState<string | null>(ymd);
   const [currentDate, setCurrentDate] = useState<string>(ymd);
+
+  const [appModal, { open: openAppModal, close: closeAppModal }] =
+    useDisclosure(false);
+  const [delModal, { open: openDelModal, close: closeDelModal }] =
+    useDisclosure(false);
+  const [viewModal, { open: openViewModal, close: closeViewModal }] =
+    useDisclosure(false);
+
+  const handleSelectBooking = (
+    booking: Booking | null,
+    mode: "update" | "delete" | "view" | "add"
+  ) => {
+    setSelectedBooking(booking);
+
+    if (mode === "delete") {
+      openDelModal();
+    }
+
+    if (mode === "view") {
+      openViewModal();
+    }
+
+    if (mode === "add") {
+      openAppModal();
+    }
+
+    if (mode === "update") {
+      openAppModal();
+    }
+  };
 
   const [debounced] = useDebouncedValue(currentDate, 150);
 
@@ -81,49 +115,77 @@ export default function AppointmentsFeature() {
   }, [debounced, user]);
 
   return (
-    <Flex w="100%" h="100%" gap={16} px={{ sm: 12, md: 0 }} direction="column">
-      <Group align="flex-start">
-        <AppointmentsDatePicker
-          bookings={bookings}
-          selectedDate={selectedDate}
-          setCurrentDate={setCurrentDate}
-          setSelectedDate={setSelectedDate}
-        />
-
-        <Stack flex={1}>
-          {user?.unsafeMetadata?.role === "admin" && (
-            <Group>
-              <Button
-                leftSection={<IconCirclePlus />}
-                size="sm"
-                variant="outline"
-              >
-                Add Appointment
-              </Button>
-
-              <Button
-                leftSection={<IconSettings />}
-                size="sm"
-                variant="outline"
-              >
-                Settings
-              </Button>
-            </Group>
-          )}
-
-          <AppointmentSummary
+    <>
+      <Flex
+        w="100%"
+        h="100%"
+        gap={16}
+        px={{ sm: 12, md: 0 }}
+        direction="column"
+      >
+        <Group align="flex-start">
+          <AppointmentsDatePicker
             bookings={bookings}
-            currentDate={currentDate}
             selectedDate={selectedDate}
+            setCurrentDate={setCurrentDate}
+            setSelectedDate={setSelectedDate}
           />
-        </Stack>
-      </Group>
 
-      <AppointmentsList
-        data={bookings || []}
-        isLoading={isFetchingBookings}
-        selectedDate={selectedDate}
+          <Stack flex={1}>
+            {user?.unsafeMetadata?.role === "admin" && (
+              <Group>
+                <Button
+                  leftSection={<IconCirclePlus />}
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleSelectBooking(null, "add")}
+                >
+                  Add Appointment
+                </Button>
+
+                <Button
+                  leftSection={<IconSettings />}
+                  size="sm"
+                  variant="outline"
+                >
+                  Settings
+                </Button>
+              </Group>
+            )}
+
+            <AppointmentSummary
+              bookings={bookings}
+              currentDate={currentDate}
+              selectedDate={selectedDate}
+            />
+          </Stack>
+        </Group>
+
+        <AppointmentsList
+          data={bookings || []}
+          isLoading={appModal ? false : isFetchingBookings}
+          selectedDate={selectedDate}
+          handleSelectBooking={handleSelectBooking}
+        />
+      </Flex>
+
+      <UpsertAppointmentModal
+        opened={appModal}
+        onClose={closeAppModal}
+        booking={selectedBooking || null}
       />
-    </Flex>
+
+      <DeleteDuplicateModal
+        opened={delModal}
+        onClose={closeDelModal}
+        booking={selectedBooking || null}
+      />
+
+      <ViewAppointmentModal
+        opened={viewModal}
+        onClose={closeViewModal}
+        booking={selectedBooking || null}
+      />
+    </>
   );
 }

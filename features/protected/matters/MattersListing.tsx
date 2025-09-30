@@ -1,7 +1,7 @@
 "use client";
 
-import AddMatterModal from "@/components/appointments/modals/AddMatterModal";
 import EmptyTableComponent from "@/components/EmptyTableComponent";
+import AddMatterModal from "@/components/matter/modals/AddMatterModal";
 import { COLLECTIONS } from "@/constants/constants";
 import { db } from "@/firebase/config";
 import { Matter } from "@/types/case";
@@ -10,7 +10,6 @@ import { useUser } from "@clerk/nextjs";
 
 import {
   ActionIcon,
-  Avatar,
   Badge,
   Button,
   Flex,
@@ -21,7 +20,6 @@ import {
   TableScrollContainer,
   Text,
   TextInput,
-  Tooltip,
   useMantineTheme,
 } from "@mantine/core";
 import { useDebouncedValue, useDisclosure } from "@mantine/hooks";
@@ -97,10 +95,10 @@ export default function MattersListing() {
         <Table.Thead>
           <Table.Tr>
             <Table.Th>Matter #</Table.Th>
+            <Table.Th>Lead Attorney</Table.Th>
             <Table.Th>Client</Table.Th>
             <Table.Th>Status</Table.Th>
             <Table.Th>Case Type</Table.Th>
-            <Table.Th>Lead Attorney</Table.Th>
             {/* <Table.Th>Involved Attorneys</Table.Th> */}
             <Table.Th>Created At</Table.Th>
             <Table.Th></Table.Th>
@@ -113,9 +111,9 @@ export default function MattersListing() {
       <Table.Thead>
         <Table.Tr>
           <Table.Th>Matter #</Table.Th>
+          <Table.Th>Lead Attorney</Table.Th>
           <Table.Th>Status</Table.Th>
           <Table.Th>Case Type</Table.Th>
-          <Table.Th>Lead Attorney</Table.Th>
           {/* <Table.Th>Involved Attorneys</Table.Th> */}
           <Table.Th>Created At</Table.Th>
           <Table.Th></Table.Th>
@@ -184,6 +182,9 @@ export default function MattersListing() {
                 matters.map((matter) => (
                   <Table.Tr key={matter.id}>
                     <Table.Td>{matter.caseNumber}</Table.Td>
+                    <Table.Td>
+                      <Text size="sm">{matter.leadAttorney?.fullname}</Text>
+                    </Table.Td>
                     {user?.unsafeMetadata?.role !== "client" && (
                       <Table.Td>{matter.clientData.fullname}</Table.Td>
                     )}
@@ -211,29 +212,7 @@ export default function MattersListing() {
                         ))}
                       </Group>
                     </Table.Td>
-                    <Table.Td>
-                      <Group gap={4}>
-                        <Tooltip label={matter.leadAttorney?.fullname}>
-                          <Avatar
-                            src={matter.leadAttorney?.imageUrl}
-                            size={matter.leadAttorney?.imageUrl ? "sm" : "md"}
-                          />
-                        </Tooltip>
-                        <Text size="sm">{matter.leadAttorney?.fullname}</Text>
-                      </Group>
-                    </Table.Td>
-                    {/* <Table.Td>
-                      <Group gap={4} align="center">
-                        {matter.involvedAttorneys?.map((attorney) => (
-                          <Tooltip label={attorney.fullname} key={attorney.id}>
-                            <Avatar
-                              src={attorney.imageUrl}
-                              size={attorney.imageUrl ? "sm" : "md"}
-                            />
-                          </Tooltip>
-                        ))}
-                      </Group>
-                    </Table.Td> */}
+
                     <Table.Td>
                       {getDateFormatDisplay(matter.createdAt)}
                     </Table.Td>

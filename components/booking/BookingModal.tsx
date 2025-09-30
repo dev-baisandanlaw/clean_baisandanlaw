@@ -6,9 +6,12 @@ import {
   Group,
   Modal,
   NumberInput,
+  Stack,
+  TagsInput,
   Text,
   Textarea,
   TextInput,
+  useMantineTheme,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { UserResource } from "@clerk/types";
@@ -26,8 +29,14 @@ import {
 import { db } from "@/firebase/config";
 import { toast } from "react-toastify";
 import axios from "axios";
-import { COLLECTIONS, PAYMONGO_CONFIG } from "@/constants/constants";
+import {
+  ATTY_PRACTICE_AREAS,
+  CLERK_ORG_IDS,
+  COLLECTIONS,
+  PAYMONGO_CONFIG,
+} from "@/constants/constants";
 import { IconInfoCircle } from "@tabler/icons-react";
+import { Attorney } from "@/types/user";
 
 export default function BookingModal({
   opened,
@@ -44,29 +53,28 @@ export default function BookingModal({
   user: UserResource | null;
   successCallback: () => void;
 }) {
+  const theme = useMantineTheme();
+
   const [isBooking, setIsBooking] = useState(false);
 
   const form = useForm({
     initialValues: {
       client: {
-        fullname: "",
         id: "",
+        fullname: "",
+        firstName: "",
+        lastName: "",
         email: "",
-      },
-      attorney: {
-        fullname: "",
-        id: "",
+        phoneNumber: "",
       },
       message: "",
       date: "",
       time: "",
-      phoneNumber: "",
+      areas: [] as string[],
     },
 
     validate: {
       client: {
-        fullname: (value) =>
-          !!value.length ? null : "Full name must be at least 3 characters",
         email: (value) => (/^\S+@\S+$/.test(value) ? null : "Invalid email"),
       },
     },
@@ -74,15 +82,35 @@ export default function BookingModal({
     validateInputOnChange: true,
   });
 
-  const handleSubmit = (values: typeof form.values) => {
+  // const getAttorney = async (areas: string[]) => {
+  //   const { data: attorneys } = await axios.get<Attorney[]>(
+  //     "/api/clerk/organization/fetch",
+  //     {
+  //       params: {
+  //         organization_id: CLERK_ORG_IDS.attorney,
+  //         limit: 9999,
+  //       },
+  //     }
+  //   );
+
+  //   const validAttorneys = attorneys.filter(
+  //     (atty) =>
+  //       atty.unsafe_metadata?.practiceAreas &&
+  //       atty.unsafe_metadata.practiceAreas.length > 0
+  //   );
+
+  // };
+
+  const handleSubmit = async (values: typeof form.values) => {
     setIsBooking(true);
+
     const q = query(
       collection(db, COLLECTIONS.BOOKINGS),
       where("date", "==", values.date),
       where("time", "==", values.time)
     );
 
-    getDocs(q).then(({ docs }) => {
+    await getDocs(q).then(({ docs }) => {
       if (docs.length > 0) {
         toast.error(
           "Selected date and time is already booked. Please select a different date and time.",
@@ -135,14 +163,42 @@ export default function BookingModal({
     });
   };
 
-  const handleAddBooking = (values: typeof form.values) => {
-    addDoc(collection(db, COLLECTIONS.BOOKINGS), {
+  const handleAddBooking = async (values: typeof form.values) => {
+    let clientDetails = {};
+
+    if (user) {
+      clientDetails = {
+        fullname: user.fullName || "",
+        id: user.id,
+        email: user.emailAddresses[0].emailAddress as string,
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        phoneNumber: (user.unsafeMetadata?.phoneNumber as string) || "",
+      };
+    } else {
+      clientDetails = {
+        fullname: values.client.firstName + " " + values.client.lastName,
+        id: "",
+        email: values.client.email,
+        firstName: values.client.firstName,
+        lastName: values.client.lastName,
+        phoneNumber: values.client.phoneNumber || "",
+      };
+    }
+
+    await addDoc(collection(db, COLLECTIONS.BOOKINGS), {
       ...values,
+      client: clientDetails,
+      // TODO: Integrate Attorney
+      attorney: {
+        fullname: "Developer ",
+        email: "developer@baisandan.com",
+        id: "1",
+      },
       via: "Website",
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       isPaid: true,
-      phoneNumber: values.phoneNumber || "",
     })
       .then(() => {
         onClose();
@@ -222,12 +278,10 @@ export default function BookingModal({
           fullname: user.fullName || "",
           id: user.id,
           email: user.emailAddresses[0].emailAddress as string,
+          firstName: user.firstName || "",
+          lastName: user.lastName || "",
+          phoneNumber: (user.unsafeMetadata?.phoneNumber as string) || "",
         },
-        attorney: {
-          fullname: "",
-          id: "",
-        },
-        phoneNumber: (user.unsafeMetadata?.phoneNumber as string) || "",
       });
     }
 
@@ -247,7 +301,7 @@ export default function BookingModal({
       title="Confirm Booking"
       withCloseButton={!isBooking}
       centered
-      size="lg"
+      size="xl"
     >
       <Alert
         title="Important"
@@ -277,6 +331,7 @@ export default function BookingModal({
           you.
         </Text>
       </Alert>
+
       <Text mb={8}>
         Booking for{" "}
         <strong>
@@ -284,57 +339,85 @@ export default function BookingModal({
           {selectedTime && <TimeValue value={selectedTime} format="12h" />}
         </strong>
       </Text>
+
       <form onSubmit={form.onSubmit(handleSubmit)}>
-        <TextInput
-          withAsterisk
-          data-autofocus
-          label="Full Name"
-          placeholder="Enter your full name"
-          {...form.getInputProps("client.fullname")}
-          readOnly={!!user?.fullName}
-          mb={16}
-        />
+        <Stack mb="md">
+          <Group grow>
+            <TextInput
+              withAsterisk
+              label="First Name"
+              placeholder="Enter First Name"
+              {...form.getInputProps("client.firstName")}
+              readOnly={!!user?.firstName}
+            />
 
-        <TextInput
-          withAsterisk
-          label="Email"
-          placeholder="Enter your email"
-          {...form.getInputProps("client.email")}
-          readOnly={!!user?.emailAddresses[0].emailAddress}
-          mb={16}
-        />
+            <TextInput
+              withAsterisk
+              label="Last Name"
+              placeholder="Enter Last Name"
+              {...form.getInputProps("client.lastName")}
+              readOnly={!!user?.lastName}
+            />
+          </Group>
 
-        <NumberInput
-          hideControls
-          label={
-            <Text>
-              Phone number{" "}
-              <Text span size="xs" c="gray.7">
-                (optional)
-              </Text>
-            </Text>
-          }
-          maxLength={10}
-          placeholder="912 345 6789"
-          leftSection={
-            <Text size="sm" c="black">
-              +63
-            </Text>
-          }
-          allowNegative={false}
-          {...form.getInputProps("phoneNumber")}
-          readOnly={!!user?.unsafeMetadata?.phoneNumber}
-          mb={16}
-        />
+          <Group grow>
+            <TextInput
+              withAsterisk
+              label="Email"
+              placeholder="Enter your email"
+              {...form.getInputProps("client.email")}
+              readOnly={!!user?.emailAddresses[0].emailAddress}
+            />
 
-        <Textarea
-          label="Message"
-          placeholder="Something you might want to share before the appointment"
-          {...form.getInputProps("message")}
-          styles={{ input: { paddingBlock: 6 } }}
-          rows={5}
-          mb={16}
-        />
+            <NumberInput
+              hideControls
+              label={
+                <Text>
+                  Phone number{" "}
+                  <Text span size="xs" c="gray.7">
+                    (optional)
+                  </Text>
+                </Text>
+              }
+              maxLength={10}
+              placeholder="912 345 6789"
+              leftSection={
+                <Text size="sm" c="black">
+                  +63
+                </Text>
+              }
+              allowNegative={false}
+              readOnly={!!user?.unsafeMetadata?.phoneNumber}
+              {...form.getInputProps("phoneNumber")}
+            />
+          </Group>
+
+          <TagsInput
+            label="Areas"
+            placeholder="Select Areas"
+            data={ATTY_PRACTICE_AREAS}
+            clearable
+            maxDropdownHeight={200}
+            comboboxProps={{
+              transitionProps: { transition: "pop-top-left", duration: 200 },
+            }}
+            styles={{
+              pill: {
+                backgroundColor: theme.colors.green[0],
+                color: theme.colors.green[9],
+              },
+            }}
+            {...form.getInputProps("areas")}
+          />
+
+          <Textarea
+            label="Message"
+            placeholder="Something you might want to share before the appointment"
+            {...form.getInputProps("message")}
+            styles={{ input: { paddingBlock: 6 } }}
+            rows={5}
+          />
+        </Stack>
 
         <Group justify="end">
           <Button variant="outline" onClick={onClose} disabled={isBooking}>

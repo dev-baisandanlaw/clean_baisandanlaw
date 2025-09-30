@@ -2,25 +2,30 @@ import { Booking } from "@/types/booking";
 import {
   ActionIcon,
   Badge,
-  LoadingOverlay,
+  Group,
   Table,
   TableScrollContainer,
 } from "@mantine/core";
 import EmptyTableComponent from "../EmptyTableComponent";
 import dayjs from "dayjs";
 import { getBookingViaColor } from "@/utils/getBookingStatusColor";
-import { IconCopyOff } from "@tabler/icons-react";
+import { IconEye, IconPencil, IconPennantOff } from "@tabler/icons-react";
 
 interface AppointmentsListProps {
   data: Booking[];
   isLoading: boolean;
   selectedDate: string | null;
+  handleSelectBooking: (
+    booking: Booking,
+    mode: "update" | "delete" | "view"
+  ) => void;
 }
 
 export default function AppointmentsList({
   data,
   isLoading,
   selectedDate,
+  handleSelectBooking,
 }: AppointmentsListProps) {
   const todayAppointments = data.filter(
     (booking) => booking.date === selectedDate
@@ -39,20 +44,12 @@ export default function AppointmentsList({
             <Table.Th>Time</Table.Th>
             <Table.Th>Client</Table.Th>
             <Table.Th>Attorney</Table.Th>
-            <Table.Th>Status</Table.Th>
             <Table.Th>Via</Table.Th>
+            <Table.Th>Actions</Table.Th>
           </Table.Tr>
         </Table.Thead>
 
         <Table.Tbody>
-          {isLoading && (
-            <Table.Tr>
-              <Table.Td colSpan={7}>
-                <LoadingOverlay visible />
-              </Table.Td>
-            </Table.Tr>
-          )}
-
           {!isLoading && todayAppointments.length === 0 && (
             <EmptyTableComponent colspan={7} />
           )}
@@ -71,8 +68,7 @@ export default function AppointmentsList({
                     {dayjs(`${booking.date} ${booking.time}`).format("h:mm A")}
                   </Table.Td>
                   <Table.Td>{booking.client.fullname}</Table.Td>
-                  <Table.Td>-</Table.Td>
-                  <Table.Td>-</Table.Td>
+                  <Table.Td>{booking.attorney?.fullname || "-"}</Table.Td>
                   <Table.Td>
                     <Badge
                       size="xs"
@@ -81,6 +77,39 @@ export default function AppointmentsList({
                     >
                       {booking.via}
                     </Badge>
+                  </Table.Td>
+                  <Table.Td>
+                    <Group gap={6}>
+                      <ActionIcon
+                        size="sm"
+                        variant="subtle"
+                        onClick={() => handleSelectBooking(booking, "view")}
+                      >
+                        <IconEye />
+                      </ActionIcon>
+
+                      {!dayjs().isAfter(
+                        dayjs(`${booking.date} ${booking.time}`)
+                      ) && (
+                        <ActionIcon
+                          size="sm"
+                          color="yellow"
+                          variant="subtle"
+                          onClick={() => handleSelectBooking(booking, "update")}
+                        >
+                          <IconPencil />
+                        </ActionIcon>
+                      )}
+
+                      <ActionIcon
+                        size="sm"
+                        variant="subtle"
+                        color="red"
+                        onClick={() => handleSelectBooking(booking, "delete")}
+                      >
+                        <IconPennantOff />
+                      </ActionIcon>
+                    </Group>
                   </Table.Td>
                 </Table.Tr>
               ))}

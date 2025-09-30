@@ -132,6 +132,7 @@ export const HOUR_INTERVAL = [
 ];
 
 export const ATTY_PRACTICE_AREAS = [
+  "General Law",
   "Civil Law",
   "Criminal Law",
   "Family Law",

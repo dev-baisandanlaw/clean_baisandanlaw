@@ -1,17 +1,23 @@
 export interface Booking {
   id: string;
   client: {
-    fullname: string;
     id: string;
+    fullname: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phoneNumber: string;
   };
   attorney: {
     fullname: string;
+    email: string;
     id: string;
   };
+  areas?: string[];
   message: string;
+  existingClient: boolean;
   date: string;
   time: string;
-  phoneNumber?: string;
   isPaid: boolean;
   via:
     | "Website"
