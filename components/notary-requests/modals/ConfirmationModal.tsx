@@ -1,9 +1,9 @@
 import { COLLECTIONS } from "@/constants/constants";
+import { sendEmail } from "@/emails/triggers/sendEmail";
 import { db } from "@/firebase/config";
 import { NotaryRequest, NotaryRequestStatus } from "@/types/notary-requests";
 import { useUser } from "@clerk/nextjs";
 import { Button, Group, Modal, Stack, Text } from "@mantine/core";
-import axios from "axios";
 import dayjs from "dayjs";
 import { doc, setDoc } from "firebase/firestore";
 import { useState } from "react";
@@ -27,18 +27,6 @@ export default function ConfirmationModal({
 
   const isForPickup =
     notaryRequest.status === NotaryRequestStatus.CLIENT_APPROVED;
-
-  const sendEmail = async () => {
-    await axios.post("/api/resend/send", {
-      to: notaryRequest.requestor.email,
-      subject: "Your Notary Request is Ready for Pickup!",
-      template: "for-pickup",
-      data: {
-        fullname: notaryRequest.requestor.fullname,
-        referenceNumber: notaryRequest.id,
-      },
-    });
-  };
 
   const handleReadyForPickup = async () => {
     setIsLoading(true);
@@ -68,11 +56,34 @@ export default function ConfirmationModal({
           { merge: true }
         );
 
-        await sendEmail();
+        await sendEmail({
+          to: notaryRequest.requestor.email,
+          subject: "Your Notary Request is Ready for Pickup!",
+          template: "notarization-for-pickup",
+          data: {
+            fullname: notaryRequest.requestor.fullname,
+            referenceNumber: notaryRequest.id,
+          },
+        });
 
         toast.success("Notary request marked as for pickup");
         onClose();
       } else {
+        await sendEmail({
+          to: notaryRequest.requestor.email,
+          subject: "Your Notary Request is Completed!",
+          template: "notarization-completed",
+          data: {
+            fullname: notaryRequest.requestor.fullname,
+          },
+          attachments: [
+            {
+              filename: notaryRequest.finishedDocument.name,
+              path: `https://fra.cloud.appwrite.io/v1/storage/buckets/${process.env.NEXT_PUBLIC_APPWRITE_BUCKET_ID}/files/${notaryRequest.finishedDocument.id}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}&mode=admin`,
+            },
+          ],
+        });
+
         await setDoc(
           doc(db, COLLECTIONS.NOTARY_REQUESTS, notaryRequest.id),
           {

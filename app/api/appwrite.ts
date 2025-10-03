@@ -15,6 +15,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { toast } from "react-toastify";
+import { sendEmail } from "@/emails/triggers/sendEmail";
 
 const client = new Client()
   .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
@@ -91,10 +92,11 @@ export const appwriteCreateNotaryRequest = async (
   user: UserResource,
   description: string
 ) => {
+  const uuid = ID.unique();
   const uploaderName = `${user.firstName} ${user.lastName}`;
 
   const handleUploadFile = async (file: File) => {
-    const res = await storage.createFile(BUCKET_ID, ID.unique(), file);
+    const res = await storage.createFile(BUCKET_ID, uuid, file);
 
     return res;
   };
@@ -147,8 +149,36 @@ export const appwriteCreateNotaryRequest = async (
   if (file) {
     const resFile = await handleUploadFile(file);
     await firebaseFn(resFile?.$id, resFile);
+    await sendEmail({
+      to: "",
+      subject: "New Notary Request",
+      template: "notarization-new-request",
+      data: {
+        fullname: uploaderName,
+        email: user.emailAddresses[0].emailAddress,
+        description,
+        link: `https://localhost:3001/notary-requests?id=${uuid}`,
+      },
+      attachments: [
+        {
+          filename: file.name,
+          path: `https://fra.cloud.appwrite.io/v1/storage/buckets/${BUCKET_ID}/files/${uuid}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}&mode=admin`,
+        },
+      ],
+    });
   } else {
-    await firebaseFn(nanoid(8), null);
+    await firebaseFn(uuid, null);
+    await sendEmail({
+      to: "",
+      subject: "New Notary Request",
+      template: "notarization-new-request",
+      data: {
+        fullname: uploaderName,
+        email: user.emailAddresses[0].emailAddress,
+        description,
+        link: `https://localhost:3001/notary-requests/${uuid}`,
+      },
+    });
   }
 };
 

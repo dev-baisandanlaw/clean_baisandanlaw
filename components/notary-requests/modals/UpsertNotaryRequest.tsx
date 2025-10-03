@@ -3,6 +3,7 @@ import {
   appwriteUpdateNotaryRequest,
 } from "@/app/api/appwrite";
 import { NOTARY_STEPS } from "@/constants/constants";
+import { sendEmail } from "@/emails/triggers/sendEmail";
 import { NotaryRequest } from "@/types/notary-requests";
 import { useUser } from "@clerk/nextjs";
 import {
@@ -75,6 +76,7 @@ export const UpsertNotaryRequestModal = ({
         toast.success("Notary request updated successfully");
       } else {
         await appwriteCreateNotaryRequest(file, user!, description);
+
         toast.success("Notary request submitted successfully");
       }
       onClose();

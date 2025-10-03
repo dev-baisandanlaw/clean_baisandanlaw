@@ -1,4 +1,6 @@
-import { ForPickup } from "@/components/email-templates/for-pickup/ForPickup";
+import NotarizationCompletedEmail from "@/emails/notarizations/completed";
+import { NotarizationForPickupEmail } from "@/emails/notarizations/for-pickup";
+import NotarizationNewRequestEmail from "@/emails/notarizations/new-request";
 import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -6,17 +8,25 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { to, subject, template, data } = body;
+    const { to, subject, template, data, attachments } = body;
 
     let emailComponent;
 
     switch (template) {
-      case "for-pickup":
-        emailComponent = ForPickup(data);
+      case "notarization-for-pickup":
+        emailComponent = NotarizationForPickupEmail(data);
+        break;
+
+      case "notarization-completed":
+        emailComponent = NotarizationCompletedEmail(data);
+        break;
+
+      case "notarization-new-request":
+        emailComponent = NotarizationNewRequestEmail(data);
         break;
 
       default:
-        emailComponent = ForPickup({
+        emailComponent = NotarizationForPickupEmail({
           fullname: "User",
           referenceNumber: "1234567890",
         });
@@ -28,6 +38,7 @@ export async function POST(req: Request) {
       to: "justinedavedr.zeniark@gmail.com",
       subject: subject,
       react: emailComponent,
+      ...(attachments && { attachments }),
     });
 
     if (error) {
