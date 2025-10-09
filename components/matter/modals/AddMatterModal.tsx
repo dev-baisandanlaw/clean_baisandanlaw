@@ -23,6 +23,9 @@ import { nanoid } from "nanoid";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
 import dayjs from "dayjs";
+import { useUser } from "@clerk/nextjs";
+import { MatterUpdateType } from "@/types/matter-updates";
+import { addMatterUpdate } from "../utils/addMatterUpdate";
 
 interface AddMatterModalProps {
   opened: boolean;
@@ -33,6 +36,7 @@ export default function AddMatterModal({
   opened,
   onClose,
 }: AddMatterModalProps) {
+  const { user } = useUser();
   const theme = useMantineTheme();
   const router = useRouter();
 
@@ -91,6 +95,11 @@ export default function AddMatterModal({
           email: clientDetails?.email_addresses[0].email_address,
         },
         caseNumber: `JA-${nanoid(8).toUpperCase()}`,
+        createdBy: {
+          id: user!.id,
+          fullname: user!.firstName + " " + user!.lastName,
+          email: user!.emailAddresses[0].emailAddress,
+        },
         createdAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
         updatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
         documents: [],
@@ -107,6 +116,13 @@ export default function AddMatterModal({
         createdAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
         updatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
       });
+      await addMatterUpdate(
+        user!,
+        res.id,
+        "system",
+        MatterUpdateType.SYSTEM,
+        "Matter Initiated"
+      );
 
       toast.success("Matter added successfully");
       onClose();

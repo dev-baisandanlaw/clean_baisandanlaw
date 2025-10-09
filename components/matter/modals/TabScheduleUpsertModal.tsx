@@ -29,6 +29,10 @@ import { useEffect, useState } from "react";
 import { nanoid } from "nanoid";
 import { toast } from "react-toastify";
 import { Booking } from "@/types/booking";
+import axios from "axios";
+import { addMatterUpdate } from "../utils/addMatterUpdate";
+import { useUser } from "@clerk/nextjs";
+import { MatterUpdateType } from "@/types/matter-updates";
 
 interface TabScheduleUpsertModalProps {
   opened: boolean;
@@ -45,6 +49,7 @@ export default function TabScheduleUpsertModal({
   setDataChanged,
   matterData,
 }: TabScheduleUpsertModalProps) {
+  const { user } = useUser();
   const [isLoading, setIsLoading] = useState(false);
   const [attyBookings, setAttyBookings] = useState<Booking[]>([]);
 
@@ -74,28 +79,56 @@ export default function TabScheduleUpsertModal({
   };
 
   const handleSubmit = async (values: typeof form.values) => {
-    if (!isEdit) return;
+    if (isEdit) return;
     setIsLoading(true);
+    const day = dayjs(values.date).format("YYYY-MM-DD");
 
-    await setDoc(
-      doc(db, COLLECTIONS.CASES, matterData.id),
-      {
-        schedules: arrayUnion({
-          ...values,
-          scheduleId: nanoid(10),
-          createdAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-          updatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-        }),
-      },
-      { merge: true }
-    )
-      .then(() => {
-        toast.success("Schedule added successfully");
-        setDataChanged((prev) => !prev);
-        onClose();
+    await axios
+      .post("/api/google/calendar/add", {
+        title: values.title,
+        description: values.description,
+        startISO: dayjs(`${day} ${values.time}`).toISOString(),
+        endISO: dayjs(`${day} ${values.time}`).toISOString(),
+        attendeesEmail: [
+          matterData.leadAttorney.email,
+          matterData.clientData.email,
+        ],
+        location: values.location,
       })
-      .catch(() => toast.error("Failed to add schedule"))
-      .finally(() => setIsLoading(false));
+      .then(async ({ data: googleCalendar }) => {
+        await setDoc(
+          doc(db, COLLECTIONS.CASES, matterData.id),
+          {
+            schedules: arrayUnion({
+              ...values,
+              date: dayjs(values.date).format("YYYY-MM-DD"),
+              scheduleId: nanoid(10),
+              createdAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
+              updatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
+              googleCalendar,
+            }),
+          },
+          { merge: true }
+        )
+          .then(async () => {
+            await addMatterUpdate(
+              user!,
+              matterData.id,
+              user?.unsafeMetadata.role as string,
+              MatterUpdateType.SCHEDULE,
+              `Schedule Added: ${values.title}`
+            );
+            setDataChanged((prev) => !prev);
+            toast.success("Schedule added successfully");
+            onClose();
+          })
+          .catch(() => toast.error("Failed to add schedule"))
+          .finally(() => setIsLoading(false));
+      })
+      .catch(() => {
+        toast.error("Failed to add schedule");
+        setIsLoading(false);
+      });
   };
 
   useEffect(() => {

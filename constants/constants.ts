@@ -22,18 +22,6 @@ export const NAV_LINKS = [
     roles: ["admin", "attorney", "client"],
   },
   {
-    label: "Attorneys",
-    href: "/attorneys",
-    icon: IconGavel,
-    roles: ["admin"],
-  },
-  {
-    label: "Clients",
-    href: "/clients",
-    icon: IconUsers,
-    roles: ["admin"],
-  },
-  {
     label: "Matters",
     href: "/matters",
     icon: IconBriefcase,
@@ -44,6 +32,18 @@ export const NAV_LINKS = [
     href: "/notary-requests",
     icon: IconRubberStamp,
     roles: ["admin", "attorney", "client"],
+  },
+  {
+    label: "Attorneys",
+    href: "/attorneys",
+    icon: IconGavel,
+    roles: ["admin"],
+  },
+  {
+    label: "Clients",
+    href: "/clients",
+    icon: IconUsers,
+    roles: ["admin"],
   },
 ];
 
@@ -56,7 +56,8 @@ export const COLLECTIONS = {
   TASKS: "tasks",
   CHANNELS: "channels",
   NOTARY_REQUESTS: "notary_requests",
-  MATTER_TIMELINES: "matter_timelines",
+
+  MATTER_UPDATES: "matter_updates",
 };
 
 export const PAYMONGO_CONFIG = {

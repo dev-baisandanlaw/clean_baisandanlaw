@@ -20,7 +20,7 @@ import {
   IMAGE_MIME_TYPE,
   PDF_MIME_TYPE,
 } from "@mantine/dropzone";
-import { appwriteHandleUploadFile } from "@/app/api/appwrite";
+import { appwriteUploadMultipleFiles } from "@/app/api/appwrite";
 import { toast } from "react-toastify";
 import {
   IconAlertCircle,
@@ -30,6 +30,11 @@ import {
 } from "@tabler/icons-react";
 import { useUser } from "@clerk/nextjs";
 import { User } from "@/types/user";
+import { arrayUnion, doc, updateDoc } from "firebase/firestore";
+import { db } from "@/firebase/config";
+import { COLLECTIONS } from "@/constants/constants";
+import { addMatterUpdate } from "../utils/addMatterUpdate";
+import { MatterUpdateType } from "@/types/matter-updates";
 
 interface TabDocumentsUploadFileModalProps {
   opened: boolean;
@@ -91,19 +96,26 @@ export default function TabDocumentsUploadFileModal({
   const handleUploadFiles = async () => {
     setIsUploading(true);
 
-    const { successes, failures } = await appwriteHandleUploadFile(
-      files,
-      matterId,
-      {
-        id: user?.id ?? "",
-        first_name: user?.firstName ?? "",
-        last_name: user?.lastName ?? "",
-      } as User
-    );
+    const { successes, failures } = await appwriteUploadMultipleFiles(files, {
+      id: user?.id ?? "",
+      first_name: user?.firstName ?? "",
+      last_name: user?.lastName ?? "",
+    } as User);
 
     setDataChanged((prev) => !prev);
 
-    if (successes.length > 0) {
+    if (successes.length) {
+      const CASE_REF = doc(db, COLLECTIONS.CASES, matterId);
+      await updateDoc(CASE_REF, {
+        documents: arrayUnion(...successes),
+      });
+      await addMatterUpdate(
+        user!,
+        matterId,
+        user?.unsafeMetadata.role as string,
+        MatterUpdateType.DOCUMENT,
+        `${successes.length} file(s) uploaded`
+      );
       toast.success(`${successes.length} file(s) uploaded successfully`);
     }
 

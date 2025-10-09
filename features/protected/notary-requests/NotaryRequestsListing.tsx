@@ -326,18 +326,18 @@ export default function NotaryRequestsListing() {
                               View
                             </Menu.Item>
 
-                            {user?.unsafeMetadata?.role === "client" && (
-                              <Menu.Item
-                                leftSection={<IconPencil size={16} />}
-                                hidden={disableActions("edit", notaryRequest)}
-                                onClick={() => {
-                                  setSelectedNotaryRequest(notaryRequest);
-                                  openUpsertNotaryRequestModal();
-                                }}
-                              >
-                                Edit
-                              </Menu.Item>
-                            )}
+                            {user?.unsafeMetadata?.role === "client" &&
+                              !disableActions("edit", notaryRequest) && (
+                                <Menu.Item
+                                  leftSection={<IconPencil size={16} />}
+                                  onClick={() => {
+                                    setSelectedNotaryRequest(notaryRequest);
+                                    openUpsertNotaryRequestModal();
+                                  }}
+                                >
+                                  Edit
+                                </Menu.Item>
+                              )}
 
                             {user?.unsafeMetadata?.role !== "client" && (
                               <>
@@ -414,22 +414,19 @@ export default function NotaryRequestsListing() {
                               </>
                             )}
 
-                            {user?.unsafeMetadata?.role === "client" && (
-                              <Menu.Item
-                                c="green"
-                                leftSection={<IconTextScan2 size={16} />}
-                                disabled={disableActions(
-                                  "review",
-                                  notaryRequest
-                                )}
-                                onClick={() => {
-                                  setSelectedNotaryRequest(notaryRequest);
-                                  openClientReviewModal();
-                                }}
-                              >
-                                Review
-                              </Menu.Item>
-                            )}
+                            {user?.unsafeMetadata?.role === "client" &&
+                              !disableActions("review", notaryRequest) && (
+                                <Menu.Item
+                                  c="green"
+                                  leftSection={<IconTextScan2 size={16} />}
+                                  onClick={() => {
+                                    setSelectedNotaryRequest(notaryRequest);
+                                    openClientReviewModal();
+                                  }}
+                                >
+                                  Review
+                                </Menu.Item>
+                              )}
                           </Menu.Dropdown>
                         </Menu>
                       </Table.Td>

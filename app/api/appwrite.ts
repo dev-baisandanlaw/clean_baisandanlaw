@@ -5,17 +5,9 @@ import { User } from "@/types/user";
 import { UserResource } from "@clerk/types";
 import { Client, ID, Models, Storage } from "appwrite";
 import dayjs from "dayjs";
-import { nanoid, customAlphabet } from "nanoid";
-import {
-  arrayUnion,
-  deleteDoc,
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-} from "firebase/firestore";
+import { nanoid } from "nanoid";
+import { doc, setDoc } from "firebase/firestore";
 import { toast } from "react-toastify";
-import { sendEmail } from "@/emails/triggers/sendEmail";
 
 const client = new Client()
   .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
@@ -39,12 +31,42 @@ type UploadOutcome = {
 };
 
 // operations
-export const appwriteHandleUploadFile = async (
+export const appwriteGetFileLink = async (id: string) => {
+  return `https://fra.cloud.appwrite.io/v1/storage/buckets/${BUCKET_ID}/files/${id}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}&mode=admin`;
+};
+
+export const appwriteUploadFile = async (file: File, id: string) => {
+  const res = await storage.createFile(BUCKET_ID, id, file);
+  return res;
+};
+
+export const appwriteDeleteFile = async (id: string) => {
+  await storage.deleteFile(BUCKET_ID, id);
+};
+
+export const appwriteDownloadFile = async (fileId: string) => {
+  try {
+    const downloadURL = storage.getFileDownload(BUCKET_ID, fileId);
+    const res = await fetch(downloadURL);
+
+    if (!res.ok) {
+      throw new Error();
+    }
+    const a = document.createElement("a");
+    a.href = downloadURL;
+    a.download = "";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } catch {
+    toast.error("File is either deleted or corrupted");
+  }
+};
+
+export const appwriteUploadMultipleFiles = async (
   files: File[],
-  caseId: string,
   user: User
 ): Promise<UploadOutcome> => {
-  const CASE_REF = doc(db, COLLECTIONS.CASES, caseId);
   const uploaderName = `${user.first_name} ${user.last_name}`;
 
   const CONCURRENCY = 3;
@@ -78,108 +100,7 @@ export const appwriteHandleUploadFile = async (
     Array.from({ length: Math.min(CONCURRENCY, files.length) }, worker)
   );
 
-  if (successes.length) {
-    await updateDoc(CASE_REF, {
-      documents: arrayUnion(...successes),
-    });
-  }
-
   return { successes, failures };
-};
-
-export const appwriteCreateNotaryRequest = async (
-  file: File | null,
-  user: UserResource,
-  description: string
-) => {
-  const uuid = ID.unique();
-  const uploaderName = `${user.firstName} ${user.lastName}`;
-
-  const handleUploadFile = async (file: File) => {
-    const res = await storage.createFile(BUCKET_ID, uuid, file);
-
-    return res;
-  };
-
-  const firebaseFn = async (id: string, res: Models.File | null) => {
-    const document =
-      res && res?.$id
-        ? {
-            id: res.$id,
-            name: res.name,
-            mimeType: res.mimeType,
-            originalSize: res.sizeOriginal,
-            sizeInMb: res.sizeOriginal / 1024 / 1024,
-            uploadedAt: res.$createdAt,
-            uploadedBy: { fullname: uploaderName, id: user.id },
-          }
-        : null;
-
-    await setDoc(doc(db, COLLECTIONS.NOTARY_REQUESTS, id), {
-      createdAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-      updatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-      description,
-      document,
-      status: NotaryRequestStatus.SUBMITTED,
-      timeline: [
-        {
-          id: customAlphabet("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", 8)(),
-          title: "SUBMITTED",
-          description,
-          dateAndTime: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-          status: NotaryRequestStatus.SUBMITTED,
-          user: {
-            id: user.id,
-            fullname: uploaderName,
-            email: user.emailAddresses[0].emailAddress,
-          },
-        },
-      ],
-      requestor: {
-        id: user.id,
-        fullname: uploaderName,
-        email: user.emailAddresses[0].emailAddress,
-      },
-      finishedDocument: null,
-      finishedAt: null,
-      isPaid: false,
-    });
-  };
-
-  if (file) {
-    const resFile = await handleUploadFile(file);
-    await firebaseFn(resFile?.$id, resFile);
-    await sendEmail({
-      to: "",
-      subject: "New Notary Request",
-      template: "notarization-new-request",
-      data: {
-        fullname: uploaderName,
-        email: user.emailAddresses[0].emailAddress,
-        description,
-        link: `https://localhost:3001/notary-requests?id=${uuid}`,
-      },
-      attachments: [
-        {
-          filename: file.name,
-          path: `https://fra.cloud.appwrite.io/v1/storage/buckets/${BUCKET_ID}/files/${uuid}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}&mode=admin`,
-        },
-      ],
-    });
-  } else {
-    await firebaseFn(uuid, null);
-    await sendEmail({
-      to: "",
-      subject: "New Notary Request",
-      template: "notarization-new-request",
-      data: {
-        fullname: uploaderName,
-        email: user.emailAddresses[0].emailAddress,
-        description,
-        link: `https://localhost:3001/notary-requests/${uuid}`,
-      },
-    });
-  }
 };
 
 export const appwriteUpdateNotaryRequest = async (
@@ -277,129 +198,12 @@ export const appwriteUpdateNotaryRequest = async (
   );
 };
 
-// export const appwriteHandleUpdateNotaryRequest = async (
-//   notaryRequest: NotaryRequest,
-//   user: UserResource
-// ) => {
-//   const uploaderName = `${user.firstName} ${user.lastName}`;
-// };
-
-export const appwriteHandleApproveNotaryRequest = async (
-  notaryRequest: NotaryRequest,
-  file: File,
-  user: UserResource
-) => {
-  const uploaderName = `${user.firstName} ${user.lastName}`;
-  const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
-
-  if (notaryRequest?.finishedDocument?.id) {
-    await storage.deleteFile(BUCKET_ID, notaryRequest.finishedDocument.id);
-  }
-
-  const res = await storage.createFile(BUCKET_ID, ID.unique(), file);
-  await setDoc(
-    doc(db, COLLECTIONS.NOTARY_REQUESTS, notaryRequest.id),
-    {
-      status: NotaryRequestStatus.FOR_CLIENT_REVIEW,
-      finishedDocument: {
-        id: res.$id,
-        name: res.name,
-        mimeType: res.mimeType,
-        originalSize: res.sizeOriginal,
-        sizeInMb: res.sizeOriginal / 1024 / 1024,
-        uploadedAt: res.$createdAt,
-        uploadedBy: { fullname: uploaderName, id: user.id },
-      },
-      timeline: [
-        ...(notaryRequest.timeline || []),
-        {
-          id: nanoid(8),
-          title: "FOR CLIENT REVIEW",
-          description: "Notary request notarized and is now for client review.",
-          dateAndTime: now,
-          status: NotaryRequestStatus.FOR_CLIENT_REVIEW,
-          user: {
-            id: user.id,
-            fullname: uploaderName,
-            email: user.emailAddresses[0].emailAddress,
-          },
-        },
-      ],
-      finishedAt: now,
-      updatedAt: now,
-    },
-    { merge: true }
-  );
-};
-
-export const appwriteDownloadFile = async (fileId: string) => {
-  try {
-    const downloadURL = storage.getFileDownload(BUCKET_ID, fileId);
-    const res = await fetch(downloadURL);
-
-    if (!res.ok) {
-      throw new Error();
-    }
-    const a = document.createElement("a");
-    a.href = downloadURL;
-    a.download = "";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  } catch {
-    toast.error("File is either deleted or corrupted");
-  }
-};
-
-export const appwriteDeleteFile = async (fileId: string, caseId: string) => {
-  // Prepare firebase doc ref
-  const caseRef = doc(db, COLLECTIONS.CASES, caseId);
-  const caseSnap = await getDoc(caseRef);
-
-  if (!caseSnap.exists()) throw new Error("Firebase cannot find the document");
-
-  const currentDocs = caseSnap.data()?.documents || [];
-  const updatedDocs = currentDocs.filter(
-    (doc: { id: string }) => doc.id !== fileId
-  );
-
-  const [fileRes, firebaseRes] = await Promise.allSettled([
-    storage.deleteFile(BUCKET_ID, fileId),
-    updateDoc(caseRef, { documents: updatedDocs }),
-  ]);
-
-  if (fileRes.status === "rejected")
-    throw new Error("Failed to delete file from Appwrite");
-
-  if (firebaseRes.status === "rejected")
-    throw new Error("Failed to update Firestore document");
-};
-
-export const appwriteDeleteNotaryRequest = async (fileId: string) => {
-  // Prepare firebase doc ref
-  const caseRef = doc(db, COLLECTIONS.NOTARY_REQUESTS, fileId);
-  const caseSnap = await getDoc(caseRef);
-
-  if (!caseSnap.exists()) throw new Error("Firebase cannot find the document");
-
-  const [fileRes, firebaseRes] = await Promise.allSettled([
-    storage.deleteFile(BUCKET_ID, fileId),
-    deleteDoc(caseRef),
-  ]);
-
-  if (fileRes.status === "rejected")
-    throw new Error("Failed to delete file from Appwrite");
-
-  if (firebaseRes.status === "rejected")
-    throw new Error("Failed to delete Firestore document");
-};
-
 // listings
 export const appwriteGetAllFiles = async () => {
   try {
     const result = await storage.listFiles(BUCKET_ID);
     return result.files;
-  } catch (err) {
-    console.error(err);
+  } catch {
+    throw new Error();
   }
 };

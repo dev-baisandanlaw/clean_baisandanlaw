@@ -5,6 +5,11 @@ export interface Matter {
   caseType: string[];
   clientData: LocalUser;
   createdAt: string;
+  createdBy: {
+    id: string;
+    fullname: string;
+    email: string;
+  };
   documents: Document[];
   // involvedAttorneys: LocalUser[];
   leadAttorney: LocalUser;
@@ -42,4 +47,8 @@ export type Schedule = {
   description: string;
   createdAt: string;
   updatedAt: string;
+  googleCalendar: {
+    eventId: string;
+    htmlLink: string;
+  };
 };

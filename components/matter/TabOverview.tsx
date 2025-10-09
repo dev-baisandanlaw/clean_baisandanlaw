@@ -1,22 +1,40 @@
+"use client";
+
 import { Matter } from "@/types/case";
 import { Attorney, Client } from "@/types/user";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import {
+  ActionIcon,
   Badge,
+  Button,
   Card,
   Flex,
   Group,
   Paper,
   SimpleGrid,
+  Spoiler,
   Table,
   Text,
+  Textarea,
   useMantineTheme,
 } from "@mantine/core";
+import MatterUpdates from "./TabOverview/MatterUpdates";
+import { MatterUpdateDocument, MatterUpdateType } from "@/types/matter-updates";
+import { IconPencil } from "@tabler/icons-react";
+import { useEffect, useState } from "react";
+import { doc, setDoc } from "firebase/firestore";
+import { db } from "@/firebase/config";
+import { COLLECTIONS } from "@/constants/constants";
+import { addMatterUpdate } from "./utils/addMatterUpdate";
+import { useUser } from "@clerk/nextjs";
+import { toast } from "react-toastify";
 
 interface MatterTabOverviewProps {
   matterData: Matter;
   clientData: Client;
   attorneyData: Attorney;
+  matterUpdates: MatterUpdateDocument;
+  setDataChanged: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 interface VerticalTableProps {
@@ -31,8 +49,11 @@ export default function TabOverview({
   matterData,
   clientData,
   attorneyData,
+  matterUpdates,
+  setDataChanged,
 }: MatterTabOverviewProps) {
   const theme = useMantineTheme();
+  const { user } = useUser();
 
   const caseDetailsCardData = [
     {
@@ -143,6 +164,44 @@ export default function TabOverview({
     },
   ];
 
+  const [isUpdatingDescription, setIsUpdatingDescription] = useState(false);
+  const [isEditDescription, setIsEditDescription] = useState(false);
+  const [description, setDescription] = useState("");
+
+  const handleUpdateDescription = async () => {
+    setIsUpdatingDescription(true);
+    try {
+      await setDoc(
+        doc(db, COLLECTIONS.CASES, matterData.id),
+        {
+          caseDescription: description,
+        },
+        {
+          merge: true,
+        }
+      );
+      await addMatterUpdate(
+        user!,
+        matterData.id,
+        user?.unsafeMetadata.role as string,
+        MatterUpdateType.DESCRIPTION,
+        "Description Updated"
+      );
+
+      setDataChanged((prev) => !prev);
+      toast.success("Description updated successfully");
+      setIsEditDescription(false);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsUpdatingDescription(false);
+    }
+  };
+
+  useEffect(() => {
+    setDescription(matterData?.caseDescription || "");
+  }, [matterData]);
+
   return (
     <Flex direction="column" gap="md">
       <SimpleGrid cols={3}>
@@ -152,14 +211,78 @@ export default function TabOverview({
       </SimpleGrid>
 
       <Paper withBorder radius="md" p="md">
-        <Text size="lg" fw={600} mb="sm" c="green">
-          Description
-        </Text>
+        <Group align="center" mb="sm" gap={4} justify="space-between">
+          <Text size="lg" fw={600} c="green">
+            Description
+          </Text>
 
-        <Text size="sm" mr="xl">
-          {matterData.caseDescription || "-"}
-        </Text>
+          {!isEditDescription && user?.unsafeMetadata.role !== "client" && (
+            <ActionIcon
+              variant="white"
+              size="sm"
+              color={theme.other.customPumpkin}
+              onClick={() => setIsEditDescription(true)}
+            >
+              <IconPencil size={20} />
+            </ActionIcon>
+          )}
+
+          {isEditDescription && (
+            <Group gap={4}>
+              <Button
+                size="xs"
+                variant="default"
+                onClick={() => {
+                  setIsEditDescription(false);
+                  setDescription(matterData.caseDescription || "");
+                }}
+                disabled={isUpdatingDescription}
+              >
+                Discard
+              </Button>
+              <Button
+                size="xs"
+                loading={isUpdatingDescription}
+                onClick={handleUpdateDescription}
+                disabled={
+                  !description.trim().length ||
+                  matterData.caseDescription === description
+                }
+              >
+                Save
+              </Button>
+            </Group>
+          )}
+        </Group>
+
+        {isEditDescription ? (
+          <Textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            minRows={6}
+            autosize
+            styles={{ input: { paddingBlock: 6 } }}
+          />
+        ) : (
+          <Spoiler
+            maxHeight={80}
+            showLabel="Show more"
+            hideLabel="Show less"
+            styles={{
+              control: { fontWeight: 700, color: "#448AFF", fontSize: 14 },
+            }}
+          >
+            <Text size="sm" mr="xl" style={{ whiteSpace: "pre-wrap" }}>
+              {matterData.caseDescription || "-"}
+            </Text>
+          </Spoiler>
+        )}
       </Paper>
+
+      <Group grow>
+        <MatterUpdates updates={matterUpdates.items} />
+        {/* <MatterUpdates updates={matterTimeline.items} /> */}
+      </Group>
     </Flex>
   );
 }

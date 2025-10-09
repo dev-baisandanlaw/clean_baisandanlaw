@@ -1,9 +1,9 @@
 import {
-  appwriteCreateNotaryRequest,
+  appwriteGetFileLink,
   appwriteUpdateNotaryRequest,
+  appwriteUploadFile,
 } from "@/app/api/appwrite";
 import { NOTARY_STEPS } from "@/constants/constants";
-import { sendEmail } from "@/emails/triggers/sendEmail";
 import { NotaryRequest } from "@/types/notary-requests";
 import { useUser } from "@clerk/nextjs";
 import {
@@ -22,8 +22,11 @@ import {
 } from "@mantine/core";
 import { Dropzone, PDF_MIME_TYPE } from "@mantine/dropzone";
 import { IconFileTypePdf, IconUpload, IconX } from "@tabler/icons-react";
+import { ID } from "appwrite";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
+import { createNotaryRequest } from "@/firebase/createNotaryRequest";
+import { sendEmail } from "@/emails/triggers/sendEmail";
 
 interface UpsertNotaryRequestModalProps {
   opened: boolean;
@@ -60,8 +63,6 @@ export const UpsertNotaryRequestModal = ({
     }
   }, [opened, notaryRequest]);
 
-  console.log(notaryRequest);
-
   const handleSubmit = async () => {
     setIsUploading(true);
 
@@ -73,9 +74,38 @@ export const UpsertNotaryRequestModal = ({
           description,
           notaryRequest
         );
+
         toast.success("Notary request updated successfully");
       } else {
-        await appwriteCreateNotaryRequest(file, user!, description);
+        const uuid = ID.unique();
+        const attachmentLink = file ? await appwriteGetFileLink(uuid) : null;
+
+        if (file) {
+          const res = await appwriteUploadFile(file, uuid);
+          await createNotaryRequest(res, description, user!, uuid);
+        } else {
+          await createNotaryRequest(null, description, user!, uuid);
+        }
+
+        await sendEmail({
+          to: "",
+          subject: "New Notary Request",
+          template: "notarization-new-request",
+          data: {
+            fullname: user?.firstName + " " + user?.lastName,
+            email: user!.emailAddresses[0].emailAddress,
+            description,
+            link: `https://localhost:3001/notary-requests?id=${uuid}`,
+          },
+          ...(file && {
+            attachments: [
+              {
+                filename: file?.name,
+                path: attachmentLink!,
+              },
+            ],
+          }),
+        });
 
         toast.success("Notary request submitted successfully");
       }

@@ -72,7 +72,7 @@ export default function TabSchedules({
               ))}
         </Stack>
 
-        {matterData.schedules?.length === 0 && (
+        {(!matterData.schedules || matterData.schedules?.length === 0) && (
           <Table>
             <Table.Tbody>
               <EmptyTableComponent colspan={12} message="No schedules found" />

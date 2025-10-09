@@ -10,6 +10,8 @@ import dayjs from "dayjs";
 import { doc, setDoc } from "firebase/firestore";
 import { useState } from "react";
 import { toast } from "react-toastify";
+import { addMatterUpdate } from "../utils/addMatterUpdate";
+import { MatterUpdateType } from "@/types/matter-updates";
 
 interface TabTaskInfoTaskModalProps {
   opened: boolean;
@@ -52,6 +54,13 @@ export default function TabTaskInfoTaskModal({
           ),
         },
         { merge: true }
+      );
+      await addMatterUpdate(
+        user!,
+        taskDetails!.caseId,
+        user?.unsafeMetadata.role as string,
+        MatterUpdateType.TASK,
+        `Task Completed: ${task!.taskName}`
       );
 
       toast.success("Task completed successfully");

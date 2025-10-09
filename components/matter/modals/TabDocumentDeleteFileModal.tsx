@@ -1,9 +1,15 @@
 import { appwriteDeleteFile } from "@/app/api/appwrite";
+import { COLLECTIONS } from "@/constants/constants";
+import { db } from "@/firebase/config";
 import { Matter } from "@/types/case";
+import { MatterUpdateType } from "@/types/matter-updates";
 import { Button, Modal, Text } from "@mantine/core";
 import { IconTrash } from "@tabler/icons-react";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
+import { addMatterUpdate } from "../utils/addMatterUpdate";
+import { useUser } from "@clerk/nextjs";
 
 interface TabDocumentDeleteFileModalProps {
   opened: boolean;
@@ -20,15 +26,34 @@ export default function TabDocumentDeleteFileModal({
   setDataChanged,
   matterId,
 }: TabDocumentDeleteFileModalProps) {
+  const { user } = useUser();
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDeleteFile = async () => {
     setIsDeleting(true);
 
     try {
-      await appwriteDeleteFile(document!.id, matterId);
-      toast.success("Document deleted successfully");
+      const ref = doc(db, COLLECTIONS.CASES, matterId);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) throw new Error("Firebase cannot find the document");
+
+      const currentDocs = snap.data()?.documents || [];
+      const updatedDocs = currentDocs.filter(
+        (doc: { id: string }) => doc.id !== document!.id
+      );
+
+      await appwriteDeleteFile(document!.id);
+      await updateDoc(ref, { documents: updatedDocs });
+      await addMatterUpdate(
+        user!,
+        matterId,
+        user?.unsafeMetadata.role as string,
+        MatterUpdateType.DOCUMENT,
+        `Document deleted`
+      );
+
       setDataChanged((prev) => !prev);
+      toast.success("Document deleted successfully");
       onClose();
     } catch (err) {
       toast.error(

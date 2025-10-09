@@ -177,52 +177,92 @@ export default function AddAppointmentModal({
     }
 
     if (booking) {
-      await updateDoc(doc(db, COLLECTIONS.BOOKINGS, booking.id), {
-        ...values,
-        existingClient: selectedClientType === "Existing Client",
-        date: dayjs(values.date).format("YYYY-MM-DD"),
-        attorney: {
-          fullname: attyDetails?.first_name + " " + attyDetails?.last_name,
-          id: attyDetails?.id,
-          email: attyDetails?.email_addresses[0].email_address,
-        },
-        client: clientData,
-      })
-        .then(() => {
-          toast.success("Appointment updated successfully");
-          onClose();
+      const startISO = dayjs(
+        `${dayjs(values.date).format("YYYY-MM-DD")} ${values.time}`
+      );
+      const endISO = startISO.add(1, "hour");
+
+      await axios
+        .post("/api/google/calendar/update", {
+          title: "Appointment from BaisAndan Law Office",
+          startISO: startISO.toISOString(),
+          endISO: endISO.toISOString(),
+          attendeesEmail: [
+            attyDetails?.email_addresses[0].email_address,
+            clientData.email,
+          ],
+          eventId: booking.googleCalendar.eventId,
+        })
+        .then(async ({ data }) => {
+          await updateDoc(doc(db, COLLECTIONS.BOOKINGS, booking.id), {
+            ...values,
+            existingClient: selectedClientType === "Existing Client",
+            date: dayjs(values.date).format("YYYY-MM-DD"),
+            attorney: {
+              fullname: attyDetails?.first_name + " " + attyDetails?.last_name,
+              id: attyDetails?.id,
+              email: attyDetails?.email_addresses[0].email_address,
+            },
+            client: clientData,
+            googleCalendar: {
+              eventId: data.eventId,
+              htmlLink: data.htmlLink,
+            },
+          })
+            .then(() => {
+              toast.success("Appointment updated successfully");
+              onClose();
+            })
+            .catch(() => toast.error("Failed to update appointment"))
+            .finally(() => setIsLoading(false));
         })
         .catch(() => {
           toast.error("Failed to update appointment");
-        })
-        .finally(() => {
           setIsLoading(false);
         });
 
       return;
     }
 
-    await addDoc(collection(db, COLLECTIONS.BOOKINGS), {
-      ...values,
-      existingClient: selectedClientType === "Existing Client",
-      date: dayjs(values.date).format("YYYY-MM-DD"),
-      attorney: {
-        fullname: attyDetails?.first_name + " " + attyDetails?.last_name,
-        id: attyDetails?.id,
-        email: attyDetails?.email_addresses[0].email_address,
-      },
-      client: clientData,
-      createdAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-      updatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-    })
-      .then(() => {
-        toast.success("Appointment added successfully");
-        onClose();
+    await axios
+      .post("/api/google/calendar/add", {
+        title: "Appointment from BaisAndan Law Office",
+        startISO: dayjs(`${values.date} ${values.time}`).toISOString(),
+        endISO: dayjs(`${values.date} ${values.time}`)
+          .add(1, "hour")
+          .toISOString(),
+        attendeesEmail: [
+          attyDetails?.email_addresses[0].email_address,
+          clientData.email,
+        ],
+      })
+      .then(async ({ data: googleCalendarData }) => {
+        await addDoc(collection(db, COLLECTIONS.BOOKINGS), {
+          ...values,
+          existingClient: selectedClientType === "Existing Client",
+          date: dayjs(values.date).format("YYYY-MM-DD"),
+          attorney: {
+            fullname: attyDetails?.first_name + " " + attyDetails?.last_name,
+            id: attyDetails?.id,
+            email: attyDetails?.email_addresses[0].email_address,
+          },
+          client: clientData,
+          createdAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
+          updatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
+          googleCalendar: {
+            eventId: googleCalendarData.eventId,
+            htmlLink: googleCalendarData.htmlLink,
+          },
+        })
+          .then(() => {
+            toast.success("Appointment added successfully");
+            onClose();
+          })
+          .catch(() => toast.error("Failed to add appointment"))
+          .finally(() => setIsLoading(false));
       })
       .catch(() => {
         toast.error("Failed to add appointment");
-      })
-      .finally(() => {
         setIsLoading(false);
       });
   };

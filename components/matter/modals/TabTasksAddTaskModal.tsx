@@ -20,6 +20,9 @@ import { nanoid } from "nanoid";
 import { toast } from "react-toastify";
 import dayjs from "dayjs";
 import { TaskDivision } from "@/types/task";
+import { addMatterUpdate } from "../utils/addMatterUpdate";
+import { useUser } from "@clerk/nextjs";
+import { MatterUpdateType } from "@/types/matter-updates";
 
 interface TabTasksAddTaskModalProps {
   opened: boolean;
@@ -33,6 +36,7 @@ export default function TabTasksAddTaskModal({
   matterData,
   setDataChanged,
 }: TabTasksAddTaskModalProps) {
+  const { user } = useUser();
   const selectData = [
     {
       label: `Attorney (${matterData?.leadAttorney.fullname})`,
@@ -86,6 +90,13 @@ export default function TabTasksAddTaskModal({
           }),
         },
         { merge: true }
+      );
+      await addMatterUpdate(
+        user!,
+        matterData!.id,
+        user?.unsafeMetadata.role as string,
+        MatterUpdateType.TASK,
+        `Task Created: ${form.values.taskName}`
       );
 
       toast.success("Task created successfully!");

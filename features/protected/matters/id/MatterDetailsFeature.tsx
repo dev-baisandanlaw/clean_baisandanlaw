@@ -7,6 +7,7 @@ import TabTasks from "@/components/matter/TabTasks";
 import { COLLECTIONS } from "@/constants/constants";
 import { db } from "@/firebase/config";
 import { Matter } from "@/types/case";
+import { MatterUpdateDocument } from "@/types/matter-updates";
 import { Attorney, Client } from "@/types/user";
 import { LoadingOverlay, ScrollArea, Tabs } from "@mantine/core";
 import {
@@ -17,7 +18,14 @@ import {
   IconMessage,
 } from "@tabler/icons-react";
 import axios from "axios";
-import { doc, getDoc } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  getDoc,
+  onSnapshot,
+  query,
+  where,
+} from "firebase/firestore";
 import { createContext, useCallback, useEffect, useState } from "react";
 
 interface MatterDetailsFeatureProps {
@@ -40,6 +48,8 @@ export default function MatterDetailsFeature({
   const [matterData, setMatterData] = useState<Matter | null>(null);
   const [clientData, setClientData] = useState<Client | null>(null);
   const [attorneyData, setAttorneyData] = useState<Attorney | null>(null);
+  const [matterUpdates, setMatterUpdates] =
+    useState<MatterUpdateDocument | null>(null);
 
   const [isMatterLoading, setIsMatterLoading] = useState(false);
   const [isClientLoading, setIsClientLoading] = useState(false);
@@ -124,6 +134,24 @@ export default function MatterDetailsFeature({
     fetchMatterDetails();
   }, [fetchMatterDetails, dataChanged]);
 
+  useEffect(() => {
+    if (!matterId) return;
+
+    const ref = collection(db, COLLECTIONS.MATTER_UPDATES);
+    const q = query(ref, where("id", "==", matterId));
+
+    const unsub = onSnapshot(q, (snapshot) => {
+      const results: MatterUpdateDocument[] = snapshot.docs.map((doc) => ({
+        ...doc.data(),
+        id: doc.id,
+      })) as MatterUpdateDocument[];
+
+      setMatterUpdates(results[0]);
+    });
+
+    return () => unsub();
+  }, [matterId]);
+
   return (
     <Tabs
       defaultValue="overview"
@@ -152,12 +180,15 @@ export default function MatterDetailsFeature({
           !isAttorneyLoading &&
           matterData &&
           clientData &&
-          attorneyData && (
+          attorneyData &&
+          matterUpdates && (
             <Tabs.Panel value="overview">
               <TabOverview
                 matterData={matterData}
                 clientData={clientData}
                 attorneyData={attorneyData}
+                matterUpdates={matterUpdates}
+                setDataChanged={setDataChanged}
               />
             </Tabs.Panel>
           )}

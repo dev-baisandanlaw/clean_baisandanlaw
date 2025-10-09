@@ -1,11 +1,14 @@
 import { COLLECTIONS } from "@/constants/constants";
 import { db } from "@/firebase/config";
 import { Task, TaskDetails } from "@/types/task";
+import { useUser } from "@clerk/nextjs";
 import { Button, Modal, Text } from "@mantine/core";
 import { IconTrash } from "@tabler/icons-react";
 import { doc, setDoc } from "firebase/firestore";
 import { useState } from "react";
 import { toast } from "react-toastify";
+import { addMatterUpdate } from "../utils/addMatterUpdate";
+import { MatterUpdateType } from "@/types/matter-updates";
 
 interface TabTasksDeleteTaskModalProps {
   opened: boolean;
@@ -22,6 +25,7 @@ export default function TabTasksDeleteTaskModal({
   taskDetails,
   setDataChanged,
 }: TabTasksDeleteTaskModalProps) {
+  const { user } = useUser();
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDeleteTask = async () => {
@@ -34,6 +38,14 @@ export default function TabTasksDeleteTaskModal({
         },
         { merge: true }
       );
+      await addMatterUpdate(
+        user!,
+        taskDetails!.caseId,
+        user?.unsafeMetadata.role as string,
+        MatterUpdateType.TASK,
+        `Task Deleted: ${task!.taskName}`
+      );
+
       toast.success("Task deleted successfully");
       setDataChanged((prev) => !prev);
       onClose();

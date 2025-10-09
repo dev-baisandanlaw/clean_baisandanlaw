@@ -20,7 +20,7 @@ import { UserButton, useUser } from "@clerk/nextjs";
 import { NAV_LINKS } from "@/constants/constants";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 
 export default function AppShellComponent({
   children,
@@ -136,39 +136,45 @@ export default function AppShellComponent({
         <AppShell.Section component={ScrollArea}>
           {NAV_LINKS.filter((n) =>
             n.roles.includes(user?.unsafeMetadata?.role as string)
-          ).map((link) => (
-            <NavLink
-              active
-              component={Link}
-              key={link.label}
-              label={link.label}
-              href={link.href}
-              variant={
-                pathname === link.href || pathname.startsWith(link.href)
-                  ? "filled"
-                  : "light"
-              }
-              className={styles.appShellRoot}
-              styles={{
-                label: {
-                  color: "white",
-                  fontWeight:
-                    pathname === link.href || pathname.startsWith(link.href)
-                      ? 700
-                      : 600,
-                  letterSpacing: 1.5,
-                },
-                root: {
-                  borderRadius: 6,
-                  backgroundColor:
-                    pathname === link.href || pathname.startsWith(link.href)
-                      ? theme.other.customLighterGreen
-                      : "transparent",
-                },
-              }}
-              leftSection={<link.icon color="white" />}
-              mb="sm"
-            />
+          ).map((link, i) => (
+            <React.Fragment key={link.label}>
+              <NavLink
+                active
+                component={Link}
+                label={link.label}
+                href={link.href}
+                variant={
+                  pathname === link.href || pathname.startsWith(link.href)
+                    ? "filled"
+                    : "light"
+                }
+                className={styles.appShellRoot}
+                styles={{
+                  label: {
+                    color: "white",
+                    fontWeight:
+                      pathname === link.href || pathname.startsWith(link.href)
+                        ? 700
+                        : 600,
+                    letterSpacing: 1.5,
+                  },
+                  root: {
+                    borderRadius: 6,
+                    backgroundColor:
+                      pathname === link.href || pathname.startsWith(link.href)
+                        ? theme.other.customLighterGreen
+                        : "transparent",
+                  },
+                }}
+                leftSection={<link.icon color="white" />}
+                mb="sm"
+              />
+
+              {user?.unsafeMetadata?.role === "admin" &&
+                i === NAV_LINKS.length - 3 && (
+                  <Divider mt="md" label="Users" labelPosition="left" />
+                )}
+            </React.Fragment>
           ))}
         </AppShell.Section>
 

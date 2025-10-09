@@ -29,4 +29,8 @@ export interface Booking {
     | "Others";
   createdAt: string;
   updatedAt: string;
+  googleCalendar: {
+    eventId: string;
+    htmlLink: string;
+  };
 }

@@ -1,4 +1,5 @@
-import { appwriteHandleApproveNotaryRequest } from "@/app/api/appwrite";
+import { appwriteDeleteFile, appwriteUploadFile } from "@/app/api/appwrite";
+import { approveNotaryRequest } from "@/firebase/approveNotaryRequest";
 import { NotaryRequest } from "@/types/notary-requests";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { getNotaryStatus } from "@/utils/getNotaryStatus";
@@ -47,7 +48,12 @@ export default function ApproveNotaryRequestModal({
   const handleApproveNotaryRequest = async () => {
     setIsApproving(true);
     try {
-      await appwriteHandleApproveNotaryRequest(notaryRequest, file!, user!);
+      if (notaryRequest.finishedDocument?.id)
+        await appwriteDeleteFile(notaryRequest.finishedDocument.id);
+
+      const res = await appwriteUploadFile(file!, notaryRequest.id);
+      await approveNotaryRequest(notaryRequest, res, user!);
+
       toast.success("Notary request approved successfully");
       onClose();
     } catch {
