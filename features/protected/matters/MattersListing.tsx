@@ -98,7 +98,7 @@ export default function MattersListing() {
             <Table.Th>Lead Attorney</Table.Th>
             <Table.Th>Client</Table.Th>
             <Table.Th>Status</Table.Th>
-            <Table.Th>Case Type</Table.Th>
+            <Table.Th>Matter Type</Table.Th>
             {/* <Table.Th>Involved Attorneys</Table.Th> */}
             <Table.Th>Created At</Table.Th>
             <Table.Th></Table.Th>

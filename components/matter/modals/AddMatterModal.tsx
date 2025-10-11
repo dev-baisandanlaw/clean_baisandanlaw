@@ -212,8 +212,8 @@ export default function AddMatterModal({
 
           <TagsInput
             withAsterisk
-            label="Case Type"
-            placeholder="Select Case Type"
+            label="Matter Type"
+            placeholder="Select Matter Type"
             data={ATTY_PRACTICE_AREAS}
             clearable
             maxDropdownHeight={200}
@@ -231,8 +231,8 @@ export default function AddMatterModal({
 
           <Textarea
             withAsterisk
-            label="Case Description"
-            placeholder="Enter case description"
+            label="Description"
+            placeholder="Enter description"
             minRows={6}
             autosize
             styles={{ input: { paddingBlock: 6 } }}

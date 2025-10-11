@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createCalendar } from "../../createCalendar";
+import { createCalendar } from "../createCalendar";
 
 export async function POST(req: Request) {
   const {

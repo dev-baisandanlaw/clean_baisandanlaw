@@ -6,6 +6,7 @@ import {
   IconGavel,
   IconBriefcase,
   IconRubberStamp,
+  IconCloud,
 } from "@tabler/icons-react";
 
 export const NAV_LINKS = [
@@ -26,6 +27,12 @@ export const NAV_LINKS = [
     href: "/matters",
     icon: IconBriefcase,
     roles: ["admin", "attorney", "client"],
+  },
+  {
+    label: "Retainers",
+    href: "/retainers",
+    icon: IconCloud,
+    roles: ["admin", "attorney"],
   },
   {
     label: "Notary Requests",
@@ -56,8 +63,8 @@ export const COLLECTIONS = {
   TASKS: "tasks",
   CHANNELS: "channels",
   NOTARY_REQUESTS: "notary_requests",
-
   MATTER_UPDATES: "matter_updates",
+  RETAINERS: "retainers",
 };
 
 export const PAYMONGO_CONFIG = {

@@ -1,187 +1,63 @@
 "use client";
-
-import EmptyTableComponent from "@/components/EmptyTableComponent";
-// import DeleteNotaryRequestModal from "@/components/notary-requests/modals/DeleteNotaryRequestModal";
-import { COLLECTIONS, NOTARY_STEPS_ORDER } from "@/constants/constants";
-import { db } from "@/firebase/config";
-import { NotaryRequest } from "@/types/notary-requests";
-import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
-import { getNotaryStatus } from "@/utils/getNotaryStatus";
-import { useUser } from "@clerk/nextjs";
 import {
-  Group,
-  Flex,
-  TextInput,
-  TableScrollContainer,
-  Table,
-  Button,
-  Stack,
-  Text,
   ActionIcon,
-  Menu,
+  Badge,
+  Button,
+  Flex,
+  Group,
+  LoadingOverlay,
+  Stack,
+  Table,
+  TableScrollContainer,
+  Text,
+  TextInput,
+  useMantineTheme,
 } from "@mantine/core";
-import { useDisclosure } from "@mantine/hooks";
-import {
-  IconCirclePlus,
-  IconDots,
-  IconDownload,
-  IconEye,
-  IconFileCheck,
-  IconPackage,
-  IconPencil,
-  IconRubberStamp,
-  IconSearch,
-  IconTextScan2,
-  IconTools,
-  IconX,
-} from "@tabler/icons-react";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { IconCirclePlus, IconEye, IconSearch } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
-import { appwriteDownloadFile } from "@/app/api/appwrite";
-import RejectNotaryRequestModal from "@/components/notary-requests/modals/RejectNotaryRequestModal";
-import { UpsertNotaryRequestModal } from "@/components/notary-requests/modals/UpsertNotaryRequest";
-import { ViewNotaryRequestDrawer } from "@/components/notary-requests/drawer/ViewNotaryRequestDrawer";
-import ReviewNotaryRequestModal from "@/components/notary-requests/modals/ReviewNotaryRequestModal";
-import ApproveNotaryRequestModal from "@/components/notary-requests/modals/ApproveNotaryRequestModal";
-import ClientReviewModal from "@/components/notary-requests/modals/ClientReviewModal";
-import ConfirmationModal from "@/components/notary-requests/modals/ConfirmationModal";
+import EmptyTableComponent from "@/components/EmptyTableComponent";
+import { useDisclosure } from "@mantine/hooks";
+import AddRetainerModal from "@/components/retainers/modals/AddRetainerModal";
+import { toast } from "react-toastify";
+import { collection, getDocs, query } from "firebase/firestore";
+import { db } from "@/firebase/config";
+import { COLLECTIONS } from "@/constants/constants";
+import { Retainer } from "@/types/retainer";
 
-export default function NotaryRequestsListing() {
-  const { user } = useUser();
-  const [notaryRequests, setNotaryRequests] = useState<NotaryRequest[]>([]);
+export default function RetainerListing() {
+  const theme = useMantineTheme();
 
-  const [
-    isUpsertNotaryRequestModalOpen,
-    {
-      open: openUpsertNotaryRequestModal,
-      close: closeUpsertNotaryRequestModal,
-    },
-  ] = useDisclosure(false);
+  const [dataChanged, setDataChanged] = useState(false);
+
+  const [isFetching, setIsFetching] = useState(false);
+  const [retainers, setRetainers] = useState<Retainer[]>([]);
 
   const [
-    isReviewNotaryRequestModalOpen,
-    {
-      open: openReviewNotaryRequestModal,
-      close: closeReviewNotaryRequestModal,
-    },
+    retainerModal,
+    { open: openRetainerModal, close: closeRetainerModal },
   ] = useDisclosure(false);
 
-  const [
-    isViewNotaryRequestDrawerOpen,
-    { open: openViewNotaryRequestDrawer, close: closeViewNotaryRequestDrawer },
-  ] = useDisclosure(false);
+  const fetchRetainers = async () => {
+    setIsFetching(true);
+    try {
+      const q = query(collection(db, COLLECTIONS.RETAINERS));
+      const querySnapshot = await getDocs(q);
+      const r = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Retainer[];
 
-  const [
-    isRejectNotaryRequestModalOpen,
-    {
-      open: openRejectNotaryRequestModal,
-      close: closeRejectNotaryRequestModal,
-    },
-  ] = useDisclosure(false);
-
-  const [
-    isApproveNotaryRequestModalOpen,
-    {
-      open: openApproveNotaryRequestModal,
-      close: closeApproveNotaryRequestModal,
-    },
-  ] = useDisclosure(false);
-
-  const [
-    isClientReviewModalOpen,
-    { open: openClientReviewModal, close: closeClientReviewModal },
-  ] = useDisclosure(false);
-
-  const [
-    isConfirmationModalOpen,
-    { open: openConfirmationModal, close: closeConfirmationModal },
-  ] = useDisclosure(false);
-
-  const [selectedNotaryRequest, setSelectedNotaryRequest] =
-    useState<NotaryRequest | null>(null);
-
-  useEffect(() => {
-    if (!user) return;
-
-    const ref = collection(db, COLLECTIONS.NOTARY_REQUESTS);
-    let q;
-
-    if (user.unsafeMetadata?.role === "client") {
-      q = query(ref, where("requestor.id", "==", user.id));
-    } else {
-      q = query(ref);
-    }
-
-    const unsub = onSnapshot(
-      q,
-      (snapshot) => {
-        const results: NotaryRequest[] = snapshot.docs.map((doc) => ({
-          ...doc.data(),
-          id: doc.id,
-        })) as NotaryRequest[];
-
-        setNotaryRequests(results);
-      },
-      (error) => {
-        console.error("Firestore onSnapshot error:", error);
-      }
-    );
-
-    return () => unsub();
-  }, [user]);
-
-  const disableActions = (
-    t:
-      | "edit"
-      | "process"
-      | "notarize"
-      | "reject"
-      | "review"
-      | "for_pickup"
-      | "completed",
-    notaryRequest: NotaryRequest
-  ) => {
-    const step = NOTARY_STEPS_ORDER[notaryRequest.status];
-
-    switch (t) {
-      case "edit":
-        // Disable once processing or beyond, except allow if already hard-rejected
-        return step >= 2 && step !== -4;
-
-      case "process":
-        // Disable on/after processing, or if client rejected (and also if hard-rejected)
-        return step >= 2 || step === -4;
-
-      case "notarize":
-        // Enable only while exactly in Processing
-        return step !== 2;
-
-      case "reject":
-        // Disable if already client approved, client rejected, or hard-rejected
-        return (
-          step === 33 ||
-          step === -33 ||
-          step === -4 ||
-          step === 3 ||
-          step === 4 ||
-          step === 5 ||
-          step === 6
-        );
-
-      case "review":
-        // Disable unless exactly For Client Review
-        return step !== 3;
-
-      case "for_pickup":
-        return step !== 33;
-
-      case "completed":
-        return step !== 4;
-
-      default:
-        return false;
+      setRetainers(r);
+    } catch {
+      toast.error("Failed to fetch retainers");
+    } finally {
+      setIsFetching(false);
     }
   };
+
+  useEffect(() => {
+    fetchRetainers();
+  }, [dataChanged]);
 
   return (
     <>
@@ -202,18 +78,13 @@ export default function NotaryRequestsListing() {
             // onChange={(e) => setSearch(e.target.value)}
           />
 
-          {user?.unsafeMetadata?.role === "client" && (
-            <Button
-              variant="outline"
-              leftSection={<IconCirclePlus />}
-              onClick={() => {
-                setSelectedNotaryRequest(null);
-                openUpsertNotaryRequestModal();
-              }}
-            >
-              New Request
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            leftSection={<IconCirclePlus />}
+            onClick={openRetainerModal}
+          >
+            New Retainer Client
+          </Button>
         </Group>
 
         <TableScrollContainer
@@ -224,25 +95,74 @@ export default function NotaryRequestsListing() {
           <Table stickyHeader stickyHeaderOffset={0} verticalSpacing="sm">
             <Table.Thead>
               <Table.Tr>
-                {user?.unsafeMetadata?.role !== "client" && (
-                  <Table.Th>Requestor</Table.Th>
-                )}
-                <Table.Th>Uploaded At</Table.Th>
-                <Table.Th>Status</Table.Th>
+                <Table.Th>Client</Table.Th>
+                <Table.Th>Contact Person</Table.Th>
+                <Table.Th>Matter Type</Table.Th>
+                <Table.Th>Retainer Since</Table.Th>
+                <Table.Th>Updated At</Table.Th>
                 <Table.Th></Table.Th>
               </Table.Tr>
             </Table.Thead>
 
             <Table.Tbody>
-              {!notaryRequests?.length && (
-                <EmptyTableComponent
-                  colspan={5}
-                  message="No notary requests found"
-                />
+              {isFetching && (
+                <Table.Tr>
+                  <Table.Td h="100%">
+                    <LoadingOverlay visible />
+                  </Table.Td>
+                </Table.Tr>
               )}
 
-              {notaryRequests &&
-                notaryRequests
+              {!isFetching && !retainers?.length && (
+                <EmptyTableComponent colspan={5} message="No retainers found" />
+              )}
+
+              {!isFetching &&
+                retainers &&
+                retainers.length > 0 &&
+                retainers.map((retainer) => (
+                  <Table.Tr key={retainer.id}>
+                    <Table.Td>{retainer.clientName}</Table.Td>
+                    <Table.Td>
+                      <Stack gap={2}>
+                        <Text size="sm">{retainer.contactPerson.fullname}</Text>
+                        <Text size="xs" c="dimmed">
+                          {retainer.contactPerson.email}
+                        </Text>
+                      </Stack>
+                    </Table.Td>
+                    <Table.Td>
+                      <Group gap={2}>
+                        {retainer.practiceAreas.map((area, i) => (
+                          <Badge
+                            size="xs"
+                            key={i}
+                            variant="outline"
+                            radius="xs"
+                            color={theme.other.customPumpkin}
+                          >
+                            {area}
+                          </Badge>
+                        ))}
+                      </Group>
+                    </Table.Td>
+                    <Table.Td>{retainer.retainerSince}</Table.Td>
+                    <Table.Td>{retainer.updatedAt}</Table.Td>
+                    <Table.Td>
+                      <ActionIcon
+                        size="sm"
+                        variant="transparent"
+                        component="a"
+                        href={`/retainers/${retainer.id}`}
+                      >
+                        <IconEye size={24} />
+                      </ActionIcon>
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              {/* 
+              {retainers &&
+                retainers
                   .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
                   .map((notaryRequest) => (
                     <Table.Tr key={notaryRequest.id}>
@@ -431,58 +351,16 @@ export default function NotaryRequestsListing() {
                         </Menu>
                       </Table.Td>
                     </Table.Tr>
-                  ))}
+                  ))} */}
             </Table.Tbody>
           </Table>
         </TableScrollContainer>
       </Flex>
 
-      <UpsertNotaryRequestModal
-        opened={isUpsertNotaryRequestModalOpen}
-        onClose={closeUpsertNotaryRequestModal}
-        notaryRequest={selectedNotaryRequest}
-      />
-
-      {/* <DeleteNotaryRequestModal
-        opened={isDeleteNotaryRequestModalOpen}
-        onClose={closeDeleteNotaryRequestModal}
-        notaryRequest={selectedNotaryRequest}
-      /> */}
-
-      <ClientReviewModal
-        opened={isClientReviewModalOpen}
-        onClose={closeClientReviewModal}
-        notaryRequest={selectedNotaryRequest}
-      />
-
-      <ApproveNotaryRequestModal
-        opened={isApproveNotaryRequestModalOpen}
-        onClose={closeApproveNotaryRequestModal}
-        notaryRequest={selectedNotaryRequest}
-      />
-
-      <RejectNotaryRequestModal
-        opened={isRejectNotaryRequestModalOpen}
-        onClose={closeRejectNotaryRequestModal}
-        notaryRequest={selectedNotaryRequest}
-      />
-
-      <ViewNotaryRequestDrawer
-        opened={isViewNotaryRequestDrawerOpen}
-        onClose={closeViewNotaryRequestDrawer}
-        notaryRequest={selectedNotaryRequest}
-      />
-
-      <ReviewNotaryRequestModal
-        opened={isReviewNotaryRequestModalOpen}
-        onClose={closeReviewNotaryRequestModal}
-        notaryRequest={selectedNotaryRequest}
-      />
-
-      <ConfirmationModal
-        opened={isConfirmationModalOpen}
-        onClose={closeConfirmationModal}
-        notaryRequest={selectedNotaryRequest}
+      <AddRetainerModal
+        opened={retainerModal}
+        onClose={closeRetainerModal}
+        setIsDataChanged={setDataChanged}
       />
     </>
   );

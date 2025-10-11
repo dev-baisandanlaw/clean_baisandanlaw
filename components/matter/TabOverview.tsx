@@ -205,7 +205,7 @@ export default function TabOverview({
   return (
     <Flex direction="column" gap="md">
       <SimpleGrid cols={3}>
-        <VerticalTable title="Case Details" data={caseDetailsCardData} />
+        <VerticalTable title="Matter Details" data={caseDetailsCardData} />
         <VerticalTable title="Client Details" data={clientDetailsCardData} />
         <VerticalTable title="Lead Attorney" data={attorneyDetailsCardData} />
       </SimpleGrid>
