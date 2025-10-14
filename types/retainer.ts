@@ -1,3 +1,4 @@
+import { Document } from "./case";
 import { Note } from "./matter-notes";
 
 export interface Retainer {
@@ -13,6 +14,7 @@ export interface Retainer {
   retainerSince: string;
   practiceAreas: string[];
   notes: Note[];
+  documents: (Document & { googleDriveId: string })[];
 
   createdAt: string;
   updatedAt: string;

@@ -1,3 +1,6 @@
+import { Retainer } from "@/types/retainer";
+import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
+import { getMimeTypeIcon } from "@/utils/getMimeTypeIcon";
 import {
   ActionIcon,
   Button,
@@ -12,63 +15,91 @@ import {
   Text,
   Tooltip,
 } from "@mantine/core";
-import { Matter } from "@/types/case";
-import { getMimeTypeIcon } from "@/utils/getMimeTypeIcon";
-import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import {
   IconCirclePlus,
   IconFileDownload,
   IconTrash,
 } from "@tabler/icons-react";
-import TabDocumentDeleteFileModal from "./modals/TabDocumentDeleteFileModal";
-import { useDisclosure } from "@mantine/hooks";
-import React, { useState, useMemo } from "react";
-import TabDocumentsUploadFileModal from "./modals/TabDocumentsUploadFileModal";
 import EmptyTableComponent from "../EmptyTableComponent";
-import { appwriteDownloadFile } from "@/app/api/appwrite";
+import TabRDocumentsUploadFileModal from "./modals/TabRDocumentsUploadFileModal";
+import { useDisclosure } from "@mantine/hooks";
+import axios from "axios";
+import TabRDocumentsDeleteModal from "./modals/TabRDocumentsDeleteModal";
+import { useState, useMemo } from "react";
+import { toast } from "react-toastify";
 
-interface MatterTabDocumentsProps {
-  matterData: Matter;
+interface RTabDocumentsProps {
+  retainerData: Retainer;
   setDataChanged: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export default function TabDocuments({
-  matterData,
+export default function RTabDocuments({
+  retainerData,
   setDataChanged,
-}: MatterTabDocumentsProps) {
-  const [selectedDocument, setSelectedDocument] =
-    useState<Matter["documents"][number]>();
+}: RTabDocumentsProps) {
+  const [uploadModal, { open: openUploadModal, close: closeUploadModal }] =
+    useDisclosure(false);
+  const [deleteModal, { open: openDeleteModal, close: closeDeleteModal }] =
+    useDisclosure(false);
 
-  const [
-    isDeleteModalFileOpen,
-    { open: openDeleteModalFile, close: closeDeleteModalFile },
-  ] = useDisclosure(false);
-
-  const [
-    isUploadModalFileOpen,
-    { open: openUploadModalFile, close: closeUploadModalFile },
-  ] = useDisclosure(false);
-
+  const [selectedDocument, setSelectedDocument] = useState<
+    Retainer["documents"][number] | null
+  >(null);
   const [activeTab, setActiveTab] = useState<string>("all");
 
   // Filter documents based on active tab
   const filteredDocuments = useMemo(() => {
-    if (!matterData.documents) return [];
+    if (!retainerData.documents) return [];
 
     switch (activeTab) {
       case "images":
-        return matterData.documents.filter((doc) =>
+        return retainerData.documents.filter((doc) =>
           doc.mimeType.startsWith("image/")
         );
       case "pdfs":
-        return matterData.documents.filter(
+        return retainerData.documents.filter(
           (doc) => doc.mimeType === "application/pdf"
         );
       case "all":
       default:
-        return matterData.documents;
+        return retainerData.documents;
     }
-  }, [matterData.documents, activeTab]);
+  }, [retainerData.documents, activeTab]);
+
+  const handleDownload = async (fileId: string) => {
+    try {
+      const res = await axios.get(`/api/google/drive/download/${fileId}`, {
+        responseType: "blob",
+      });
+
+      const disposition = res.headers["content-disposition"];
+      const filenameMatch = disposition?.match(
+        /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/
+      );
+
+      let filename = "download";
+      if (filenameMatch?.[1]) {
+        filename = filenameMatch[1].replace(/['"]/g, "");
+        try {
+          filename = decodeURIComponent(filename);
+        } catch {
+          /* Empty */
+        }
+      }
+
+      // Create and trigger download
+      const url = window.URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.style.display = "none";
+
+      document.body.appendChild(a);
+      a.click();
+    } catch {
+      toast.error("Failed to download file");
+    }
+  };
 
   return (
     <>
@@ -85,7 +116,7 @@ export default function TabDocuments({
                   leftSection={<IconCirclePlus />}
                   size="xs"
                   variant="outline"
-                  onClick={openUploadModalFile}
+                  onClick={openUploadModal}
                 >
                   Upload
                 </Button>
@@ -98,7 +129,7 @@ export default function TabDocuments({
                   <Table.Th w={160}>Total Files</Table.Th>
                   <Table.Td>
                     <Text c="green" fw={600} size="sm">
-                      {matterData.documents?.length || 0}
+                      {retainerData.documents?.length || 0}
                     </Text>
                   </Table.Td>
                 </Table.Tr>
@@ -107,7 +138,7 @@ export default function TabDocuments({
                   <Table.Th>Total Size</Table.Th>
                   <Table.Td>
                     <Text c="green" fw={600} size="sm">
-                      {matterData.documents
+                      {retainerData.documents
                         ?.reduce((sum, doc) => sum + (doc.sizeInMb || 0), 0)
                         .toFixed(2) || 0}
                       MB
@@ -125,18 +156,18 @@ export default function TabDocuments({
         >
           <Tabs.List>
             <Tabs.Tab value="all">
-              All ({matterData.documents?.length || 0})
+              All ({retainerData.documents?.length || 0})
             </Tabs.Tab>
             <Tabs.Tab value="images">
               Images (
-              {matterData.documents?.filter((doc) =>
+              {retainerData.documents?.filter((doc) =>
                 doc.mimeType.startsWith("image/")
               ).length || 0}
               )
             </Tabs.Tab>
             <Tabs.Tab value="pdfs">
               PDFs (
-              {matterData.documents?.filter(
+              {retainerData.documents?.filter(
                 (doc) => doc.mimeType === "application/pdf"
               ).length || 0}
               )
@@ -161,9 +192,9 @@ export default function TabDocuments({
                 filteredDocuments.map((doc) => (
                   <Table.Tr key={doc.id}>
                     <Table.Td>
-                      <Tooltip label={doc?.name || "-"} position="top">
+                      <Tooltip label={doc.name} position="top">
                         <Text truncate maw="200px" size="sm" fw={600} c="green">
-                          {doc?.name || "-"}
+                          {doc.name}
                         </Text>
                       </Tooltip>
                     </Table.Td>
@@ -188,7 +219,7 @@ export default function TabDocuments({
                         <ActionIcon
                           size="sm"
                           variant="subtle"
-                          onClick={() => appwriteDownloadFile(doc.id)}
+                          onClick={() => handleDownload(doc.googleDriveId)}
                         >
                           <IconFileDownload size={24} />
                         </ActionIcon>
@@ -199,7 +230,7 @@ export default function TabDocuments({
                           color="red"
                           onClick={() => {
                             setSelectedDocument(doc);
-                            openDeleteModalFile();
+                            openDeleteModal();
                           }}
                         >
                           <IconTrash />
@@ -217,19 +248,20 @@ export default function TabDocuments({
         </TableScrollContainer>
       </Flex>
 
-      <TabDocumentsUploadFileModal
-        opened={isUploadModalFileOpen}
-        onClose={closeUploadModalFile}
-        matterId={matterData.id!}
+      <TabRDocumentsUploadFileModal
+        opened={uploadModal}
+        onClose={closeUploadModal}
+        retainerId={retainerData.id!}
         setDataChanged={setDataChanged}
+        googleDriveFolderId={retainerData.googleDriveFolderId}
       />
 
-      <TabDocumentDeleteFileModal
-        opened={isDeleteModalFileOpen}
-        onClose={closeDeleteModalFile}
-        document={selectedDocument}
+      <TabRDocumentsDeleteModal
+        opened={deleteModal}
+        onClose={closeDeleteModal}
+        file={selectedDocument!}
+        retainer={retainerData}
         setDataChanged={setDataChanged}
-        matterId={matterData.id!}
       />
     </>
   );

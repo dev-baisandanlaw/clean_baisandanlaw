@@ -20,7 +20,6 @@ import {
   IMAGE_MIME_TYPE,
   PDF_MIME_TYPE,
 } from "@mantine/dropzone";
-import { appwriteUploadMultipleFiles } from "@/app/api/appwrite";
 import { toast } from "react-toastify";
 import {
   IconAlertCircle,
@@ -29,26 +28,28 @@ import {
   IconX,
 } from "@tabler/icons-react";
 import { useUser } from "@clerk/nextjs";
-import { User } from "@/types/user";
 import { arrayUnion, doc, updateDoc } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { COLLECTIONS } from "@/constants/constants";
-import { addMatterUpdate } from "../utils/addMatterUpdate";
-import { MatterUpdateType } from "@/types/matter-updates";
+import axios from "axios";
+import { nanoid } from "nanoid";
+import dayjs from "dayjs";
 
-interface TabDocumentsUploadFileModalProps {
+interface TabRDocumentsUploadFileModalProps {
   opened: boolean;
   onClose: () => void;
-  matterId: string;
+  retainerId: string;
+  googleDriveFolderId: string;
   setDataChanged: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export default function TabDocumentsUploadFileModal({
+export default function TabRDocumentsUploadFileModal({
   opened,
   onClose,
-  matterId,
+  retainerId,
+  googleDriveFolderId,
   setDataChanged,
-}: TabDocumentsUploadFileModalProps) {
+}: TabRDocumentsUploadFileModalProps) {
   const { user } = useUser();
   const [files, setFiles] = useState<File[]>([]);
   const [rejectedFiles, setRejectedFiles] = useState<FileRejection[]>([]);
@@ -96,37 +97,55 @@ export default function TabDocumentsUploadFileModal({
   const handleUploadFiles = async () => {
     setIsUploading(true);
 
-    const { successes, failures } = await appwriteUploadMultipleFiles(files, {
-      id: user?.id ?? "",
-      first_name: user?.firstName ?? "",
-      last_name: user?.lastName ?? "",
-    } as User);
+    try {
+      const retainerRef = doc(db, COLLECTIONS.RETAINERS, retainerId);
 
-    if (successes.length) {
-      const CASE_REF = doc(db, COLLECTIONS.CASES, matterId);
-      await updateDoc(CASE_REF, {
-        documents: arrayUnion(...successes),
-      });
-      await addMatterUpdate(
-        user!,
-        matterId,
-        user?.unsafeMetadata.role as string,
-        MatterUpdateType.DOCUMENT,
-        `${successes.length} file(s) uploaded`
+      const settled = await Promise.allSettled(
+        files.map(async (file) => {
+          const fd = new FormData();
+          fd.append("parentId", googleDriveFolderId);
+          fd.append("file", file);
+
+          const res = await axios.post("/api/google/drive/upload", fd);
+          return { file, raw: res.data };
+        })
       );
-      setDataChanged((prev) => !prev);
-      toast.success(`${successes.length} file(s) uploaded successfully`);
-    }
 
-    if (failures.length > 0) {
-      toast.error(`${failures.length} file(s) failed to upload`);
-    }
+      const docsToAdd = settled
+        .filter((r) => r.status === "fulfilled")
+        .map((r) => {
+          const { file, raw } = r.value;
+          return {
+            id: nanoid(),
+            name: file.name,
+            mimeType: file.type,
+            originalSize: file.size,
+            sizeInMb: +(file.size / 1024 / 1024).toFixed(2),
+            uploadedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
+            googleDriveId: raw.uploadedFiles.id,
+            uploadedBy: {
+              id: user?.id ?? null,
+              fullname:
+                [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+                null,
+            },
+          };
+        });
 
-    setTimeout(() => {
+      if (docsToAdd.length) {
+        await updateDoc(retainerRef, {
+          updatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
+          documents: arrayUnion(...docsToAdd),
+        });
+        toast.success(`${docsToAdd.length} file(s) uploaded successfully`);
+        setDataChanged((prev) => !prev);
+        onClose();
+      }
+    } catch {
+      toast.error("Failed to upload files");
       setIsUploading(false);
-    }, 1000);
-
-    onClose();
+      onClose();
+    }
   };
 
   const previews = files.map((file, index) => {
@@ -152,6 +171,7 @@ export default function TabDocumentsUploadFileModal({
               right={5}
               size={24}
               onClick={() => handleRemoveFile(index)}
+              disabled={isUploading}
             >
               <IconX size={16} />
             </ActionIcon>
