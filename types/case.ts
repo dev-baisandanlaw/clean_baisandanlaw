@@ -1,3 +1,5 @@
+import { Note } from "./matter-notes";
+
 export interface Matter {
   id: string;
   caseDescription: string;
@@ -16,6 +18,7 @@ export interface Matter {
   status: string;
   updatedAt: string;
   schedules?: Schedule[];
+  notes?: Note[];
 }
 
 type LocalUser = {

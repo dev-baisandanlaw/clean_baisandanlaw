@@ -9,7 +9,7 @@ import {
 import EmptyTableComponent from "../EmptyTableComponent";
 import dayjs from "dayjs";
 import { getBookingViaColor } from "@/utils/getBookingStatusColor";
-import { IconEye, IconPencil, IconPennantOff } from "@tabler/icons-react";
+import { IconEye, IconPencil, IconPennant } from "@tabler/icons-react";
 
 interface AppointmentsListProps {
   data: Booking[];
@@ -107,7 +107,7 @@ export default function AppointmentsList({
                         color="red"
                         onClick={() => handleSelectBooking(booking, "delete")}
                       >
-                        <IconPennantOff />
+                        <IconPennant />
                       </ActionIcon>
                     </Group>
                   </Table.Td>

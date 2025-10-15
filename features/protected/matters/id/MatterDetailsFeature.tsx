@@ -153,11 +153,7 @@ export default function MatterDetailsFeature({
   }, [matterId]);
 
   return (
-    <Tabs
-      defaultValue="overview"
-      styles={{ list: { justifyContent: "space-between" } }}
-      pos="relative"
-    >
+    <Tabs defaultValue="overview" variant="outline" pos="relative">
       <LoadingOverlay
         visible={isMatterLoading || isClientLoading || isAttorneyLoading}
       />

@@ -100,7 +100,7 @@ export default function RetainerListing() {
                 <Table.Th>Matter Type</Table.Th>
                 <Table.Th>Retainer Since</Table.Th>
                 <Table.Th>Updated At</Table.Th>
-                <Table.Th></Table.Th>
+                <Table.Th>Actions</Table.Th>
               </Table.Tr>
             </Table.Thead>
 

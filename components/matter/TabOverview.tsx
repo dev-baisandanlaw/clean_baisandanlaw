@@ -28,6 +28,7 @@ import { COLLECTIONS } from "@/constants/constants";
 import { addMatterUpdate } from "./utils/addMatterUpdate";
 import { useUser } from "@clerk/nextjs";
 import { toast } from "react-toastify";
+import MatterNotes from "./TabOverview/MatterNotes";
 
 interface MatterTabOverviewProps {
   matterData: Matter;
@@ -279,9 +280,13 @@ export default function TabOverview({
         )}
       </Paper>
 
-      <Group grow>
+      <Group grow align="start">
         <MatterUpdates updates={matterUpdates.items} />
-        {/* <MatterUpdates updates={matterTimeline.items} /> */}
+        <MatterNotes
+          notes={matterData.notes || null}
+          matterId={matterData.id}
+          setDataChanged={setDataChanged}
+        />
       </Group>
     </Flex>
   );

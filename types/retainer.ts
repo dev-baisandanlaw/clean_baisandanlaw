@@ -13,6 +13,7 @@ export interface Retainer {
 
   retainerSince: string;
   practiceAreas: string[];
+  description?: string;
   notes: Note[];
   documents: (Document & { googleDriveId: string })[];
 

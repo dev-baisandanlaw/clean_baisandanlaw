@@ -101,7 +101,7 @@ export default function MattersListing() {
             <Table.Th>Matter Type</Table.Th>
             {/* <Table.Th>Involved Attorneys</Table.Th> */}
             <Table.Th>Created At</Table.Th>
-            <Table.Th></Table.Th>
+            <Table.Th>Actions</Table.Th>
           </Table.Tr>
         </Table.Thead>
       );
@@ -116,7 +116,7 @@ export default function MattersListing() {
           <Table.Th>Case Type</Table.Th>
           {/* <Table.Th>Involved Attorneys</Table.Th> */}
           <Table.Th>Created At</Table.Th>
-          <Table.Th></Table.Th>
+          <Table.Th>Actions</Table.Th>
         </Table.Tr>
       </Table.Thead>
     );
