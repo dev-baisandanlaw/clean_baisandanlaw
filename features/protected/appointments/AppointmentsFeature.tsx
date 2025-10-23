@@ -210,13 +210,13 @@ export default function AppointmentsFeature() {
                   Add Appointment
                 </Button>
 
-                <Button
+                {/* <Button
                   leftSection={<IconSettings />}
                   size="sm"
                   variant="outline"
                 >
                   Settings
-                </Button>
+                </Button> */}
               </Group>
             )}
 
