@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  Alert,
+  // Alert,
   Button,
   Group,
   Modal,
@@ -28,15 +28,13 @@ import {
 } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { toast } from "react-toastify";
-import axios from "axios";
+// import axios from "axios";
 import {
   ATTY_PRACTICE_AREAS,
-  CLERK_ORG_IDS,
   COLLECTIONS,
-  PAYMONGO_CONFIG,
+  // PAYMONGO_CONFIG,
 } from "@/constants/constants";
-import { IconInfoCircle } from "@tabler/icons-react";
-import { Attorney } from "@/types/user";
+// import { IconInfoCircle } from "@tabler/icons-react";
 
 export default function BookingModal({
   opened,
@@ -82,25 +80,6 @@ export default function BookingModal({
     validateInputOnChange: true,
   });
 
-  // const getAttorney = async (areas: string[]) => {
-  //   const { data: attorneys } = await axios.get<Attorney[]>(
-  //     "/api/clerk/organization/fetch",
-  //     {
-  //       params: {
-  //         organization_id: CLERK_ORG_IDS.attorney,
-  //         limit: 9999,
-  //       },
-  //     }
-  //   );
-
-  //   const validAttorneys = attorneys.filter(
-  //     (atty) =>
-  //       atty.unsafe_metadata?.practiceAreas &&
-  //       atty.unsafe_metadata.practiceAreas.length > 0
-  //   );
-
-  // };
-
   const handleSubmit = async (values: typeof form.values) => {
     setIsBooking(true);
 
@@ -120,46 +99,48 @@ export default function BookingModal({
         return;
       }
 
-      axios({
-        method: "POST",
-        url: PAYMONGO_CONFIG.CHECKOUT_SESSION,
-        headers: PAYMONGO_CONFIG.HEADERS,
-        data: {
-          data: {
-            attributes: {
-              // success_url: `${window.location.origin}/booking/`,
-              cancel_url: `${window.location.origin}/booking`,
-              send_email_receipt: true,
-              show_description: true,
-              show_line_items: true,
-              description: "BaisAndan Law Office Booking Fee",
-              line_items: [
-                {
-                  currency: "PHP",
-                  amount: 20000,
-                  description: "Booking Fee",
-                  name: dayjs(form.values.date + " " + form.values.time).format(
-                    "dddd, MMMM D, YYYY - h:mm A"
-                  ),
-                  quantity: 1,
-                },
-              ],
-              payment_method_types: ["gcash", "paymaya", "card"],
-            },
-          },
-        },
-      })
-        .then(({ data }) => {
-          if (data?.data?.attributes?.checkout_url && data?.data?.id) {
-            handleCheckoutUrl(data.data.attributes.checkout_url, data.data.id);
-          }
-        })
-        .catch(() => {
-          toast.error("Something went wrong. Please try again later.", {
-            autoClose: 3000,
-          });
-          setIsBooking(false);
-        });
+      handleAddBooking(values);
+
+      // axios({
+      //   method: "POST",
+      //   url: PAYMONGO_CONFIG.CHECKOUT_SESSION,
+      //   headers: PAYMONGO_CONFIG.HEADERS,
+      //   data: {
+      //     data: {
+      //       attributes: {
+      //         // success_url: `${window.location.origin}/booking/`,
+      //         cancel_url: `${window.location.origin}/booking`,
+      //         send_email_receipt: true,
+      //         show_description: true,
+      //         show_line_items: true,
+      //         description: "BaisAndan Law Office Booking Fee",
+      //         line_items: [
+      //           {
+      //             currency: "PHP",
+      //             amount: 20000,
+      //             description: "Booking Fee",
+      //             name: dayjs(form.values.date + " " + form.values.time).format(
+      //               "dddd, MMMM D, YYYY - h:mm A"
+      //             ),
+      //             quantity: 1,
+      //           },
+      //         ],
+      //         payment_method_types: ["gcash", "paymaya", "card"],
+      //       },
+      //     },
+      //   },
+      // })
+      //   .then(({ data }) => {
+      //     if (data?.data?.attributes?.checkout_url && data?.data?.id) {
+      //       handleCheckoutUrl(data.data.attributes.checkout_url, data.data.id);
+      //     }
+      //   })
+      //   .catch(() => {
+      //     toast.error("Something went wrong. Please try again later.", {
+      //       autoClose: 3000,
+      //     });
+      //     setIsBooking(false);
+      //   });
     });
   };
 
@@ -188,13 +169,10 @@ export default function BookingModal({
 
     await addDoc(collection(db, COLLECTIONS.BOOKINGS), {
       ...values,
+      existingClient: !!user,
       client: clientDetails,
       // TODO: Integrate Attorney
-      attorney: {
-        fullname: "Developer ",
-        email: "developer@baisandan.com",
-        id: "1",
-      },
+      attorney: null,
       via: "Website",
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -214,62 +192,62 @@ export default function BookingModal({
       .finally(() => setIsBooking(false));
   };
 
-  const handleCheckoutUrl = (url: string, checkoutSessionId: string) => {
-    const paymongoWindow = window.open(
-      url,
-      "_blank",
-      "height=600 width=500 top=" +
-        (window.outerHeight / 2 + window.screenY - 600 / 2) +
-        ",left=" +
-        (window.outerWidth / 2 + window.screenX - 500 / 2)
-    );
+  // const handleCheckoutUrl = (url: string, checkoutSessionId: string) => {
+  //   const paymongoWindow = window.open(
+  //     url,
+  //     "_blank",
+  //     "height=600 width=500 top=" +
+  //       (window.outerHeight / 2 + window.screenY - 600 / 2) +
+  //       ",left=" +
+  //       (window.outerWidth / 2 + window.screenX - 500 / 2)
+  //   );
 
-    const checkPaymongoWindow = setInterval(() => {
-      const handleExpireCheckoutSession = () => {
-        axios({
-          method: "POST",
-          url: `${PAYMONGO_CONFIG.CHECKOUT_SESSION}/${checkoutSessionId}/expire`,
-          headers: PAYMONGO_CONFIG.HEADERS,
-        }).finally(() => {
-          setIsBooking(false);
-          toast.error("Payment failed. ", {
-            autoClose: 3000,
-          });
-          form.reset();
-          onClose();
-        });
-      };
+  //   const checkPaymongoWindow = setInterval(() => {
+  //     const handleExpireCheckoutSession = () => {
+  //       axios({
+  //         method: "POST",
+  //         url: `${PAYMONGO_CONFIG.CHECKOUT_SESSION}/${checkoutSessionId}/expire`,
+  //         headers: PAYMONGO_CONFIG.HEADERS,
+  //       }).finally(() => {
+  //         setIsBooking(false);
+  //         toast.error("Payment failed. ", {
+  //           autoClose: 3000,
+  //         });
+  //         form.reset();
+  //         onClose();
+  //       });
+  //     };
 
-      if (paymongoWindow?.closed) {
-        clearInterval(checkPaymongoWindow);
+  //     if (paymongoWindow?.closed) {
+  //       clearInterval(checkPaymongoWindow);
 
-        setTimeout(() => {
-          axios({
-            method: "GET",
-            url: `${PAYMONGO_CONFIG.CHECKOUT_SESSION}/${checkoutSessionId}`,
-            headers: PAYMONGO_CONFIG.HEADERS,
-          })
-            .then(({ data }) => {
-              if (
-                data?.data?.attributes?.payment_intent?.attributes?.status ===
-                "succeeded"
-              ) {
-                handleAddBooking(form.values);
-              } else {
-                handleExpireCheckoutSession();
-              }
-            })
-            .catch(() => {
-              handleExpireCheckoutSession();
-            });
-        }, 2000);
-      }
-    }, 500);
+  //       setTimeout(() => {
+  //         axios({
+  //           method: "GET",
+  //           url: `${PAYMONGO_CONFIG.CHECKOUT_SESSION}/${checkoutSessionId}`,
+  //           headers: PAYMONGO_CONFIG.HEADERS,
+  //         })
+  //           .then(({ data }) => {
+  //             if (
+  //               data?.data?.attributes?.payment_intent?.attributes?.status ===
+  //               "succeeded"
+  //             ) {
+  //               handleAddBooking(form.values);
+  //             } else {
+  //               handleExpireCheckoutSession();
+  //             }
+  //           })
+  //           .catch(() => {
+  //             handleExpireCheckoutSession();
+  //           });
+  //       }, 2000);
+  //     }
+  //   }, 500);
 
-    return () => {
-      clearInterval(checkPaymongoWindow);
-    };
-  };
+  //   return () => {
+  //     clearInterval(checkPaymongoWindow);
+  //   };
+  // };
 
   useEffect(() => {
     if (opened && !!user) {
@@ -303,7 +281,7 @@ export default function BookingModal({
       centered
       size="xl"
     >
-      <Alert
+      {/* <Alert
         title="Important"
         color="blue"
         icon={<IconInfoCircle />}
@@ -330,7 +308,7 @@ export default function BookingModal({
           and ensures that your preferred schedule is reserved exclusively for
           you.
         </Text>
-      </Alert>
+      </Alert> */}
 
       <Text mb={8}>
         Booking for{" "}

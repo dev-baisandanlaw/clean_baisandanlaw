@@ -12,12 +12,19 @@ import { useDocument } from "@/hooks/useDocument";
 import { Booking } from "@/types/booking";
 import { GlobalSettings } from "@/types/global-settings";
 import { useUser } from "@clerk/nextjs";
-import { Button, Flex, Group, Stack } from "@mantine/core";
+import { Alert, Badge, Button, Flex, Group, Stack, Text } from "@mantine/core";
 import { useDebouncedValue, useDisclosure } from "@mantine/hooks";
-import { IconCirclePlus, IconSettings } from "@tabler/icons-react";
+import { IconCirclePlus, IconFlame, IconSettings } from "@tabler/icons-react";
 import dayjs from "dayjs";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  onSnapshot,
+  query,
+  where,
+} from "firebase/firestore";
 import { useEffect, useState } from "react";
+import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 
 const ymd = dayjs().format("YYYY-MM-DD");
 
@@ -35,6 +42,7 @@ export default function AppointmentsFeature() {
 
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [noAttorneyBookings, setNoAttorneyBookings] = useState<Booking[]>();
   const [isFetchingBookings, setIsFetchingBookings] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState<string | null>(ymd);
@@ -68,6 +76,20 @@ export default function AppointmentsFeature() {
     if (mode === "update") {
       openAppModal();
     }
+  };
+
+  const fetchNoAttorneyBookings = async () => {
+    const ref = collection(db, COLLECTIONS.BOOKINGS);
+    const constraints = [
+      where("attorney", "==", null),
+      where("date", ">=", ymd),
+    ];
+    const q = query(ref, ...constraints);
+    const snapshot = await getDocs(q);
+    const bookings = snapshot.docs.map(
+      (doc) => ({ id: doc.id, ...doc.data() }) as Booking
+    );
+    setNoAttorneyBookings(bookings);
   };
 
   const [debounced] = useDebouncedValue(currentDate, 150);
@@ -104,6 +126,7 @@ export default function AppointmentsFeature() {
 
         setBookings(results);
         setIsFetchingBookings(false);
+        fetchNoAttorneyBookings(); // Fetch no attorney bookings
       },
       (error) => {
         console.error("Firestore onSnapshot error:", error);
@@ -116,6 +139,50 @@ export default function AppointmentsFeature() {
 
   return (
     <>
+      {noAttorneyBookings && noAttorneyBookings?.length > 0 && (
+        <Alert
+          title="Alert!"
+          color="red"
+          icon={<IconFlame />}
+          mb="xl"
+          styles={(theme) => ({
+            title: { fontWeight: 700, color: theme.colors.red[4] },
+            icon: { color: theme.colors.red[4] },
+            message: {
+              color: theme.colors.red[4],
+              textAlign: "justify",
+              paddingRight: 16,
+            },
+            root: {
+              backgroundColor: theme.colors.red[0],
+              boxShadow: theme.other.customBoxShadow,
+              borderRadius: 10,
+            },
+          })}
+        >
+          <Text mb="xs">
+            There are future bookings with no attorney assigned.
+          </Text>
+
+          <Stack gap="xs">
+            {noAttorneyBookings
+              ?.sort((a, b) => dayjs(a.date).diff(dayjs(b.date)))
+              .map((booking) => (
+                <Badge
+                  key={booking.id}
+                  variant="outline"
+                  color="red"
+                  radius="xs"
+                >
+                  {getDateFormatDisplay(
+                    `${booking.date} ${booking.time}`,
+                    true
+                  )}
+                </Badge>
+              ))}
+          </Stack>
+        </Alert>
+      )}
       <Flex
         w="100%"
         h="100%"

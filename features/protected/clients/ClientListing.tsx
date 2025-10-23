@@ -105,7 +105,6 @@ export default function ClientListing() {
             <Table.Tr>
               <Table.Th>Name</Table.Th>
               <Table.Th>Contact</Table.Th>
-              <Table.Th>Cases</Table.Th>
               <Table.Th>Subscription</Table.Th>
               <Table.Th>Member Since</Table.Th>
             </Table.Tr>
@@ -140,9 +139,6 @@ export default function ClientListing() {
                         {client.unsafe_metadata.phoneNumber}
                       </Text>
                     </Stack>
-                  </Table.Td>
-                  <Table.Td>
-                    {client.unsafe_metadata.involvedCases || 0}
                   </Table.Td>
                   <Table.Td>
                     <Badge

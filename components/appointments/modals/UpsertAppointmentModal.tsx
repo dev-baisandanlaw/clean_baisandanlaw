@@ -176,12 +176,74 @@ export default function AddAppointmentModal({
       };
     }
 
-    if (booking) {
-      const startISO = dayjs(
-        `${dayjs(values.date).format("YYYY-MM-DD")} ${values.time}`
-      );
-      const endISO = startISO.add(1, "hour");
+    const startISO = dayjs(
+      `${dayjs(values.date).format("YYYY-MM-DD")} ${values.time}`
+    );
+    const endISO = startISO.add(1, "hour");
 
+    const firebaseAddBooking = async ({
+      eventId,
+      htmlLink,
+    }: {
+      eventId: string;
+      htmlLink: string;
+    }) => {
+      await addDoc(collection(db, COLLECTIONS.BOOKINGS), {
+        ...values,
+        existingClient: selectedClientType === "Existing Client",
+        date: dayjs(values.date).format("YYYY-MM-DD"),
+        attorney: {
+          fullname: attyDetails?.first_name + " " + attyDetails?.last_name,
+          id: attyDetails?.id,
+          email: attyDetails?.email_addresses[0].email_address,
+        },
+        client: clientData,
+        createdAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
+        updatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
+        googleCalendar: {
+          eventId,
+          htmlLink,
+        },
+      })
+        .then(() => {
+          toast.success("Appointment added successfully");
+          onClose();
+        })
+        .catch(() => toast.error("Failed to add appointment"))
+        .finally(() => setIsLoading(false));
+    };
+
+    const firebaseUpdateBooking = async ({
+      eventId,
+      htmlLink,
+    }: {
+      eventId: string;
+      htmlLink: string;
+    }) => {
+      await updateDoc(doc(db, COLLECTIONS.BOOKINGS, booking!.id), {
+        ...values,
+        existingClient: selectedClientType === "Existing Client",
+        date: dayjs(values.date).format("YYYY-MM-DD"),
+        attorney: {
+          fullname: attyDetails?.first_name + " " + attyDetails?.last_name,
+          id: attyDetails?.id,
+          email: attyDetails?.email_addresses[0].email_address,
+        },
+        client: clientData,
+        googleCalendar: {
+          eventId,
+          htmlLink,
+        },
+      })
+        .then(() => {
+          toast.success("Appointment updated successfully");
+          onClose();
+        })
+        .catch(() => toast.error("Failed to update appointment"))
+        .finally(() => setIsLoading(false));
+    };
+
+    if (booking?.googleCalendar?.eventId) {
       await axios
         .post("/api/google/calendar/update", {
           title: "Appointment from BaisAndan Law Office",
@@ -194,27 +256,10 @@ export default function AddAppointmentModal({
           eventId: booking.googleCalendar.eventId,
         })
         .then(async ({ data }) => {
-          await updateDoc(doc(db, COLLECTIONS.BOOKINGS, booking.id), {
-            ...values,
-            existingClient: selectedClientType === "Existing Client",
-            date: dayjs(values.date).format("YYYY-MM-DD"),
-            attorney: {
-              fullname: attyDetails?.first_name + " " + attyDetails?.last_name,
-              id: attyDetails?.id,
-              email: attyDetails?.email_addresses[0].email_address,
-            },
-            client: clientData,
-            googleCalendar: {
-              eventId: data.eventId,
-              htmlLink: data.htmlLink,
-            },
-          })
-            .then(() => {
-              toast.success("Appointment updated successfully");
-              onClose();
-            })
-            .catch(() => toast.error("Failed to update appointment"))
-            .finally(() => setIsLoading(false));
+          await firebaseUpdateBooking({
+            eventId: data.eventId,
+            htmlLink: data.htmlLink,
+          });
         })
         .catch(() => {
           toast.error("Failed to update appointment");
@@ -227,39 +272,25 @@ export default function AddAppointmentModal({
     await axios
       .post("/api/google/calendar/add", {
         title: "Appointment from BaisAndan Law Office",
-        startISO: dayjs(`${values.date} ${values.time}`).toISOString(),
-        endISO: dayjs(`${values.date} ${values.time}`)
-          .add(1, "hour")
-          .toISOString(),
+        startISO: startISO.toISOString(),
+        endISO: endISO.toISOString(),
         attendeesEmail: [
           attyDetails?.email_addresses[0].email_address,
           clientData.email,
         ],
       })
       .then(async ({ data: googleCalendarData }) => {
-        await addDoc(collection(db, COLLECTIONS.BOOKINGS), {
-          ...values,
-          existingClient: selectedClientType === "Existing Client",
-          date: dayjs(values.date).format("YYYY-MM-DD"),
-          attorney: {
-            fullname: attyDetails?.first_name + " " + attyDetails?.last_name,
-            id: attyDetails?.id,
-            email: attyDetails?.email_addresses[0].email_address,
-          },
-          client: clientData,
-          createdAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-          updatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-          googleCalendar: {
+        if (booking) {
+          await firebaseUpdateBooking({
             eventId: googleCalendarData.eventId,
             htmlLink: googleCalendarData.htmlLink,
-          },
-        })
-          .then(() => {
-            toast.success("Appointment added successfully");
-            onClose();
-          })
-          .catch(() => toast.error("Failed to add appointment"))
-          .finally(() => setIsLoading(false));
+          });
+        } else {
+          await firebaseAddBooking({
+            eventId: googleCalendarData.eventId,
+            htmlLink: googleCalendarData.htmlLink,
+          });
+        }
       })
       .catch(() => {
         toast.error("Failed to add appointment");
@@ -286,7 +317,7 @@ export default function AddAppointmentModal({
   useEffect(() => {
     if (booking && opened) {
       form.setValues({
-        attorney: booking.attorney.id,
+        attorney: booking.attorney?.id || "",
         date: new Date(booking.date),
         time: booking.time,
         message: booking.message,
@@ -308,6 +339,7 @@ export default function AddAppointmentModal({
         });
       }
     }
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened]);
 
@@ -582,8 +614,7 @@ export default function AddAppointmentModal({
                 (selectedClientType === "New Client" &&
                   (!clientForm.values.firstName ||
                     !clientForm.values.lastName ||
-                    !clientForm.values.email ||
-                    !clientForm.values.phoneNumber))
+                    !clientForm.values.email))
               }
             >
               Add Appointment

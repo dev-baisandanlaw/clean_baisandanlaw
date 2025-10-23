@@ -72,6 +72,8 @@ export default function AddMatterModal({
       const leadAttorneyDetails = attorneyUsers.find(
         (user) => user.id === values.leadAttorney.id
       );
+      const attyCasesCount =
+        leadAttorneyDetails?.unsafe_metadata?.involvedCases || 0;
 
       const clientDetails = clientUsers.find(
         (user) => user.id === values.clientData.id
@@ -106,6 +108,14 @@ export default function AddMatterModal({
         status: "active",
       };
 
+      await axios.patch("/api/clerk/user/update-user-metadata", {
+        userId: leadAttorneyDetails?.id,
+        unsafe_metadata: {
+          ...leadAttorneyDetails?.unsafe_metadata,
+          involvedCases: attyCasesCount + 1,
+        },
+      });
+
       const res = await addDoc(collection(db, COLLECTIONS.CASES), data);
       await setDoc(doc(db, COLLECTIONS.TASKS, res.id), {
         caseId: res.id,
@@ -127,8 +137,8 @@ export default function AddMatterModal({
       toast.success("Matter added successfully");
       onClose();
       router.push(`/matters/${res.id}`);
-    } catch (error) {
-      console.log(error);
+    } catch {
+      toast.error("Failed to add matter");
     } finally {
       setIsLoading(false);
     }

@@ -132,7 +132,7 @@ export default function BookingPage() {
           active
           component={Link}
           key="Back to Home"
-          href={!!user ? "/dashboard" : "/sign-in"}
+          href={!!user ? "/appointmentsf" : "/sign-in"}
           className={styles.appShellRoot}
           styles={{
             label: {
@@ -179,8 +179,8 @@ export default function BookingPage() {
             Thank you for scheduling with us — we&apos;re excited to have you!
             Your appointment is confirmed for your selected date and time, and
             you can view all the details anytime through your{" "}
-            <Link href="/dashboard" style={{ color: "#2B4E45" }}>
-              dashboard
+            <Link href="/appointments" style={{ color: "#2B4E45" }}>
+              appointments
             </Link>
             .
             <Group mt={16} justify="end">

@@ -48,7 +48,7 @@ export default function AppShellComponent({
       user?.unsafeMetadata?.role &&
       !currentPath?.roles.includes(user?.unsafeMetadata?.role as string)
     ) {
-      router.push("/dashboard");
+      router.push("/appointments");
     }
   }, [pathname, user, router]);
 

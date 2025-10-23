@@ -10,12 +10,12 @@ import {
 } from "@tabler/icons-react";
 
 export const NAV_LINKS = [
-  {
-    label: "Dashboard",
-    href: "/dashboard",
-    icon: IconLayoutDashboard,
-    roles: ["admin", "attorney", "client"],
-  },
+  // {
+  //   label: "Dashboard",
+  //   href: "/dashboard",
+  //   icon: IconLayoutDashboard,
+  //   roles: ["admin", "attorney", "client"],
+  // },
   {
     label: "Appointments",
     href: "/appointments",

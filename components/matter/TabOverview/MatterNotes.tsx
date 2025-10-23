@@ -21,6 +21,8 @@ import { toast } from "react-toastify";
 import dayjs from "dayjs";
 import { useUser } from "@clerk/nextjs";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
+import { useDisclosure } from "@mantine/hooks";
+import ViewAllModal from "../modals/ViewAllModal";
 
 interface MatterNotesProps {
   notes: Note[] | null;
@@ -34,8 +36,11 @@ export default function MatterNotes({
   setDataChanged,
 }: MatterNotesProps) {
   const { user } = useUser();
-  const [addingNote, setAddingNote] = useState(false);
 
+  const [viewAllModal, { open: openViewAllModal, close: closeViewAllModal }] =
+    useDisclosure(false);
+
+  const [addingNote, setAddingNote] = useState(false);
   const [note, setNote] = useState("");
 
   const handleAddNote = async () => {
@@ -74,36 +79,12 @@ export default function MatterNotes({
   };
 
   return (
-    <Card withBorder radius="md" p="md">
-      <Card.Section inheritPadding py="xs">
-        <Text size="lg" fw={600} c="green">
-          Notes
-        </Text>
-
-        <Group align="start" gap="xs" my="md">
-          <Avatar src={user?.imageUrl}>{user?.firstName?.charAt(0)}</Avatar>
-          <Stack flex={1}>
-            <Textarea
-              rows={4}
-              maxRows={4}
-              placeholder="Add a note"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
-            <Button
-              rightSection={<IconSend />}
-              ml="auto"
-              loading={addingNote}
-              onClick={handleAddNote}
-              disabled={!note.trim().length}
-            >
-              Add Note
-            </Button>
-          </Stack>
-        </Group>
-      </Card.Section>
-
-      <ScrollArea mah={500} offsetScrollbars>
+    <>
+      <ViewAllModal
+        opened={viewAllModal}
+        onClose={closeViewAllModal}
+        title="All Notes"
+      >
         <Stack>
           {notes
             ?.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -124,7 +105,6 @@ export default function MatterNotes({
                     <Text size="sm" fw={600}>
                       {note.user.fullname}
                     </Text>
-
                     <Text size="xs" c="gray.7">
                       {getDateFormatDisplay(note.createdAt, true)}
                     </Text>
@@ -135,12 +115,87 @@ export default function MatterNotes({
                 </Paper>
               </Group>
             ))}
-
-          {(!notes || notes?.length === 0) && (
-            <Divider label="No notes found" labelPosition="center" mt="md" />
-          )}
         </Stack>
-      </ScrollArea>
-    </Card>
+      </ViewAllModal>
+
+      <Card withBorder radius="md" p="md">
+        <Card.Section inheritPadding py="xs">
+          <Group align="center" justify="space-between">
+            <Text size="lg" fw={600} c="green">
+              Notes
+            </Text>
+
+            <Button size="xs" variant="outline" onClick={openViewAllModal}>
+              View All
+            </Button>
+          </Group>
+
+          <Group align="start" gap="xs" my="md">
+            <Avatar src={user?.imageUrl}>{user?.firstName?.charAt(0)}</Avatar>
+            <Stack flex={1}>
+              <Textarea
+                rows={4}
+                maxRows={4}
+                placeholder="Add a note"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
+              <Button
+                rightSection={<IconSend />}
+                ml="auto"
+                loading={addingNote}
+                onClick={handleAddNote}
+                disabled={!note.trim().length}
+              >
+                Add Note
+              </Button>
+            </Stack>
+          </Group>
+        </Card.Section>
+
+        <ScrollArea mah={320} style={{ overflowY: "hidden" }}>
+          <Stack>
+            {notes
+              ?.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+              .map((note) => (
+                <Group key={note.id} align="start" gap="xs">
+                  <Avatar src={note.user.profileImageUrl}>
+                    {note.user.fullname.charAt(0)}
+                  </Avatar>
+                  <Paper
+                    withBorder
+                    radius="md"
+                    px="md"
+                    py="sm"
+                    bg="gray.1"
+                    flex={1}
+                  >
+                    <Group justify="space-between">
+                      <Text size="sm" fw={600}>
+                        {note.user.fullname}
+                      </Text>
+
+                      <Text size="xs" c="gray.7">
+                        {getDateFormatDisplay(note.createdAt, true)}
+                      </Text>
+                    </Group>
+                    <Text
+                      size="sm"
+                      c="gray.7"
+                      style={{ whiteSpace: "pre-wrap" }}
+                    >
+                      {note.content}
+                    </Text>
+                  </Paper>
+                </Group>
+              ))}
+
+            {(!notes || notes?.length === 0) && (
+              <Divider label="No notes found" labelPosition="center" mt="md" />
+            )}
+          </Stack>
+        </ScrollArea>
+      </Card>
+    </>
   );
 }

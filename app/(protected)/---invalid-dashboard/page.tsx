@@ -2,8 +2,11 @@
 
 import { Button } from "@mantine/core";
 import axios from "axios";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function DashboardPage() {
+  const router = useRouter();
   const handleClick = async () => {
     const res = axios.get("/api/google/oauth/url").then((res) => {
       console.log(res.data);
@@ -11,6 +14,10 @@ export default function DashboardPage() {
 
     console.log(res);
   };
+
+  useEffect(() => {
+    router.push("/appointments");
+  }, []);
 
   const handleCallback = async () => {
     const res = axios

@@ -12,7 +12,7 @@ export interface Booking {
     fullname: string;
     email: string;
     id: string;
-  };
+  } | null;
   areas?: string[];
   message: string;
   existingClient: boolean;

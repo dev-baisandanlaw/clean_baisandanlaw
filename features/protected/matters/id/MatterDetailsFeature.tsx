@@ -15,7 +15,7 @@ import {
   IconChecklist,
   IconFolder,
   IconCalendarWeek,
-  IconMessage,
+  // IconMessage,
 } from "@tabler/icons-react";
 import axios from "axios";
 import {
@@ -37,7 +37,7 @@ const tabs = [
   { value: "documents", label: "Documents", icon: IconFolder },
   { value: "tasks", label: "Tasks", icon: IconChecklist },
   { value: "schedule", label: "Schedule", icon: IconCalendarWeek },
-  { value: "channel", label: "Channel", icon: IconMessage },
+  // { value: "channel", label: "Channel", icon: IconMessage },
 ];
 
 export const DataChangedContext = createContext(false);
