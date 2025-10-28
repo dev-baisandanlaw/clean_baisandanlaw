@@ -49,8 +49,8 @@ export const AddAttorneyModal = ({
         !value.length
           ? "Email is required"
           : /^\S+@\S+$/.test(value)
-          ? null
-          : "Invalid Email",
+            ? null
+            : "Invalid Email",
       password: (value) =>
         value.length < 8 ? "Password must be at least 8 characters" : null,
       practiceAreas: (value) =>
@@ -82,9 +82,18 @@ export const AddAttorneyModal = ({
       toast.success("Attorney added successfully");
       setIsDataChanged(true);
       onClose();
-    } catch (error) {
-      console.log(error);
-      toast.error("Failed to add attorney");
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.error?.errors?.[0]?.message;
+
+      if (errorMessage?.includes("online data breach")) {
+        form.setFieldError(
+          "password",
+          "Password is too weak. Please try again."
+        );
+      }
+      toast.error(errorMessage || "Failed to add attorney", {
+        autoClose: 5000,
+      });
     } finally {
       setIsLoading(false);
     }

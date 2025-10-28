@@ -36,11 +36,10 @@ export async function POST(req: Request) {
     );
 
     return NextResponse.json(response.data);
-  } catch (error) {
-    console.log(error);
+  } catch (error: any) {
     return NextResponse.json(
-      { error: "Failed to create user" },
-      { status: 500 }
+      { error: error?.response?.data || error?.message },
+      { status: error?.response?.status || 500 }
     );
   }
 }

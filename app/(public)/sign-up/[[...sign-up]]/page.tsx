@@ -60,8 +60,8 @@ export default function Page() {
         !value.length
           ? "Email is required"
           : /^\S+@\S+$/.test(value)
-          ? null
-          : "Invalid Email",
+            ? null
+            : "Invalid Email",
       password: (value) =>
         value.length < 8 ? "Password must be at least 8 characters" : null,
       confirmPassword: (value, values) =>
@@ -95,6 +95,18 @@ export default function Page() {
 
       setIsVerifying(true);
     } catch (err) {
+      if ((err as { message: string }).message.includes("already signed in")) {
+        setErrors([
+          {
+            code: "Error",
+            message:
+              "You are already signed in. Please refresh the page and sign out and try again.",
+            longMessage:
+              "You are already signed in. Please refresh the page and sign out and try again.",
+          },
+        ]);
+        return;
+      }
       setErrors(isClerkAPIResponseError(err) ? err.errors : []);
     } finally {
       setIsLoading(false);

@@ -27,8 +27,8 @@ export default clerkMiddleware(async (auth, req) => {
 
   // 2️⃣ If public route but user is signed in, redirect to dashboard
   if (isPublicAuthRoute(req) && (await auth()).userId) {
-    const dashboardUrl = new URL("/dashboard", req.url);
-    return Response.redirect(dashboardUrl);
+    const appointmentsUrl = new URL("/appointments", req.url);
+    return Response.redirect(appointmentsUrl);
   }
 });
 
