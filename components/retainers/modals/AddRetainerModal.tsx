@@ -74,7 +74,7 @@ export default function AddRetainerModal({
         {
           name: values.clientName,
           parentId:
-            process.env.NEXT_PUBLIC_GOOGLE_BAISANDANLAW_PARENT_FOLDER_ID,
+            process.env.NEXT_PUBLIC_GOOGLE_DOCUMENTS_RETAINERS_FOLDER_ID,
         }
       );
 
