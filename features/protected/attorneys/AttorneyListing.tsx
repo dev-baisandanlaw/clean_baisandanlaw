@@ -5,6 +5,7 @@ import EmptyTableComponent from "@/components/EmptyTableComponent";
 import { CLERK_ORG_IDS } from "@/constants/constants";
 import { Attorney } from "@/types/user";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
+import { appNotifications } from "@/utils/notifications/notifications";
 
 import {
   Badge,
@@ -24,7 +25,6 @@ import { useDebouncedValue, useDisclosure } from "@mantine/hooks";
 import { IconCirclePlus, IconSearch } from "@tabler/icons-react";
 import axios from "axios";
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "react-toastify";
 
 export default function AttorneyListing() {
   const theme = useMantineTheme();
@@ -64,7 +64,11 @@ export default function AttorneyListing() {
 
         setAttorneys(data);
       } catch {
-        toast.error("Failed to fetch attorneys");
+        appNotifications.error({
+          title: "Failed to fetch attorneys",
+          message: "The attorneys could not be fetched. Please try again.",
+        });
+
         setAttorneys([]);
         setTotalCount(0);
       } finally {

@@ -2,11 +2,11 @@ import { COLLECTIONS } from "@/constants/constants";
 import { db } from "@/firebase/config";
 import { Booking } from "@/types/booking";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
+import { appNotifications } from "@/utils/notifications/notifications";
 import { Button, Modal, Table, Text } from "@mantine/core";
 import { IconTrash } from "@tabler/icons-react";
 import { deleteDoc, doc } from "firebase/firestore";
 import { useState } from "react";
-import { toast } from "react-toastify";
 
 type DeleteDuplicateModalProps = {
   opened: boolean;
@@ -25,10 +25,16 @@ export default function DeleteDuplicateModal({
     setIsLoading(true);
     try {
       await deleteDoc(doc(db, COLLECTIONS.BOOKINGS, booking!.id));
-      toast.success("Appointment deleted successfully");
+      appNotifications.success({
+        title: "Appointment deleted successfully",
+        message: "The appointment has been deleted successfully",
+      });
       onClose();
     } catch {
-      toast.error("Failed to delete duplicate");
+      appNotifications.error({
+        title: "Failed to delete duplicate",
+        message: "The appointment could not be deleted. Please try again.",
+      });
     } finally {
       setIsLoading(false);
     }

@@ -25,7 +25,8 @@ import { useDisclosure } from "@mantine/hooks";
 import React, { useState, useMemo } from "react";
 import TabDocumentsUploadFileModal from "./modals/TabDocumentsUploadFileModal";
 import EmptyTableComponent from "../EmptyTableComponent";
-import { appwriteDownloadFile } from "@/app/api/appwrite";
+import axios from "axios";
+import { appNotifications } from "@/utils/notifications/notifications";
 
 interface MatterTabDocumentsProps {
   matterData: Matter;
@@ -69,6 +70,46 @@ export default function TabDocuments({
         return matterData.documents;
     }
   }, [matterData.documents, activeTab]);
+
+  const handleDownload = async (fileId: string) => {
+    appNotifications.info({
+      title: "Downloading file",
+      message: "The file is being downloaded. Please wait...",
+    });
+
+    try {
+      const res = await axios.get(`/api/google/drive/download/${fileId}`, {
+        responseType: "blob",
+      });
+      const disposition = res.headers["content-disposition"];
+      const filenameMatch = disposition?.match(
+        /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/
+      );
+
+      let filename = "download";
+      if (filenameMatch?.[1]) {
+        filename = filenameMatch[1].replace(/['"]/g, "");
+        try {
+          filename = decodeURIComponent(filename);
+        } catch {
+          /* Empty */
+        }
+      } // Create and trigger download
+
+      const url = window.URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.style.display = "none";
+
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Failed to download file:", error);
+    }
+  };
 
   return (
     <>
@@ -188,7 +229,7 @@ export default function TabDocuments({
                         <ActionIcon
                           size="sm"
                           variant="subtle"
-                          onClick={() => appwriteDownloadFile(doc.id)}
+                          onClick={() => handleDownload(doc.googleDriveId)}
                         >
                           <IconFileDownload size={24} />
                         </ActionIcon>
@@ -218,6 +259,7 @@ export default function TabDocuments({
       </Flex>
 
       <TabDocumentsUploadFileModal
+        googleDriveFolderId={matterData.googleDriveFolderId}
         opened={isUploadModalFileOpen}
         onClose={closeUploadModalFile}
         matterId={matterData.id!}
@@ -228,8 +270,8 @@ export default function TabDocuments({
         opened={isDeleteModalFileOpen}
         onClose={closeDeleteModalFile}
         document={selectedDocument}
+        matterData={matterData}
         setDataChanged={setDataChanged}
-        matterId={matterData.id!}
       />
     </>
   );

@@ -23,6 +23,7 @@ import { TaskDivision } from "@/types/task";
 import { addMatterUpdate } from "../utils/addMatterUpdate";
 import { useUser } from "@clerk/nextjs";
 import { MatterUpdateType } from "@/types/matter-updates";
+import { appNotifications } from "@/utils/notifications/notifications";
 
 interface TabTasksAddTaskModalProps {
   opened: boolean;
@@ -99,11 +100,17 @@ export default function TabTasksAddTaskModal({
         `Task Created: ${form.values.taskName}`
       );
 
-      toast.success("Task created successfully!");
+      appNotifications.success({
+        title: "Task created successfully",
+        message: "The task has been created successfully",
+      });
       setDataChanged((prev) => !prev);
       onClose();
     } catch {
-      toast.error("Failed to create task");
+      appNotifications.error({
+        title: "Failed to create task",
+        message: "The task could not be created. Please try again.",
+      });
     } finally {
       setIsLoading(false);
     }

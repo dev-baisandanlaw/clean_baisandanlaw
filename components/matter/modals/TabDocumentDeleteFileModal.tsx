@@ -1,31 +1,32 @@
-import { appwriteDeleteFile } from "@/app/api/appwrite";
 import { COLLECTIONS } from "@/constants/constants";
 import { db } from "@/firebase/config";
 import { Matter } from "@/types/case";
 import { MatterUpdateType } from "@/types/matter-updates";
 import { Button, Modal, Text } from "@mantine/core";
 import { IconTrash } from "@tabler/icons-react";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
-import { toast } from "react-toastify";
 import { addMatterUpdate } from "../utils/addMatterUpdate";
 import { useUser } from "@clerk/nextjs";
+import axios from "axios";
+import { appNotifications } from "@/utils/notifications/notifications";
 
 interface TabDocumentDeleteFileModalProps {
   opened: boolean;
   onClose: () => void;
   document?: Matter["documents"][number];
+  matterData: Matter;
   setDataChanged: React.Dispatch<React.SetStateAction<boolean>>;
-  matterId: string;
 }
 
 export default function TabDocumentDeleteFileModal({
   opened,
   onClose,
   document,
+  matterData,
   setDataChanged,
-  matterId,
 }: TabDocumentDeleteFileModalProps) {
+  console.log(document);
   const { user } = useUser();
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -33,32 +34,35 @@ export default function TabDocumentDeleteFileModal({
     setIsDeleting(true);
 
     try {
-      const ref = doc(db, COLLECTIONS.CASES, matterId);
-      const snap = await getDoc(ref);
-      if (!snap.exists()) throw new Error("Firebase cannot find the document");
-
-      const currentDocs = snap.data()?.documents || [];
-      const updatedDocs = currentDocs.filter(
-        (doc: { id: string }) => doc.id !== document!.id
+      await axios.delete(`/api/google/drive/delete/${document!.googleDriveId}`);
+      await setDoc(
+        doc(db, COLLECTIONS.CASES, matterData.id),
+        {
+          documents: matterData.documents.filter((d) => d.id !== document!.id),
+        },
+        { merge: true }
       );
 
-      await appwriteDeleteFile(document!.id);
-      await updateDoc(ref, { documents: updatedDocs });
       await addMatterUpdate(
         user!,
-        matterId,
+        matterData.id,
         user?.unsafeMetadata.role as string,
         MatterUpdateType.DOCUMENT,
-        `Document deleted`
+        `Document Deleted: ${document!.name}`
       );
 
       setDataChanged((prev) => !prev);
-      toast.success("Document deleted successfully");
+      appNotifications.success({
+        title: "Document deleted successfully",
+        message: "The document has been deleted successfully",
+      });
       onClose();
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to delete document"
-      );
+      appNotifications.error({
+        title: "Failed to delete document",
+        message:
+          err instanceof Error ? err.message : "Failed to delete document",
+      });
     } finally {
       setIsDeleting(false);
     }
@@ -77,9 +81,9 @@ export default function TabDocumentDeleteFileModal({
       transitionProps={{ transition: "pop" }}
       withCloseButton={!isDeleting}
     >
-      <Text ta="center" mb="md">
-        Are you sure? This will remove the document from the case and cannot be
-        undone.
+      <Text mb="md">
+        Are you sure you want to delete <strong>{document?.name}</strong>? Once
+        confirmed, the document will be deleted and cannot be undone.
       </Text>
 
       <Button

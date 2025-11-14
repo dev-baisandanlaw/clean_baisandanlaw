@@ -17,12 +17,12 @@ import { IconSend } from "@tabler/icons-react";
 import { nanoid } from "nanoid";
 import { arrayUnion, doc, setDoc } from "firebase/firestore";
 import { useState } from "react";
-import { toast } from "react-toastify";
 import dayjs from "dayjs";
 import { useUser } from "@clerk/nextjs";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { useDisclosure } from "@mantine/hooks";
 import ViewAllModal from "../modals/ViewAllModal";
+import { appNotifications } from "@/utils/notifications/notifications";
 
 interface MatterNotesProps {
   notes: Note[] | null;
@@ -68,11 +68,18 @@ export default function MatterNotes({
         { merge: true }
       );
 
-      toast.success("Note added successfully");
       setNote("");
       setDataChanged((prev) => !prev);
+
+      appNotifications.success({
+        title: "Note added successfully",
+        message: "The note has been added successfully",
+      });
     } catch {
-      toast.error("Failed to add note");
+      appNotifications.error({
+        title: "Failed to add note",
+        message: "The note could not be added. Please try again.",
+      });
     } finally {
       setAddingNote(false);
     }

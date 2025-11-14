@@ -27,8 +27,8 @@ import { db } from "@/firebase/config";
 import { COLLECTIONS } from "@/constants/constants";
 import { addMatterUpdate } from "./utils/addMatterUpdate";
 import { useUser } from "@clerk/nextjs";
-import { toast } from "react-toastify";
 import MatterNotes from "./TabOverview/MatterNotes";
+import { appNotifications } from "@/utils/notifications/notifications";
 
 interface MatterTabOverviewProps {
   matterData: Matter;
@@ -190,7 +190,10 @@ export default function TabOverview({
       );
 
       setDataChanged((prev) => !prev);
-      toast.success("Description updated successfully");
+      appNotifications.success({
+        title: "Description updated successfully",
+        message: "The description has been updated successfully",
+      });
       setIsEditDescription(false);
     } catch (error) {
       console.error(error);

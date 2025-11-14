@@ -24,7 +24,7 @@ import {
 } from "@mantine/core";
 import { useDebouncedValue, useDisclosure } from "@mantine/hooks";
 import { IconCirclePlus, IconEye, IconSearch } from "@tabler/icons-react";
-import { collection, getDocs, or, query, where } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { useEffect, useState } from "react";
 
 export default function MattersListing() {
@@ -56,10 +56,6 @@ export default function MattersListing() {
         q = query(
           collection(db, COLLECTIONS.CASES),
           where("leadAttorney.id", "==", user.id)
-          // or(
-          //   where("leadAttorney.id", "==", user.id),
-          //   where("involvedAttorneyIds", "array-contains", user.id)
-          // )
         );
       } else if (user.unsafeMetadata?.role === "admin") {
         q = query(collection(db, COLLECTIONS.CASES));

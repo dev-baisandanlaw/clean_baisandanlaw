@@ -26,7 +26,7 @@ import { useDisclosure } from "@mantine/hooks";
 import axios from "axios";
 import TabRDocumentsDeleteModal from "./modals/TabRDocumentsDeleteModal";
 import { useState, useMemo } from "react";
-import { toast } from "react-toastify";
+import { appNotifications } from "@/utils/notifications/notifications";
 
 interface RTabDocumentsProps {
   retainerData: Retainer;
@@ -67,6 +67,11 @@ export default function RTabDocuments({
   }, [retainerData.documents, activeTab]);
 
   const handleDownload = async (fileId: string) => {
+    appNotifications.info({
+      title: "Downloading file",
+      message: "The file is being downloaded. Please wait...",
+    });
+
     try {
       const res = await axios.get(`/api/google/drive/download/${fileId}`, {
         responseType: "blob",
@@ -96,8 +101,13 @@ export default function RTabDocuments({
 
       document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
     } catch {
-      toast.error("Failed to download file");
+      appNotifications.error({
+        title: "Failed to download file",
+        message: "The file could not be downloaded. Please try again.",
+      });
     }
   };
 

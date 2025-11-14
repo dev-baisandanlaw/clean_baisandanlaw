@@ -6,8 +6,8 @@ import { db } from "@/firebase/config";
 import { COLLECTIONS } from "@/constants/constants";
 import { useUser } from "@clerk/nextjs";
 import dayjs from "dayjs";
-import { toast } from "react-toastify";
 import { nanoid } from "nanoid";
+import { appNotifications } from "@/utils/notifications/notifications";
 
 interface RejectNotaryRequestModalProps {
   opened: boolean;
@@ -57,10 +57,16 @@ export default function RejectNotaryRequestModal({
         { merge: true }
       );
 
-      toast.success("Notary request rejected successfully");
+      appNotifications.success({
+        title: "Notary request rejected",
+        message: "The notary request has been rejected successfully",
+      });
       onClose();
     } catch {
-      toast.error("An error occurred");
+      appNotifications.error({
+        title: "Failed to reject notary request",
+        message: "The notary request could not be rejected. Please try again.",
+      });
     } finally {
       setIsRejecting(false);
     }

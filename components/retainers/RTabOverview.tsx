@@ -27,10 +27,10 @@ import { arrayUnion, doc, setDoc } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { COLLECTIONS } from "@/constants/constants";
 import { useUser } from "@clerk/nextjs";
-import { toast } from "react-toastify";
 import { nanoid } from "nanoid";
 import dayjs from "dayjs";
 import { Note } from "@/types/matter-notes";
+import { appNotifications } from "@/utils/notifications/notifications";
 
 interface RTabOverviewProps {
   retainerData: Retainer;
@@ -133,10 +133,16 @@ export default function RTabOverview({
       );
 
       setDataChanged((prev) => !prev);
-      toast.success("Description updated successfully");
+      appNotifications.success({
+        title: "Description updated successfully",
+        message: "The description has been updated successfully",
+      });
       setIsEditDescription(false);
     } catch {
-      toast.error("Failed to update description");
+      appNotifications.error({
+        title: "Failed to update description",
+        message: "The description could not be updated. Please try again.",
+      });
     } finally {
       setIsUpdatingDescription(false);
     }
@@ -294,11 +300,17 @@ function RetainerNotes({
         { merge: true }
       );
 
-      toast.success("Note added successfully");
+      appNotifications.success({
+        title: "Note added successfully",
+        message: "The note has been added successfully",
+      });
       setNote("");
       setDataChanged((prev) => !prev);
     } catch {
-      toast.error("Failed to add note");
+      appNotifications.error({
+        title: "Failed to add note",
+        message: "The note could not be added. Please try again.",
+      });
     } finally {
       setAddingNote(false);
     }

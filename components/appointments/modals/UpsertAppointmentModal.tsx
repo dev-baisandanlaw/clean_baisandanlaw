@@ -6,6 +6,7 @@ import {
 import { db } from "@/firebase/config";
 import { Booking } from "@/types/booking";
 import { Attorney, Client } from "@/types/user";
+import { appNotifications } from "@/utils/notifications/notifications";
 import {
   Badge,
   Button,
@@ -38,7 +39,6 @@ import {
   where,
 } from "firebase/firestore";
 import { useEffect, useState } from "react";
-import { toast } from "react-toastify";
 
 type AddAppointmentModalProps = {
   opened: boolean;
@@ -206,10 +206,19 @@ export default function AddAppointmentModal({
         },
       })
         .then(() => {
-          toast.success("Appointment added successfully");
+          appNotifications.success({
+            title: "Appointment added successfully",
+            message: "The appointment has been added successfully",
+          });
+
           onClose();
         })
-        .catch(() => toast.error("Failed to add appointment"))
+        .catch(() =>
+          appNotifications.error({
+            title: "Failed to add appointment",
+            message: "The appointment could not be added. Please try again.",
+          })
+        )
         .finally(() => setIsLoading(false));
     };
 
@@ -236,10 +245,18 @@ export default function AddAppointmentModal({
         },
       })
         .then(() => {
-          toast.success("Appointment updated successfully");
+          appNotifications.success({
+            title: "Appointment updated successfully",
+            message: "The appointment has been updated successfully",
+          });
           onClose();
         })
-        .catch(() => toast.error("Failed to update appointment"))
+        .catch(() =>
+          appNotifications.error({
+            title: "Failed to update appointment",
+            message: "The appointment could not be updated. Please try again.",
+          })
+        )
         .finally(() => setIsLoading(false));
     };
 
@@ -262,7 +279,10 @@ export default function AddAppointmentModal({
           });
         })
         .catch(() => {
-          toast.error("Failed to update appointment");
+          appNotifications.error({
+            title: "Failed to update appointment",
+            message: "The appointment could not be updated. Please try again.",
+          });
           setIsLoading(false);
         });
 
@@ -293,7 +313,10 @@ export default function AddAppointmentModal({
         }
       })
       .catch(() => {
-        toast.error("Failed to add appointment");
+        appNotifications.error({
+          title: "Failed to add appointment",
+          message: "The appointment could not be added. Please try again.",
+        });
         setIsLoading(false);
       });
   };

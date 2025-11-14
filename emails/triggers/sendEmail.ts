@@ -7,7 +7,7 @@ export const sendEmail = async (emailBody: {
   data: Record<string, string>;
   attachments?: {
     filename: string;
-    path: string;
+    content: string;
   }[];
 }) => {
   await axios.post("/api/resend/send", {

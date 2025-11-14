@@ -19,6 +19,7 @@ export interface Matter {
   updatedAt: string;
   schedules?: Schedule[];
   notes?: Note[];
+  googleDriveFolderId: string;
 }
 
 type LocalUser = {
@@ -39,6 +40,7 @@ export type Document = {
     id: string;
     fullname: string;
   };
+  googleDriveId: string;
 };
 
 export type Schedule = {

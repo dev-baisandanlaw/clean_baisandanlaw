@@ -1,7 +1,9 @@
 import { COLLECTIONS } from "@/constants/constants";
 import { sendEmail } from "@/emails/triggers/sendEmail";
 import { db } from "@/firebase/config";
+import { attachToResend } from "@/lib/attachToResend";
 import { NotaryRequest, NotaryRequestStatus } from "@/types/notary-requests";
+import { appNotifications } from "@/utils/notifications/notifications";
 import { useUser } from "@clerk/nextjs";
 import { Button, Group, Modal, Stack, Text } from "@mantine/core";
 import dayjs from "dayjs";
@@ -66,9 +68,20 @@ export default function ConfirmationModal({
           },
         });
 
-        toast.success("Notary request marked as for pickup");
+        appNotifications.success({
+          title: "Notary request ready for pickup",
+          message: "The notary request has been marked as ready for pickup",
+        });
         onClose();
       } else {
+        const downloadedAttachments = [];
+        if (notaryRequest.documents.finishedFile!.id) {
+          const att = await attachToResend(
+            notaryRequest.documents.finishedFile!.id
+          );
+          downloadedAttachments.push(att);
+        }
+
         await sendEmail({
           to: notaryRequest.requestor.email,
           subject: "Your Notary Request is Completed!",
@@ -76,12 +89,12 @@ export default function ConfirmationModal({
           data: {
             fullname: notaryRequest.requestor.fullname,
           },
-          attachments: [
-            {
-              filename: notaryRequest.finishedDocument.name,
-              path: `https://fra.cloud.appwrite.io/v1/storage/buckets/${process.env.NEXT_PUBLIC_APPWRITE_BUCKET_ID}/files/${notaryRequest.finishedDocument.id}/view?project=${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}&mode=admin`,
-            },
-          ],
+          ...(downloadedAttachments.length > 0 && {
+            attachments: downloadedAttachments.map((att) => ({
+              filename: att.filename,
+              content: att.content,
+            })),
+          }),
         });
 
         await setDoc(

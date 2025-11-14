@@ -9,9 +9,9 @@ import { Button, Group, Modal, Stack, Table, Text } from "@mantine/core";
 import dayjs from "dayjs";
 import { doc, setDoc } from "firebase/firestore";
 import { useState } from "react";
-import { toast } from "react-toastify";
 import { addMatterUpdate } from "../utils/addMatterUpdate";
 import { MatterUpdateType } from "@/types/matter-updates";
+import { appNotifications } from "@/utils/notifications/notifications";
 
 interface TabTaskInfoTaskModalProps {
   opened: boolean;
@@ -63,7 +63,11 @@ export default function TabTaskInfoTaskModal({
         `Task Completed: ${task!.taskName}`
       );
 
-      toast.success("Task completed successfully");
+      appNotifications.success({
+        title: "Task completed successfully",
+        message: "The task has been completed successfully",
+      });
+
       setDataChanged((prev) => !prev);
       onClose();
     } catch (error) {

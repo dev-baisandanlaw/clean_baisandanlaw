@@ -14,11 +14,11 @@ import {
 import { useForm } from "@mantine/form";
 import { useEffect, useState } from "react";
 import { DatePickerInput } from "@mantine/dates";
-import { toast } from "react-toastify";
 import dayjs from "dayjs";
 import axios from "axios";
 import { addDoc, collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/firebase/config";
+import { appNotifications } from "@/utils/notifications/notifications";
 
 interface AddRetainerModalProps {
   opened: boolean;
@@ -62,9 +62,11 @@ export default function AddRetainerModal({
       );
 
       if (snap.docs.length > 0) {
-        toast.error(`Retainer with the same client name already exists`, {
-          autoClose: 5000,
+        appNotifications.error({
+          title: "Failed to add retainer",
+          message: "A retainer with the same client name already exists.",
         });
+
         setIsLoading(false);
         return;
       }
@@ -87,13 +89,24 @@ export default function AddRetainerModal({
       })
         .then(() => {
           setIsDataChanged((p) => !p);
-          toast.success("Retainer added successfully");
+          appNotifications.success({
+            title: "Retainer added successfully",
+            message: "The retainer has been added successfully",
+          });
           onClose();
         })
-        .catch(() => toast.error("Failed to add retainer"))
+        .catch(() =>
+          appNotifications.error({
+            title: "Failed to add retainer",
+            message: "The retainer could not be added. Please try again.",
+          })
+        )
         .finally(() => setIsLoading(false));
     } catch {
-      toast.error("Failed to add retainer");
+      appNotifications.error({
+        title: "Failed to add retainer",
+        message: "The retainer could not be added. Please try again.",
+      });
     } finally {
       setIsLoading(false);
     }

@@ -37,7 +37,6 @@ import {
 } from "@tabler/icons-react";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { useEffect, useState } from "react";
-import { appwriteDownloadFile } from "@/app/api/appwrite";
 import RejectNotaryRequestModal from "@/components/notary-requests/modals/RejectNotaryRequestModal";
 import { UpsertNotaryRequestModal } from "@/components/notary-requests/modals/UpsertNotaryRequest";
 import { ViewNotaryRequestDrawer } from "@/components/notary-requests/drawer/ViewNotaryRequestDrawer";
@@ -45,6 +44,8 @@ import ReviewNotaryRequestModal from "@/components/notary-requests/modals/Review
 import ApproveNotaryRequestModal from "@/components/notary-requests/modals/ApproveNotaryRequestModal";
 import ClientReviewModal from "@/components/notary-requests/modals/ClientReviewModal";
 import ConfirmationModal from "@/components/notary-requests/modals/ConfirmationModal";
+import axios from "axios";
+import { appNotifications } from "@/utils/notifications/notifications";
 
 export default function NotaryRequestsListing() {
   const { user } = useUser();
@@ -99,6 +100,44 @@ export default function NotaryRequestsListing() {
 
   const [selectedNotaryRequest, setSelectedNotaryRequest] =
     useState<NotaryRequest | null>(null);
+
+  const handleDownloadFile = async (fileId: string) => {
+    appNotifications.info({
+      title: "Downloading file",
+      message: "The file is being downloaded. Please wait...",
+    });
+
+    const res = await axios.get(`/api/google/drive/download/${fileId}`, {
+      responseType: "blob",
+    });
+
+    const disposition = res.headers["content-disposition"];
+    const filenameMatch = disposition?.match(
+      /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/
+    );
+
+    let filename = "download";
+    if (filenameMatch?.[1]) {
+      filename = filenameMatch[1].replace(/['"]/g, "");
+      try {
+        filename = decodeURIComponent(filename);
+      } catch {
+        /* Empty */
+      }
+    }
+
+    // Create and trigger download
+    const url = window.URL.createObjectURL(res.data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.style.display = "none";
+
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -284,8 +323,8 @@ export default function NotaryRequestsListing() {
                                 <Menu.Sub.Item
                                   leftSection={<IconDownload size={16} />}
                                   disabled={
-                                    !notaryRequest.document &&
-                                    !notaryRequest.finishedDocument
+                                    !notaryRequest.documents?.initialFile &&
+                                    !notaryRequest.documents?.finishedFile
                                   }
                                 >
                                   Download
@@ -294,22 +333,26 @@ export default function NotaryRequestsListing() {
 
                               <Menu.Sub.Dropdown>
                                 <Menu.Item
-                                  disabled={!notaryRequest.document}
-                                  onClick={() => {
-                                    appwriteDownloadFile(
-                                      notaryRequest.document!.id
-                                    );
-                                  }}
+                                  disabled={
+                                    !notaryRequest.documents?.initialFile
+                                  }
+                                  onClick={() =>
+                                    handleDownloadFile(
+                                      notaryRequest.documents.initialFile!.id
+                                    )
+                                  }
                                 >
                                   Initial File
                                 </Menu.Item>
                                 <Menu.Item
-                                  disabled={!notaryRequest.finishedDocument}
-                                  onClick={() => {
-                                    appwriteDownloadFile(
-                                      notaryRequest.finishedDocument!.id
-                                    );
-                                  }}
+                                  disabled={
+                                    !notaryRequest.documents?.finishedFile
+                                  }
+                                  onClick={() =>
+                                    handleDownloadFile(
+                                      notaryRequest.documents.finishedFile!.id
+                                    )
+                                  }
                                 >
                                   Finished File
                                 </Menu.Item>

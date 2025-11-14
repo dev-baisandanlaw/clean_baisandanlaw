@@ -24,6 +24,7 @@ import { db } from "@/firebase/config";
 import { COLLECTIONS } from "@/constants/constants";
 import { Retainer } from "@/types/retainer";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
+import { appNotifications } from "@/utils/notifications/notifications";
 
 export default function RetainerListing() {
   const theme = useMantineTheme();
@@ -50,7 +51,10 @@ export default function RetainerListing() {
 
       setRetainers(r);
     } catch {
-      toast.error("Failed to fetch retainers");
+      appNotifications.error({
+        title: "Failed to fetch retainers",
+        message: "The retainers could not be fetched. Please try again.",
+      });
     } finally {
       setIsFetching(false);
     }

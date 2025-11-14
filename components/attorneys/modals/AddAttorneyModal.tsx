@@ -14,7 +14,7 @@ import { useForm } from "@mantine/form";
 import { useEffect, useState } from "react";
 import { nanoid } from "nanoid";
 import axios from "axios";
-import { toast } from "react-toastify";
+import { appNotifications } from "@/utils/notifications/notifications";
 
 interface AddAttorneyModalProps {
   opened: boolean;
@@ -79,7 +79,11 @@ export const AddAttorneyModal = ({
         organization_id: CLERK_ORG_IDS.attorney,
       });
 
-      toast.success("Attorney added successfully");
+      appNotifications.success({
+        title: "Attorney added successfully",
+        message: "The attorney has been added successfully",
+      });
+
       setIsDataChanged(true);
       onClose();
     } catch (error: any) {
@@ -91,7 +95,11 @@ export const AddAttorneyModal = ({
           "Password is too weak. Please try again."
         );
       }
-      toast.error(errorMessage || "Failed to add attorney", {
+
+      appNotifications.error({
+        title: "Failed to add attorney",
+        message:
+          errorMessage || "The attorney could not be added. Please try again.",
         autoClose: 5000,
       });
     } finally {

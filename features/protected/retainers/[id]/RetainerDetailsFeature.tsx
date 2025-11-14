@@ -5,6 +5,7 @@ import RTabOverview from "@/components/retainers/RTabOverview";
 import { COLLECTIONS } from "@/constants/constants";
 import { db } from "@/firebase/config";
 import { Retainer } from "@/types/retainer";
+import { appNotifications } from "@/utils/notifications/notifications";
 import { LoadingOverlay, ScrollArea, Tabs } from "@mantine/core";
 import { IconCategory, IconFolder } from "@tabler/icons-react";
 import { doc, getDoc } from "firebase/firestore";
@@ -47,7 +48,10 @@ export default function RetainerDetailsFeature({
 
       setRetainerData(r);
     } catch {
-      toast.error("Failed to fetch retainer details");
+      appNotifications.error({
+        title: "Failed to fetch retainer details",
+        message: "The retainer details could not be fetched. Please try again.",
+      });
     } finally {
       setIsFetching(false);
     }

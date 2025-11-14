@@ -9,6 +9,7 @@ import { useState } from "react";
 import { toast } from "react-toastify";
 import { addMatterUpdate } from "../utils/addMatterUpdate";
 import { MatterUpdateType } from "@/types/matter-updates";
+import { appNotifications } from "@/utils/notifications/notifications";
 
 interface TabTasksDeleteTaskModalProps {
   opened: boolean;
@@ -46,11 +47,18 @@ export default function TabTasksDeleteTaskModal({
         `Task Deleted: ${task!.taskName}`
       );
 
-      toast.success("Task deleted successfully");
+      appNotifications.success({
+        title: "Task deleted successfully",
+        message: "The task has been deleted successfully",
+      });
+
       setDataChanged((prev) => !prev);
       onClose();
     } catch {
-      toast.error("Failed to delete task");
+      appNotifications.error({
+        title: "Failed to delete task",
+        message: "The task could not be deleted. Please try again.",
+      });
     } finally {
       setIsDeleting(false);
     }

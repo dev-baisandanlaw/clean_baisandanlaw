@@ -17,6 +17,7 @@ import { Open_Sans } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 // import AppShellComponent from "@/components/AppShellComponent";
 import { ToastContainer } from "react-toastify";
+import { Notifications } from "@mantine/notifications";
 
 const openSans = Open_Sans({
   variable: "--font-open-sans",
@@ -112,6 +113,7 @@ export default function RootLayout({
       >
         <ToastContainer position="top-center" autoClose={2000} />
         <MantineProvider theme={theme}>
+          <Notifications position="top-center" />
           <ClerkProvider
             appearance={{
               variables: {

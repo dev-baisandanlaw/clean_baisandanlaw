@@ -1,12 +1,12 @@
 import { COLLECTIONS } from "@/constants/constants";
 import { db } from "@/firebase/config";
 import { NotaryRequest, NotaryRequestStatus } from "@/types/notary-requests";
+import { appNotifications } from "@/utils/notifications/notifications";
 import { useUser } from "@clerk/nextjs";
 import { Button, Group, Modal, Stack, Table, Text } from "@mantine/core";
 import dayjs from "dayjs";
 import { doc, setDoc } from "firebase/firestore";
 import { useState } from "react";
-import { toast } from "react-toastify";
 
 interface ReviewNotaryRequestModalProps {
   opened: boolean;
@@ -50,10 +50,18 @@ export default function ReviewNotaryRequestModal({
         },
         { merge: true }
       );
-      toast.success("Notary request marked as processing");
+
+      appNotifications.success({
+        title: "Notary request marked as processing",
+        message: "The notary request has been marked as processing",
+      });
       onClose();
     } catch {
-      toast.error("An error occurred");
+      appNotifications.error({
+        title: "Failed to mark notary request as processing",
+        message:
+          "The notary request could not be marked as processing. Please try again.",
+      });
     } finally {
       setIsReviewing(false);
     }

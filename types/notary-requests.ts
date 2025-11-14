@@ -1,4 +1,12 @@
-import { Document } from "./case";
+type NotaryRequestDocument = {
+  id: string;
+  name: string;
+  uploadedAt: string;
+  uploadedBy: {
+    id: string;
+    fullname: string;
+  };
+};
 
 export enum NotaryRequestStatus {
   SUBMITTED = "submitted",
@@ -52,10 +60,11 @@ export interface NotaryRequest {
       email: string;
     };
   };
-  document: Document | null;
-  finishedDocument: Document;
-  finishedAt: string;
-  isPaid: boolean;
+  documents: {
+    googleDriveFolderId: string;
+    initialFile: NotaryRequestDocument | null;
+    finishedFile: NotaryRequestDocument | null;
+  };
 }
 
 type NotaryRequestTimelineItem = {

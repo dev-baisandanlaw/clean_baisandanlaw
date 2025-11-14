@@ -2,59 +2,63 @@ import { COLLECTIONS } from "@/constants/constants";
 import { doc, setDoc } from "firebase/firestore";
 import { db } from "./config";
 import dayjs from "dayjs";
-import { NotaryRequestStatus } from "@/types/notary-requests";
+import { NotaryRequest, NotaryRequestStatus } from "@/types/notary-requests";
 import { UserResource } from "@clerk/types";
 import { customAlphabet } from "nanoid";
 
-export const createNotaryRequest = async (
+export const updateNotaryRequest = async (
   description: string,
   user: UserResource,
-  uuid: string,
-  googleDriveFolderId: string,
-  file?: {
+  notaryRequest: NotaryRequest,
+  newFile?: {
     id: string;
     name: string;
   }
 ) => {
+  console.log(newFile);
   const uploaderName = `${user.firstName} ${user.lastName}`;
 
   const documents = {
-    googleDriveFolderId,
-    finishedFile: null,
-    ...(file?.id && {
-      initialFile: {
-        id: file.id,
-        name: file.name,
-        uploadedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-        uploadedBy: { fullname: uploaderName, id: user.id },
-      },
-    }),
+    finishedFile: notaryRequest.documents.finishedFile,
+    ...(newFile
+      ? {
+          initialFile: {
+            id: newFile.id,
+            name: newFile.name,
+            uploadedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
+            uploadedBy: { fullname: uploaderName, id: user.id },
+          },
+        }
+      : {
+          initialFile: null,
+        }),
   };
 
   await setDoc(
-    doc(db, COLLECTIONS.NOTARY_REQUESTS, uuid),
+    doc(db, COLLECTIONS.NOTARY_REQUESTS, notaryRequest.id),
     {
-      createdAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
+      //   createdAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
       updatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
       description,
       documents,
       status: NotaryRequestStatus.SUBMITTED,
       timeline: [
+        ...(notaryRequest.timeline || []),
         {
           id: customAlphabet("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", 8)(),
-          title: "SUBMITTED",
+          title: "UPDATED",
           description,
           dateAndTime: dayjs().format("YYYY-MM-DD HH:mm:ss"),
           status: NotaryRequestStatus.SUBMITTED,
           user: {
             id: user?.id,
-            fullname: user?.firstName + " " + user?.lastName,
+            fullname: uploaderName,
           },
         },
       ],
       requestor: {
         id: user?.id,
-        fullname: user?.firstName + " " + user?.lastName,
+        fullname: uploaderName,
         email: user?.emailAddresses[0].emailAddress,
       },
     },

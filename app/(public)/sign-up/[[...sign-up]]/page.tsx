@@ -25,10 +25,10 @@ import { useState } from "react";
 import { ClerkAPIError } from "@clerk/types";
 import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
 import { useRouter } from "next/navigation";
-import { toast } from "react-toastify";
 import { useMediaQuery } from "@mantine/hooks";
 import axios from "axios";
 import { CLERK_ORG_IDS } from "@/constants/constants";
+import { appNotifications } from "@/utils/notifications/notifications";
 
 export default function Page() {
   const shrink = useMediaQuery(`(max-width: ${em(576)})`);
@@ -131,7 +131,10 @@ export default function Page() {
 
       if (completeSignUp.status === "complete") {
         await setActive({ session: completeSignUp.createdSessionId });
-        toast.success("Account created successfully");
+        appNotifications.success({
+          title: "Account created successfully",
+          message: "You can now sign in to your account",
+        });
         router.push("/");
       }
     } catch (error) {

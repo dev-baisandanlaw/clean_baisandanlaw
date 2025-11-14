@@ -4,6 +4,7 @@ import EmptyTableComponent from "@/components/EmptyTableComponent";
 import { CLERK_ORG_IDS } from "@/constants/constants";
 import { Client } from "@/types/user";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
+import { appNotifications } from "@/utils/notifications/notifications";
 
 import {
   Badge,
@@ -21,7 +22,6 @@ import { useDebouncedValue } from "@mantine/hooks";
 import { IconSearch } from "@tabler/icons-react";
 import axios from "axios";
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "react-toastify";
 
 export default function ClientListing() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -51,7 +51,11 @@ export default function ClientListing() {
 
       setClients(data);
     } catch {
-      toast.error("Failed to fetch clients");
+      appNotifications.error({
+        title: "Failed to fetch clients",
+        message: "The clients could not be fetched. Please try again.",
+      });
+
       setClients([]);
       setTotalCount(0);
     } finally {

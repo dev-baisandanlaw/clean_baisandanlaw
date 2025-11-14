@@ -20,7 +20,6 @@ import {
   IMAGE_MIME_TYPE,
   PDF_MIME_TYPE,
 } from "@mantine/dropzone";
-import { toast } from "react-toastify";
 import {
   IconAlertCircle,
   IconFileTypePdf,
@@ -34,6 +33,7 @@ import { COLLECTIONS } from "@/constants/constants";
 import axios from "axios";
 import { nanoid } from "nanoid";
 import dayjs from "dayjs";
+import { appNotifications } from "@/utils/notifications/notifications";
 
 interface TabRDocumentsUploadFileModalProps {
   opened: boolean;
@@ -137,12 +137,18 @@ export default function TabRDocumentsUploadFileModal({
           updatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
           documents: arrayUnion(...docsToAdd),
         });
-        toast.success(`${docsToAdd.length} file(s) uploaded successfully`);
+        appNotifications.success({
+          title: `Files uploaded successfully`,
+          message: `${docsToAdd.length} file(s) uploaded successfully`,
+        });
         setDataChanged((prev) => !prev);
         onClose();
       }
     } catch {
-      toast.error("Failed to upload files");
+      appNotifications.error({
+        title: "Failed to upload files",
+        message: "The files could not be uploaded. Please try again.",
+      });
       setIsUploading(false);
       onClose();
     }

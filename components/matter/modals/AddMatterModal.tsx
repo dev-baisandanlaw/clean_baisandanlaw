@@ -20,12 +20,12 @@ import axios from "axios";
 import { addDoc, collection, doc, setDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { nanoid } from "nanoid";
-import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
 import dayjs from "dayjs";
 import { useUser } from "@clerk/nextjs";
 import { MatterUpdateType } from "@/types/matter-updates";
 import { addMatterUpdate } from "../utils/addMatterUpdate";
+import { appNotifications } from "@/utils/notifications/notifications";
 
 interface AddMatterModalProps {
   opened: boolean;
@@ -68,6 +68,8 @@ export default function AddMatterModal({
   const handleSubmit = async (values: typeof form.values) => {
     setIsLoading(true);
 
+    const caseNumber = `JA-${nanoid(8).toUpperCase()}`;
+
     try {
       const leadAttorneyDetails = attorneyUsers.find(
         (user) => user.id === values.leadAttorney.id
@@ -96,7 +98,7 @@ export default function AddMatterModal({
           imageUrl: clientDetails?.profile_image_url,
           email: clientDetails?.email_addresses[0].email_address,
         },
-        caseNumber: `JA-${nanoid(8).toUpperCase()}`,
+        caseNumber,
         createdBy: {
           id: user!.id,
           fullname: user!.firstName + " " + user!.lastName,
@@ -108,6 +110,7 @@ export default function AddMatterModal({
         status: "active",
       };
 
+      // 1. Update lead attorney's involved cases count
       await axios.patch("/api/clerk/user/update-user-metadata", {
         userId: leadAttorneyDetails?.id,
         unsafe_metadata: {
@@ -116,7 +119,22 @@ export default function AddMatterModal({
         },
       });
 
-      const res = await addDoc(collection(db, COLLECTIONS.CASES), data);
+      // 2. Create Google Drive folder for the matter
+      const { data: googleDriveFolder } = await axios.post(
+        "/api/google/drive/gFolders/create",
+        {
+          name: caseNumber,
+          parentId: process.env.NEXT_PUBLIC_GOOGLE_DOCUMENTS_MATTERS_FOLDER_ID,
+        }
+      );
+
+      // 3. Add matter to database
+      const res = await addDoc(collection(db, COLLECTIONS.CASES), {
+        ...data,
+        googleDriveFolderId: googleDriveFolder.id,
+      });
+
+      // 4. Update tasks collection
       await setDoc(doc(db, COLLECTIONS.TASKS, res.id), {
         caseId: res.id,
         totalTasks: 0,
@@ -126,6 +144,8 @@ export default function AddMatterModal({
         createdAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
         updatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
       });
+
+      // 5. Add matter update
       await addMatterUpdate(
         user!,
         res.id,
@@ -134,11 +154,17 @@ export default function AddMatterModal({
         "Matter Initiated"
       );
 
-      toast.success("Matter added successfully");
+      appNotifications.success({
+        title: "Matter added successfully",
+        message: "The matter has been initiated successfully",
+      });
       onClose();
       router.push(`/matters/${res.id}`);
     } catch {
-      toast.error("Failed to add matter");
+      appNotifications.error({
+        title: "Failed to add matter",
+        message: "The matter could not be added. Please try again.",
+      });
     } finally {
       setIsLoading(false);
     }

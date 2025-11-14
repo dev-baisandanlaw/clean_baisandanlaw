@@ -34,6 +34,7 @@ import {
   COLLECTIONS,
   // PAYMONGO_CONFIG,
 } from "@/constants/constants";
+import { appNotifications } from "@/utils/notifications/notifications";
 // import { IconInfoCircle } from "@tabler/icons-react";
 
 export default function BookingModal({
@@ -91,10 +92,13 @@ export default function BookingModal({
 
     await getDocs(q).then(({ docs }) => {
       if (docs.length > 0) {
-        toast.error(
-          "Selected date and time is already booked. Please select a different date and time.",
-          { autoClose: 7500 }
-        );
+        appNotifications.error({
+          title: "Failed to book appointment",
+          message:
+            "Selected date and time is already booked. Please select a different date and time",
+          autoClose: 7500,
+        });
+
         setIsBooking(false);
         return;
       }
@@ -182,10 +186,15 @@ export default function BookingModal({
         onClose();
         form.reset();
         successCallback();
-        toast.success("Booking submitted!");
+        appNotifications.success({
+          title: "Booking submitte!",
+          message: "Your booking has been submitted successfully",
+        });
       })
       .catch(() =>
-        toast.error("Something went wrong. Please try again later.", {
+        appNotifications.error({
+          title: "Failed to book appointment",
+          message: "The booking could not be submitted. Please try again.",
           autoClose: 3000,
         })
       )

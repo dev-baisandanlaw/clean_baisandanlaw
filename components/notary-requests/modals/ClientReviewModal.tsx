@@ -14,9 +14,9 @@ import { IconCheck, IconX } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import { doc, setDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
-import { toast } from "react-toastify";
 import { nanoid } from "nanoid";
 import { useUser } from "@clerk/nextjs";
+import { appNotifications } from "@/utils/notifications/notifications";
 
 interface ClientReviewModalProps {
   opened: boolean;
@@ -68,10 +68,17 @@ export default function ClientReviewModal({
         { merge: true }
       );
 
-      toast.success("Notary request marked as client approved");
+      appNotifications.success({
+        title: "Notary request marked as client approved",
+        message: "The notary request has been marked as client approved",
+      });
       onClose();
     } catch {
-      toast.error("An error occurred");
+      appNotifications.error({
+        title: "Failed to approve notary request",
+        message:
+          "The notary request could not be marked as client approved. Please try again.",
+      });
     } finally {
       setIsReviewing(false);
     }
@@ -104,10 +111,18 @@ export default function ClientReviewModal({
         },
         { merge: true }
       );
-      toast.success("Notary request rejected successfully");
+
+      appNotifications.success({
+        title: "Notary request marked as client rejected",
+        message: "The notary request has been marked as client rejected",
+      });
       onClose();
     } catch {
-      toast.error("An error occurred");
+      appNotifications.error({
+        title: "Failed to reject notary request",
+        message:
+          "The notary request could not be marked as client rejected. Please try again.",
+      });
     } finally {
       setIsReviewing(false);
     }

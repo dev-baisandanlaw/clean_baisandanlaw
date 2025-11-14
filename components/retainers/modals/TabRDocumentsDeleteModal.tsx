@@ -1,13 +1,13 @@
 import { COLLECTIONS } from "@/constants/constants";
 import { db } from "@/firebase/config";
 import { Retainer } from "@/types/retainer";
-import { Button, Modal, Stack, Text } from "@mantine/core";
+import { appNotifications } from "@/utils/notifications/notifications";
+import { Button, Modal, Text } from "@mantine/core";
 import { IconTrash } from "@tabler/icons-react";
 import axios from "axios";
 import dayjs from "dayjs";
 import { doc, setDoc } from "firebase/firestore";
 import { useState } from "react";
-import { toast } from "react-toastify";
 
 interface TabRDocumentsDeleteModalProps {
   opened: boolean;
@@ -41,10 +41,16 @@ export default function TabRDocumentsDeleteModal({
       );
 
       setDataChanged((prev) => !prev);
-      toast.success("File deleted successfully");
+      appNotifications.success({
+        title: "File deleted successfully",
+        message: "The file has been deleted successfully",
+      });
       onClose();
     } catch {
-      toast.error("Failed to delete file");
+      appNotifications.error({
+        title: "Failed to delete file",
+        message: "The file could not be deleted. Please try again.",
+      });
     } finally {
       setIsDeleting(false);
     }
@@ -61,12 +67,10 @@ export default function TabRDocumentsDeleteModal({
       transitionProps={{ transition: "pop" }}
       withCloseButton={!isDeleting}
     >
-      <Stack>
-        <Text>
-          Are you sure you want to delete <strong>{file.name}</strong>? Once
-          confirmed, the document will be deleted and cannot be undone.
-        </Text>
-      </Stack>
+      <Text mb="md">
+        Are you sure you want to delete <strong>{file.name}</strong>? Once
+        confirmed, the document will be deleted and cannot be undone.
+      </Text>
 
       <Button
         onClick={handleDelete}
@@ -74,7 +78,6 @@ export default function TabRDocumentsDeleteModal({
         color="red"
         fullWidth
         leftSection={<IconTrash />}
-        mt="md"
       >
         I Understand
       </Button>

@@ -33,6 +33,7 @@ import axios from "axios";
 import { addMatterUpdate } from "../utils/addMatterUpdate";
 import { useUser } from "@clerk/nextjs";
 import { MatterUpdateType } from "@/types/matter-updates";
+import { appNotifications } from "@/utils/notifications/notifications";
 
 interface TabScheduleUpsertModalProps {
   opened: boolean;
@@ -119,14 +120,25 @@ export default function TabScheduleUpsertModal({
               `Schedule Added: ${values.title}`
             );
             setDataChanged((prev) => !prev);
-            toast.success("Schedule added successfully");
+            appNotifications.success({
+              title: "Schedule added successfully",
+              message: "The schedule has been added successfully",
+            });
             onClose();
           })
-          .catch(() => toast.error("Failed to add schedule"))
+          .catch(() =>
+            appNotifications.error({
+              title: "Failed to add schedule",
+              message: "The schedule could not be added. Please try again.",
+            })
+          )
           .finally(() => setIsLoading(false));
       })
       .catch(() => {
-        toast.error("Failed to add schedule");
+        appNotifications.error({
+          title: "Failed to add schedule",
+          message: "The schedule could not be added. Please try again.",
+        });
         setIsLoading(false);
       });
   };

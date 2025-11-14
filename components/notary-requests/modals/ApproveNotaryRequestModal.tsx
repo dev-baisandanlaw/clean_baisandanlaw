@@ -1,8 +1,8 @@
-import { appwriteDeleteFile, appwriteUploadFile } from "@/app/api/appwrite";
 import { approveNotaryRequest } from "@/firebase/approveNotaryRequest";
 import { NotaryRequest } from "@/types/notary-requests";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { getNotaryStatus } from "@/utils/getNotaryStatus";
+import { appNotifications } from "@/utils/notifications/notifications";
 import { useUser } from "@clerk/nextjs";
 import {
   ActionIcon,
@@ -19,8 +19,8 @@ import {
 } from "@mantine/core";
 import { Dropzone, PDF_MIME_TYPE } from "@mantine/dropzone";
 import { IconFileTypePdf, IconUpload, IconX } from "@tabler/icons-react";
+import axios from "axios";
 import { useEffect, useState } from "react";
-import { toast } from "react-toastify";
 
 interface ApproveNotaryRequestModalProps {
   opened: boolean;
@@ -34,30 +34,62 @@ export default function ApproveNotaryRequestModal({
   notaryRequest,
 }: ApproveNotaryRequestModalProps) {
   const { user } = useUser();
-  const [file, setFile] = useState<File | null>(null);
+  const [file, setFile] = useState<(File & { id?: string }) | null>(null);
   const [isApproving, setIsApproving] = useState(false);
 
   useEffect(() => {
     if (!opened) {
       setFile(null);
+    } else {
+      if (notaryRequest?.documents?.finishedFile?.id) {
+        setFile({
+          name: notaryRequest.documents.finishedFile.name,
+          id: notaryRequest.documents.finishedFile.id,
+        } as unknown as File & { id?: string });
+      }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened]);
 
   if (!notaryRequest) return null;
 
   const handleApproveNotaryRequest = async () => {
     setIsApproving(true);
+    let fileId = null;
     try {
-      if (notaryRequest.finishedDocument?.id)
-        await appwriteDeleteFile(notaryRequest.finishedDocument.id);
+      if (file?.size) {
+        if (notaryRequest?.documents?.finishedFile?.id) {
+          await axios.delete(
+            `/api/google/drive/delete/${notaryRequest.documents.finishedFile.id}`
+          );
+        }
 
-      const res = await appwriteUploadFile(file!, notaryRequest.id);
-      await approveNotaryRequest(notaryRequest, res, user!);
+        const fd = new FormData();
+        fd.append("parentId", notaryRequest.documents.googleDriveFolderId);
+        fd.append("file", file);
+        const { data: uploadedFile } = await axios.post(
+          "/api/google/drive/upload",
+          fd
+        );
 
-      toast.success("Notary request approved successfully");
+        fileId = uploadedFile.uploadedFiles.id;
+      }
+
+      await approveNotaryRequest(notaryRequest, user!, {
+        id: fileId,
+        name: file!.name,
+      });
+
+      appNotifications.success({
+        title: "Notary request approved",
+        message: "The notary request has been approved successfully",
+      });
       onClose();
     } catch {
-      toast.error("An error ocurred");
+      appNotifications.error({
+        title: "Failed to approve notary request",
+        message: "The notary request could not be approved. Please try again.",
+      });
     } finally {
       setIsApproving(false);
     }
