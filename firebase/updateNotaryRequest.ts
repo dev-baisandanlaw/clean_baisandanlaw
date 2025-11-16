@@ -15,7 +15,6 @@ export const updateNotaryRequest = async (
     name: string;
   }
 ) => {
-  console.log(newFile);
   const uploaderName = `${user.firstName} ${user.lastName}`;
 
   const documents = {

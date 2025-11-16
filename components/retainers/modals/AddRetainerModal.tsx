@@ -19,6 +19,7 @@ import axios from "axios";
 import { addDoc, collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { appNotifications } from "@/utils/notifications/notifications";
+import { syncToAppwrite } from "@/lib/syncToAppwrite";
 
 interface AddRetainerModalProps {
   opened: boolean;
@@ -71,6 +72,7 @@ export default function AddRetainerModal({
         return;
       }
 
+      // 1. Create Google Drive folder for the retainer
       const { data: googleDriveFolder } = await axios.post(
         "/api/google/drive/gFolders/create",
         {
@@ -80,6 +82,7 @@ export default function AddRetainerModal({
         }
       );
 
+      // 2. Add retainer to database
       await addDoc(collection(db, COLLECTIONS.RETAINERS), {
         ...values,
         retainerSince: dayjs(values.retainerSince).format("YYYY-MM-DD"),
@@ -87,12 +90,23 @@ export default function AddRetainerModal({
         updatedAt: now,
         googleDriveFolderId: googleDriveFolder.id,
       })
-        .then(() => {
-          setIsDataChanged((p) => !p);
+        .then(async (res) => {
+          // 3. Sync retainer to Appwrite
+          await syncToAppwrite("RETAINERS", res.id, {
+            client: values.clientName,
+            contactPersonName: values.contactPerson.fullname,
+            contactPersonEmail: values.contactPerson.email,
+            matterType: values.practiceAreas.join("&_&"),
+            retainerSince: dayjs(values.retainerSince).format("YYYY-MM-DD"),
+            search_blob: `${values.clientName} ${values.contactPerson.fullname} ${values.contactPerson.email} ${values.practiceAreas.join(" ")} ${dayjs(values.retainerSince).format("YYYY-MM-DD")}`,
+          });
+
           appNotifications.success({
             title: "Retainer added successfully",
             message: "The retainer has been added successfully",
           });
+
+          setIsDataChanged((p) => !p);
           onClose();
         })
         .catch(() =>
@@ -231,7 +245,7 @@ export default function AddRetainerModal({
                 !form.values.description.length
               }
             >
-              Add Matter
+              Add Retainer
             </Button>
           </Group>
         </Stack>

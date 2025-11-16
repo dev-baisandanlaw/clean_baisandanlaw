@@ -22,8 +22,8 @@ import {
 } from "@mantine/dropzone";
 import {
   IconAlertCircle,
+  IconCloudUpload,
   IconFileTypePdf,
-  IconUpload,
   IconX,
 } from "@tabler/icons-react";
 import { useUser } from "@clerk/nextjs";
@@ -253,6 +253,11 @@ export default function TabRDocumentsUploadFileModal({
       )}
 
       <Dropzone
+        styles={{
+          root: {
+            border: `2px dashed ${files.length >= 5 ? "gray" : "green"}`,
+          },
+        }}
         accept={[...IMAGE_MIME_TYPE, ...PDF_MIME_TYPE]}
         onDrop={handleDrop}
         onReject={setRejectedFiles}
@@ -269,12 +274,26 @@ export default function TabRDocumentsUploadFileModal({
           mih={100}
           style={{ pointerEvents: "none" }}
         >
-          <IconUpload size={40} />
-          <Text c={files.length >= 5 ? "dimmed" : "green"} fw={600}>
-            Drag and drop files here or click to select files
+          <IconCloudUpload
+            size={50}
+            color={files.length >= 5 ? "gray" : "green"}
+          />
+          <Text>
+            <Text span fw={700} c="green">
+              Click here
+            </Text>{" "}
+            to upload your files or drag
           </Text>
-          <Text c={files.length >= 5 ? "dimmed" : "green"} size="sm">
-            Max size: <strong>5MB</strong> - Max files: <strong>5</strong>
+          <Text c={files.length >= 5 ? "dimmed" : "green"} size="sm" fw={500}>
+            Supported formats:{" "}
+            <Text span fw={700}>
+              Images
+            </Text>{" "}
+            and{" "}
+            <Text span fw={700}>
+              PDFs
+            </Text>{" "}
+            (Max 5 files, 5MB per file)
           </Text>
         </Stack>
       </Dropzone>

@@ -33,6 +33,7 @@ import { useDocument } from "@/hooks/useDocument";
 import { GlobalSettings } from "@/types/global-settings";
 import { SPECIAL_HOLIDAYS } from "@/constants/constants";
 import { REGULAR_HOLIDAYS } from "@/constants/constants";
+import { appNotifications } from "@/utils/notifications/notifications";
 
 const now = dayjs();
 
@@ -104,8 +105,12 @@ export default function BookingPage() {
 
         setBookings(results);
       },
-      (error) => {
-        console.error("Firestore onSnapshot error:", error);
+      () => {
+        appNotifications.error({
+          title: "Failed to get bookings",
+          message: "The bookings could not be fetched. Please try again.",
+          autoClose: false,
+        });
       }
     );
 

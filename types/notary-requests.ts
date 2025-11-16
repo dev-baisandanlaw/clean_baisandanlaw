@@ -40,6 +40,7 @@ export const NotaryRequestLabel: Record<NotaryRequestStatus, string> = {
 };
 
 export interface NotaryRequest {
+  referenceNumber: string;
   id: string;
   createdAt: string;
   updatedAt: string;

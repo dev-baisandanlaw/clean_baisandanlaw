@@ -98,7 +98,6 @@ export default function AppShellComponent({
           paddingRight: isMobile ? 0 : 10,
         },
       }}
-      padding="md"
     >
       <AppShell.Header>
         <Group h="100%" px="md">
@@ -191,7 +190,8 @@ export default function AppShellComponent({
           mih={isMobile ? `calc(100vh - 250px)` : `calc(100vh - 75px)`}
           mb={8}
           px={isMobile ? "5px" : 16}
-          py={16}
+          pt={16}
+          py={8}
           style={{
             borderRadius: isMobile ? 0 : 10,
             boxShadow: theme.other.customBoxShadow,

@@ -26,7 +26,6 @@ export default function TabDocumentDeleteFileModal({
   matterData,
   setDataChanged,
 }: TabDocumentDeleteFileModalProps) {
-  console.log(document);
   const { user } = useUser();
   const [isDeleting, setIsDeleting] = useState(false);
 

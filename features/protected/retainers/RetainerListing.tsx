@@ -5,7 +5,9 @@ import {
   Button,
   Flex,
   Group,
-  LoadingOverlay,
+  Pagination,
+  Paper,
+  Progress,
   Stack,
   Table,
   TableScrollContainer,
@@ -16,53 +18,94 @@ import {
 import { IconCirclePlus, IconEye, IconSearch } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import EmptyTableComponent from "@/components/EmptyTableComponent";
-import { useDisclosure } from "@mantine/hooks";
+import { useDebouncedValue, useDisclosure } from "@mantine/hooks";
 import AddRetainerModal from "@/components/retainers/modals/AddRetainerModal";
-import { toast } from "react-toastify";
-import { collection, getDocs, query } from "firebase/firestore";
-import { db } from "@/firebase/config";
-import { COLLECTIONS } from "@/constants/constants";
-import { Retainer } from "@/types/retainer";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { appNotifications } from "@/utils/notifications/notifications";
+import { useUser } from "@clerk/nextjs";
+import { AppwriteRetainersDocument } from "@/types/appwriteResponses";
+import { Query } from "appwrite";
+import { useRouter } from "next/navigation";
+import { listDatabaseDocuments } from "@/app/api/appwrite";
 
 export default function RetainerListing() {
+  const { user } = useUser();
+  const router = useRouter();
   const theme = useMantineTheme();
 
   const [dataChanged, setDataChanged] = useState(false);
 
   const [isFetching, setIsFetching] = useState(false);
-  const [retainers, setRetainers] = useState<Retainer[]>([]);
+  const [retainers, setRetainers] = useState<AppwriteRetainersDocument[]>([]);
+
+  const [search, setSearch] = useState("");
+  const [debouncedSearch] = useDebouncedValue(search, 500);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   const [
     retainerModal,
     { open: openRetainerModal, close: closeRetainerModal },
   ] = useDisclosure(false);
 
-  const fetchRetainers = async () => {
-    setIsFetching(true);
-    try {
-      const q = query(collection(db, COLLECTIONS.RETAINERS));
-      const querySnapshot = await getDocs(q);
-      const r = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Retainer[];
+  const fetchRetainers = async (search: string, page: number = 1) => {
+    if (!user) return;
 
-      setRetainers(r);
-    } catch {
+    setIsFetching(true);
+
+    const userRole = user.unsafeMetadata?.role;
+
+    if (
+      userRole === "client" &&
+      !(
+        user.unsafeMetadata?.subscription &&
+        (user.unsafeMetadata.subscription as { isSubscribed?: boolean })
+          ?.isSubscribed
+      )
+    ) {
       appNotifications.error({
-        title: "Failed to fetch retainers",
-        message: "The retainers could not be fetched. Please try again.",
+        title: "Subscription Required",
+        message: "You need to subscribe to a plan to access this feature.",
       });
-    } finally {
-      setIsFetching(false);
+      router.push("/appointments");
+      return;
     }
+
+    const limit = 10;
+    const offset = (page - 1) * limit;
+
+    const queries: string[] = [Query.limit(limit), Query.offset(offset)];
+
+    if (userRole === "client") {
+      queries.push(
+        Query.equal("contactPersonEmail", user.emailAddresses[0].emailAddress)
+      );
+    }
+
+    if (search && search.trim().length > 0) {
+      queries.push(Query.search("search_blob", search.trim()));
+    }
+
+    await listDatabaseDocuments("retainers", queries)
+      .then(({ documents, total }) => {
+        setRetainers(documents as unknown as AppwriteRetainersDocument[]);
+
+        setTotalCount(total);
+      })
+      .finally(() => setIsFetching(false));
   };
 
   useEffect(() => {
-    fetchRetainers();
-  }, [dataChanged]);
+    if (debouncedSearch.trim().length > 0) {
+      setCurrentPage(1);
+    }
+  }, [debouncedSearch]);
+
+  useEffect(() => {
+    fetchRetainers(debouncedSearch, currentPage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, debouncedSearch, currentPage, dataChanged]);
 
   return (
     <>
@@ -75,16 +118,16 @@ export default function RetainerListing() {
       >
         <Group align="center" justify="space-between" w="100%">
           <TextInput
-            placeholder="Search"
-            w="300px"
+            placeholder="Search client, contact person, or matter type"
+            flex={1}
             leftSectionPointerEvents="none"
             leftSection={<IconSearch />}
-            // value={search}
-            // onChange={(e) => setSearch(e.target.value)}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
           />
 
           <Button
-            variant="outline"
+            size="sm"
             leftSection={<IconCirclePlus />}
             onClick={openRetainerModal}
           >
@@ -92,84 +135,112 @@ export default function RetainerListing() {
           </Button>
         </Group>
 
-        <TableScrollContainer
-          minWidth={500}
-          h="calc(100vh - 180px)"
-          pos="relative"
-        >
-          <Table stickyHeader stickyHeaderOffset={0} verticalSpacing="sm">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Client</Table.Th>
-                <Table.Th>Contact Person</Table.Th>
-                <Table.Th>Matter Type</Table.Th>
-                <Table.Th>Retainer Since</Table.Th>
-                <Table.Th>Updated At</Table.Th>
-                <Table.Th>Actions</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
+        <Paper withBorder shadow="sm" p={16} pos="relative">
+          {isFetching && (
+            <Progress
+              value={100}
+              animated
+              pos="absolute"
+              top={0}
+              left={0}
+              right={0}
+              radius="xs"
+            />
+          )}
 
-            <Table.Tbody>
-              {isFetching && (
+          <TableScrollContainer
+            minWidth={500}
+            h="calc(100vh - 220px)"
+            pos="relative"
+          >
+            <Table stickyHeader stickyHeaderOffset={0} verticalSpacing="sm">
+              <Table.Thead>
                 <Table.Tr>
-                  <Table.Td h="100%">
-                    <LoadingOverlay visible />
-                  </Table.Td>
+                  <Table.Th>Client</Table.Th>
+                  <Table.Th>Contact Person</Table.Th>
+                  <Table.Th>Matter Type</Table.Th>
+                  <Table.Th>Retainer Since</Table.Th>
+                  <Table.Th>Last Update</Table.Th>
+                  <Table.Th ta="center">Actions</Table.Th>
                 </Table.Tr>
-              )}
+              </Table.Thead>
 
-              {!isFetching && !retainers?.length && (
-                <EmptyTableComponent colspan={5} message="No retainers found" />
-              )}
+              <Table.Tbody>
+                {!isFetching && !retainers?.length && (
+                  <EmptyTableComponent
+                    colspan={6}
+                    message="No retainers found"
+                  />
+                )}
 
-              {!isFetching &&
-                retainers &&
-                retainers.length > 0 &&
-                retainers.map((retainer) => (
-                  <Table.Tr key={retainer.id}>
-                    <Table.Td>{retainer.clientName}</Table.Td>
-                    <Table.Td>
-                      <Stack gap={2}>
-                        <Text size="sm">{retainer.contactPerson.fullname}</Text>
-                        <Text size="xs" c="dimmed">
-                          {retainer.contactPerson.email}
-                        </Text>
-                      </Stack>
-                    </Table.Td>
-                    <Table.Td>
-                      <Group gap={2}>
-                        {retainer.practiceAreas.map((area, i) => (
-                          <Badge
-                            size="xs"
-                            key={i}
-                            variant="outline"
-                            radius="xs"
-                            color={theme.other.customPumpkin}
-                          >
-                            {area}
-                          </Badge>
-                        ))}
-                      </Group>
-                    </Table.Td>
-                    <Table.Td>{retainer.retainerSince}</Table.Td>
-                    <Table.Td>
-                      {getDateFormatDisplay(retainer.updatedAt, true)}
-                    </Table.Td>
-                    <Table.Td>
-                      <ActionIcon
-                        size="sm"
-                        variant="transparent"
-                        component="a"
-                        href={`/retainers/${retainer.id}`}
-                      >
-                        <IconEye size={24} />
-                      </ActionIcon>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-            </Table.Tbody>
-          </Table>
-        </TableScrollContainer>
+                {!isFetching &&
+                  retainers &&
+                  retainers.length > 0 &&
+                  retainers.map((retainer) => (
+                    <Table.Tr key={retainer.$id}>
+                      <Table.Td>{retainer.client}</Table.Td>
+                      <Table.Td>
+                        <Stack gap={2}>
+                          <Text size="sm">{retainer.contactPersonName}</Text>
+                          <Text size="xs" c="dimmed">
+                            {retainer.contactPersonEmail}
+                          </Text>
+                        </Stack>
+                      </Table.Td>
+                      <Table.Td width={250}>
+                        <Group gap={2}>
+                          {retainer.matterType?.split("&_&").map((area, i) => (
+                            <Badge
+                              size="xs"
+                              key={i}
+                              variant="outline"
+                              radius="xs"
+                              color={theme.other.customPumpkin}
+                            >
+                              {area}
+                            </Badge>
+                          ))}
+                        </Group>
+                      </Table.Td>
+                      <Table.Td>{retainer.retainerSince}</Table.Td>
+                      <Table.Td>
+                        {getDateFormatDisplay(retainer.$updatedAt, true)}
+                      </Table.Td>
+                      <Table.Td ta="center">
+                        <ActionIcon
+                          size="sm"
+                          variant="transparent"
+                          component="a"
+                          href={`/retainers/${retainer.$id}`}
+                        >
+                          <IconEye size={24} />
+                        </ActionIcon>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+              </Table.Tbody>
+            </Table>
+          </TableScrollContainer>
+
+          <Group align="center">
+            {totalCount > 0 ? (
+              <Text size="sm">
+                Showing {(currentPage - 1) * 10 + 1}-
+                {Math.min(currentPage * 10, totalCount)} of {totalCount}{" "}
+                Retainers
+              </Text>
+            ) : (
+              <Text size="sm">No retainers found</Text>
+            )}
+
+            <Pagination
+              ml="auto"
+              total={Math.ceil(totalCount / 10) || 1}
+              value={currentPage}
+              onChange={setCurrentPage}
+            />
+          </Group>
+        </Paper>
       </Flex>
 
       <AddRetainerModal

@@ -138,7 +138,6 @@ export default function Page() {
         router.push("/");
       }
     } catch (error) {
-      console.log(error);
       setErrors(isClerkAPIResponseError(error) ? error.errors : []);
     } finally {
       setIsLoading(false);

@@ -7,8 +7,6 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("user_id");
 
-    console.log(userId);
-
     const { data } = await axios.get(`${CLERK_API_CONFIG.baseUrl}/users`, {
       headers: CLERK_API_CONFIG.headers,
       params: { user_id: userId },

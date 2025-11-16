@@ -26,6 +26,7 @@ import { useUser } from "@clerk/nextjs";
 import { MatterUpdateType } from "@/types/matter-updates";
 import { addMatterUpdate } from "../utils/addMatterUpdate";
 import { appNotifications } from "@/utils/notifications/notifications";
+import { syncToAppwrite } from "@/lib/syncToAppwrite";
 
 interface AddMatterModalProps {
   opened: boolean;
@@ -66,6 +67,7 @@ export default function AddMatterModal({
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (values: typeof form.values) => {
+    const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
     setIsLoading(true);
 
     const caseNumber = `JA-${nanoid(8).toUpperCase()}`;
@@ -104,8 +106,8 @@ export default function AddMatterModal({
           fullname: user!.firstName + " " + user!.lastName,
           email: user!.emailAddresses[0].emailAddress,
         },
-        createdAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-        updatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
+        createdAt: now,
+        updatedAt: now,
         documents: [],
         status: "active",
       };
@@ -134,18 +136,37 @@ export default function AddMatterModal({
         googleDriveFolderId: googleDriveFolder.id,
       });
 
-      // 4. Update tasks collection
+      // 4. Sync matter to Appwrite
+      await syncToAppwrite("MATTERS", res.id, {
+        matterNumber: caseNumber,
+
+        leadAttorneyFirstName: leadAttorneyDetails?.first_name,
+        leadAttorneyLastName: leadAttorneyDetails?.last_name,
+
+        clientFirstName: clientDetails?.first_name,
+        clientLastName: clientDetails?.last_name,
+
+        status: "active",
+        matterType: values.caseType.join("&_&"),
+
+        leadAttorneyId: leadAttorneyDetails?.id,
+        clientId: clientDetails?.id,
+
+        search_blob: `${caseNumber} ${leadAttorneyDetails?.first_name} ${leadAttorneyDetails?.last_name} ${clientDetails?.first_name} ${clientDetails?.last_name} ${values.caseType.join(" ")}`,
+      });
+
+      // 5. Update tasks collection
       await setDoc(doc(db, COLLECTIONS.TASKS, res.id), {
         caseId: res.id,
         totalTasks: 0,
         totalPendingTasks: 0,
         totalCompletedTasks: 0,
         tasks: [],
-        createdAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-        updatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
+        createdAt: now,
+        updatedAt: now,
       });
 
-      // 5. Add matter update
+      // 6. Add matter update
       await addMatterUpdate(
         user!,
         res.id,

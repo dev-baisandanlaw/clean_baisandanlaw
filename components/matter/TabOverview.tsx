@@ -16,6 +16,7 @@ import {
   Table,
   Text,
   Textarea,
+  Tooltip,
   useMantineTheme,
 } from "@mantine/core";
 import MatterUpdates from "./TabOverview/MatterUpdates";
@@ -68,19 +69,36 @@ export default function TabOverview({
     {
       th: "Case Type",
       td: (
-        <Group gap={2}>
-          {matterData.caseType.map((type) => (
-            <Badge
-              key={type}
-              color={theme.other.customPumpkin}
-              size="xs"
-              radius="xs"
-              variant="outline"
-            >
-              {type}
-            </Badge>
-          ))}
-        </Group>
+        <Tooltip
+          label={matterData.caseType.join(", ")}
+          withArrow
+          multiline
+          maw={600}
+        >
+          <Group gap={2}>
+            {matterData.caseType.slice(0, 3).map((type) => (
+              <Badge
+                key={type}
+                color={theme.other.customPumpkin}
+                size="xs"
+                radius="xs"
+                variant="outline"
+              >
+                {type}
+              </Badge>
+            ))}
+            {matterData.caseType.length > 3 && (
+              <Badge
+                color={theme.other.customPumpkin}
+                size="xs"
+                radius="xs"
+                variant="outline"
+              >
+                +{matterData.caseType.length - 3}
+              </Badge>
+            )}
+          </Group>
+        </Tooltip>
       ),
     },
     {
@@ -131,12 +149,12 @@ export default function TabOverview({
           color={
             clientData.unsafe_metadata?.subscription?.isSubscribed
               ? "green"
-              : "blue"
+              : theme.colors.gray[6]
           }
         >
           {clientData.unsafe_metadata?.subscription?.isSubscribed
             ? "Premium"
-            : "Free"}
+            : "Basic"}
         </Badge>
       ),
     },
@@ -195,8 +213,11 @@ export default function TabOverview({
         message: "The description has been updated successfully",
       });
       setIsEditDescription(false);
-    } catch (error) {
-      console.error(error);
+    } catch {
+      appNotifications.error({
+        title: "Failed to update description",
+        message: "The description could not be updated. Please try again.",
+      });
     } finally {
       setIsUpdatingDescription(false);
     }

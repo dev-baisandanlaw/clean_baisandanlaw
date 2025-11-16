@@ -1,11 +1,24 @@
-import { User } from "@/types/user";
-import { Client, ID, Storage } from "appwrite";
-import { toast } from "react-toastify";
+import { Client, Databases } from "appwrite";
 
 const client = new Client()
   .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
   .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
 
-const storage = new Storage(client);
+const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!;
 
-const BUCKET_ID = process.env.NEXT_PUBLIC_APPWRITE_BUCKET_ID!;
+const databases = new Databases(client);
+
+export const listDatabaseDocuments = async (
+  collectionId: string,
+  queries?: string[]
+) => {
+  const result = await databases.listDocuments(
+    DATABASE_ID,
+    collectionId,
+    queries ?? []
+  );
+
+  return result;
+};
+
+export { databases, DATABASE_ID };

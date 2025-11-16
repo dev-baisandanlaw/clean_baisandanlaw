@@ -45,7 +45,7 @@ export default function AppointmentsList({
             <Table.Th>Client</Table.Th>
             <Table.Th>Attorney</Table.Th>
             <Table.Th>Via</Table.Th>
-            <Table.Th>Actions</Table.Th>
+            <Table.Th ta="center">Actions</Table.Th>
           </Table.Tr>
         </Table.Thead>
 
@@ -78,7 +78,7 @@ export default function AppointmentsList({
                       {booking.via}
                     </Badge>
                   </Table.Td>
-                  <Table.Td>
+                  <Table.Td ta="center">
                     <Group gap={6}>
                       <ActionIcon
                         size="sm"

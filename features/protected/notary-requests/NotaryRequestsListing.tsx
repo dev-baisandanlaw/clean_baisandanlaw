@@ -2,9 +2,11 @@
 
 import EmptyTableComponent from "@/components/EmptyTableComponent";
 // import DeleteNotaryRequestModal from "@/components/notary-requests/modals/DeleteNotaryRequestModal";
-import { COLLECTIONS, NOTARY_STEPS_ORDER } from "@/constants/constants";
-import { db } from "@/firebase/config";
-import { NotaryRequest } from "@/types/notary-requests";
+import { NOTARY_STEPS_ORDER } from "@/constants/constants";
+import {
+  NotaryRequestLabel,
+  NotaryRequestStatus,
+} from "@/types/notary-requests";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { getNotaryStatus } from "@/utils/getNotaryStatus";
 import { useUser } from "@clerk/nextjs";
@@ -19,8 +21,12 @@ import {
   Text,
   ActionIcon,
   Menu,
+  Paper,
+  Progress,
+  Pagination,
+  Tabs,
 } from "@mantine/core";
-import { useDisclosure } from "@mantine/hooks";
+import { useDebouncedValue, useDisclosure } from "@mantine/hooks";
 import {
   IconCirclePlus,
   IconDots,
@@ -35,7 +41,6 @@ import {
   IconTools,
   IconX,
 } from "@tabler/icons-react";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import RejectNotaryRequestModal from "@/components/notary-requests/modals/RejectNotaryRequestModal";
 import { UpsertNotaryRequestModal } from "@/components/notary-requests/modals/UpsertNotaryRequest";
@@ -46,10 +51,67 @@ import ClientReviewModal from "@/components/notary-requests/modals/ClientReviewM
 import ConfirmationModal from "@/components/notary-requests/modals/ConfirmationModal";
 import axios from "axios";
 import { appNotifications } from "@/utils/notifications/notifications";
+import { Query } from "appwrite";
+import { listDatabaseDocuments } from "@/app/api/appwrite";
+import { AppwriteNotaryRequestDocument } from "@/types/appwriteResponses";
 
 export default function NotaryRequestsListing() {
   const { user } = useUser();
-  const [notaryRequests, setNotaryRequests] = useState<NotaryRequest[]>([]);
+  const [notaryRequests, setNotaryRequests] = useState<
+    AppwriteNotaryRequestDocument[]
+  >([]);
+
+  const [dataChanged, setDataChanged] = useState(false);
+
+  const [isFetching, setIsFetching] = useState(false);
+
+  const [activeTab, setActiveTab] = useState<NotaryRequestStatus | "All">(
+    "All"
+  );
+  const [search, setSearch] = useState("");
+  const [debouncedSearch] = useDebouncedValue(search, 500);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+
+  const fetchNotaryRequestsFromAppwrite = async (
+    search: string,
+    page: number = 1,
+    status: NotaryRequestStatus | "All" = "All"
+  ) => {
+    if (!user) return;
+
+    setIsFetching(true);
+    const userRole = user.unsafeMetadata?.role;
+    const limit = 10;
+    const offset = (page - 1) * limit;
+
+    const queries: string[] = [Query.limit(limit), Query.offset(offset)];
+
+    if (userRole === "client") {
+      queries.push(
+        Query.equal("requestorEmail", user.emailAddresses[0].emailAddress)
+      );
+    }
+
+    if (search && search.trim().length > 0) {
+      queries.push(Query.search("search_blob", search.trim()));
+    }
+
+    if (status !== "All") {
+      queries.push(Query.equal("status", status));
+    }
+
+    await listDatabaseDocuments("notary_requests", queries)
+      .then(({ documents, total }) => {
+        setNotaryRequests(
+          documents as unknown as AppwriteNotaryRequestDocument[]
+        );
+
+        setTotalCount(total);
+      })
+      .finally(() => setIsFetching(false));
+  };
 
   const [
     isUpsertNotaryRequestModalOpen,
@@ -99,7 +161,7 @@ export default function NotaryRequestsListing() {
   ] = useDisclosure(false);
 
   const [selectedNotaryRequest, setSelectedNotaryRequest] =
-    useState<NotaryRequest | null>(null);
+    useState<AppwriteNotaryRequestDocument | null>(null);
 
   const handleDownloadFile = async (fileId: string) => {
     appNotifications.info({
@@ -140,34 +202,15 @@ export default function NotaryRequestsListing() {
   };
 
   useEffect(() => {
-    if (!user) return;
-
-    const ref = collection(db, COLLECTIONS.NOTARY_REQUESTS);
-    let q;
-
-    if (user.unsafeMetadata?.role === "client") {
-      q = query(ref, where("requestor.id", "==", user.id));
-    } else {
-      q = query(ref);
+    if (debouncedSearch.trim().length > 0) {
+      setCurrentPage(1);
     }
+  }, [debouncedSearch]);
 
-    const unsub = onSnapshot(
-      q,
-      (snapshot) => {
-        const results: NotaryRequest[] = snapshot.docs.map((doc) => ({
-          ...doc.data(),
-          id: doc.id,
-        })) as NotaryRequest[];
-
-        setNotaryRequests(results);
-      },
-      (error) => {
-        console.error("Firestore onSnapshot error:", error);
-      }
-    );
-
-    return () => unsub();
-  }, [user]);
+  useEffect(() => {
+    fetchNotaryRequestsFromAppwrite(debouncedSearch, currentPage, activeTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, debouncedSearch, currentPage, dataChanged, activeTab]);
 
   const disableActions = (
     t:
@@ -178,9 +221,12 @@ export default function NotaryRequestsListing() {
       | "review"
       | "for_pickup"
       | "completed",
-    notaryRequest: NotaryRequest
+    notaryRequest: AppwriteNotaryRequestDocument
   ) => {
-    const step = NOTARY_STEPS_ORDER[notaryRequest.status];
+    const step =
+      NOTARY_STEPS_ORDER[
+        notaryRequest.status as keyof typeof NOTARY_STEPS_ORDER
+      ];
 
     switch (t) {
       case "edit":
@@ -233,17 +279,17 @@ export default function NotaryRequestsListing() {
       >
         <Group align="center" justify="space-between" w="100%">
           <TextInput
-            placeholder="Search"
-            w="300px"
+            placeholder="Search reference number, or requestor"
+            flex={1}
             leftSectionPointerEvents="none"
             leftSection={<IconSearch />}
-            // value={search}
-            // onChange={(e) => setSearch(e.target.value)}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
           />
 
           {user?.unsafeMetadata?.role === "client" && (
             <Button
-              variant="outline"
+              size="sm"
               leftSection={<IconCirclePlus />}
               onClick={() => {
                 setSelectedNotaryRequest(null);
@@ -255,235 +301,304 @@ export default function NotaryRequestsListing() {
           )}
         </Group>
 
-        <TableScrollContainer
-          minWidth={500}
-          h="calc(100vh - 180px)"
-          pos="relative"
+        <Tabs
+          value={activeTab}
+          onChange={(value) =>
+            setActiveTab(value as NotaryRequestStatus | "All")
+          }
         >
-          <Table stickyHeader stickyHeaderOffset={0} verticalSpacing="sm">
-            <Table.Thead>
-              <Table.Tr>
-                {user?.unsafeMetadata?.role !== "client" && (
-                  <Table.Th>Requestor</Table.Th>
+          <Tabs.List>
+            <Tabs.Tab value="All">All</Tabs.Tab>
+            {Object.values(NotaryRequestStatus).map((status) => (
+              <Tabs.Tab key={status} value={status}>
+                {NotaryRequestLabel[status]}
+              </Tabs.Tab>
+            ))}
+          </Tabs.List>
+        </Tabs>
+
+        <Paper withBorder shadow="sm" p={16} pos="relative">
+          {isFetching && (
+            <Progress
+              value={100}
+              animated
+              pos="absolute"
+              top={0}
+              left={0}
+              right={0}
+              radius="xs"
+            />
+          )}
+
+          <TableScrollContainer
+            minWidth={500}
+            h="calc(100vh - 273px)"
+            pos="relative"
+          >
+            <Table stickyHeader stickyHeaderOffset={0} verticalSpacing="sm">
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Reference Number</Table.Th>
+
+                  {user?.unsafeMetadata?.role !== "client" && (
+                    <Table.Th>Requestor</Table.Th>
+                  )}
+                  <Table.Th>Created At</Table.Th>
+                  <Table.Th>Updated At</Table.Th>
+                  <Table.Th>Status</Table.Th>
+                  <Table.Th ta="center">Actions</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+
+              <Table.Tbody>
+                {!notaryRequests?.length && (
+                  <EmptyTableComponent
+                    colspan={5}
+                    message="No notary requests found"
+                  />
                 )}
-                <Table.Th>Uploaded At</Table.Th>
-                <Table.Th>Status</Table.Th>
-                <Table.Th></Table.Th>
-              </Table.Tr>
-            </Table.Thead>
 
-            <Table.Tbody>
-              {!notaryRequests?.length && (
-                <EmptyTableComponent
-                  colspan={5}
-                  message="No notary requests found"
-                />
-              )}
-
-              {notaryRequests &&
-                notaryRequests
-                  .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-                  .map((notaryRequest) => (
-                    <Table.Tr key={notaryRequest.id}>
-                      {user?.unsafeMetadata?.role !== "client" && (
+                {notaryRequests &&
+                  notaryRequests
+                    .sort((a, b) => b.$createdAt.localeCompare(a.$createdAt))
+                    .map((notaryRequest) => (
+                      <Table.Tr key={notaryRequest.$id}>
                         <Table.Td>
-                          <Stack gap={0}>
-                            <Text size="sm" fw={600} c="green">
-                              {notaryRequest.requestor.fullname}
-                            </Text>
-                            <Text size="xs" c="dimmed">
-                              {notaryRequest.requestor.email}
-                            </Text>
-                          </Stack>
+                          {notaryRequest?.referenceNumber ?? "-"}
                         </Table.Td>
-                      )}
-                      <Table.Td>
-                        {getDateFormatDisplay(notaryRequest.createdAt, true)}
-                      </Table.Td>
-                      <Table.Td>
-                        {getNotaryStatus(notaryRequest.status)}
-                      </Table.Td>
+                        {user?.unsafeMetadata?.role !== "client" && (
+                          <Table.Td>
+                            <Stack gap={0}>
+                              <Text size="sm" fw={600} c="green">
+                                {notaryRequest.requestorFullName}
+                              </Text>
+                              <Text size="xs" c="dimmed">
+                                {notaryRequest.requestorEmail}
+                              </Text>
+                            </Stack>
+                          </Table.Td>
+                        )}
 
-                      <Table.Td>
-                        <Menu
-                          width={200}
-                          shadow="lg"
-                          withArrow
-                          styles={{ dropdown: { fontWeight: 600 } }}
-                        >
-                          <Menu.Target>
-                            <ActionIcon variant="outline" size={24}>
-                              <IconDots size={24} />
-                            </ActionIcon>
-                          </Menu.Target>
+                        <Table.Td>
+                          {getDateFormatDisplay(notaryRequest.$createdAt, true)}
+                        </Table.Td>
+                        <Table.Td>
+                          {getDateFormatDisplay(notaryRequest.$updatedAt, true)}
+                        </Table.Td>
+                        <Table.Td>
+                          {getNotaryStatus(
+                            notaryRequest.status as NotaryRequestStatus
+                          )}
+                        </Table.Td>
 
-                          <Menu.Dropdown>
-                            <Menu.Sub>
-                              <Menu.Sub.Target>
-                                <Menu.Sub.Item
-                                  leftSection={<IconDownload size={16} />}
-                                  disabled={
-                                    !notaryRequest.documents?.initialFile &&
-                                    !notaryRequest.documents?.finishedFile
-                                  }
-                                >
-                                  Download
-                                </Menu.Sub.Item>
-                              </Menu.Sub.Target>
+                        <Table.Td ta="center">
+                          <Menu
+                            width={200}
+                            shadow="lg"
+                            withArrow
+                            styles={{ dropdown: { fontWeight: 600 } }}
+                          >
+                            <Menu.Target>
+                              <ActionIcon variant="outline" size={24}>
+                                <IconDots size={24} />
+                              </ActionIcon>
+                            </Menu.Target>
 
-                              <Menu.Sub.Dropdown>
-                                <Menu.Item
-                                  disabled={
-                                    !notaryRequest.documents?.initialFile
-                                  }
-                                  onClick={() =>
-                                    handleDownloadFile(
-                                      notaryRequest.documents.initialFile!.id
-                                    )
-                                  }
-                                >
-                                  Initial File
-                                </Menu.Item>
-                                <Menu.Item
-                                  disabled={
-                                    !notaryRequest.documents?.finishedFile
-                                  }
-                                  onClick={() =>
-                                    handleDownloadFile(
-                                      notaryRequest.documents.finishedFile!.id
-                                    )
-                                  }
-                                >
-                                  Finished File
-                                </Menu.Item>
-                              </Menu.Sub.Dropdown>
-                            </Menu.Sub>
+                            <Menu.Dropdown>
+                              <Menu.Sub>
+                                <Menu.Sub.Target>
+                                  <Menu.Sub.Item
+                                    leftSection={<IconDownload size={16} />}
+                                    disabled={
+                                      !notaryRequest.documentInitialFileId &&
+                                      !notaryRequest.documentFinishedFileId
+                                    }
+                                  >
+                                    Download
+                                  </Menu.Sub.Item>
+                                </Menu.Sub.Target>
 
-                            <Menu.Item
-                              leftSection={<IconEye size={16} />}
-                              onClick={() => {
-                                setSelectedNotaryRequest(notaryRequest);
-                                openViewNotaryRequestDrawer();
-                              }}
-                            >
-                              View
-                            </Menu.Item>
+                                <Menu.Sub.Dropdown>
+                                  <Menu.Item
+                                    disabled={
+                                      !notaryRequest.documentInitialFileId
+                                    }
+                                    onClick={() =>
+                                      handleDownloadFile(
+                                        notaryRequest.documentInitialFileId
+                                      )
+                                    }
+                                  >
+                                    Initial File
+                                  </Menu.Item>
+                                  <Menu.Item
+                                    disabled={
+                                      !notaryRequest.documentFinishedFileId
+                                    }
+                                    onClick={() =>
+                                      handleDownloadFile(
+                                        notaryRequest.documentFinishedFileId
+                                      )
+                                    }
+                                  >
+                                    Finished File
+                                  </Menu.Item>
+                                </Menu.Sub.Dropdown>
+                              </Menu.Sub>
 
-                            {user?.unsafeMetadata?.role === "client" &&
-                              !disableActions("edit", notaryRequest) && (
-                                <Menu.Item
-                                  leftSection={<IconPencil size={16} />}
-                                  onClick={() => {
-                                    setSelectedNotaryRequest(notaryRequest);
-                                    openUpsertNotaryRequestModal();
-                                  }}
-                                >
-                                  Edit
-                                </Menu.Item>
+                              <Menu.Item
+                                leftSection={<IconEye size={16} />}
+                                onClick={() => {
+                                  setSelectedNotaryRequest(notaryRequest);
+                                  openViewNotaryRequestDrawer();
+                                }}
+                              >
+                                View
+                              </Menu.Item>
+
+                              {user?.unsafeMetadata?.role === "client" &&
+                                !disableActions("edit", notaryRequest) && (
+                                  <Menu.Item
+                                    leftSection={<IconPencil size={16} />}
+                                    onClick={() => {
+                                      setSelectedNotaryRequest(notaryRequest);
+                                      openUpsertNotaryRequestModal();
+                                    }}
+                                  >
+                                    Edit
+                                  </Menu.Item>
+                                )}
+
+                              {user?.unsafeMetadata?.role !== "client" && (
+                                <>
+                                  {!disableActions(
+                                    "process",
+                                    notaryRequest
+                                  ) && (
+                                    <Menu.Item
+                                      c="blue.5"
+                                      onClick={() => {
+                                        setSelectedNotaryRequest(notaryRequest);
+                                        openReviewNotaryRequestModal();
+                                      }}
+                                      leftSection={<IconTools size={16} />}
+                                    >
+                                      Process
+                                    </Menu.Item>
+                                  )}
+
+                                  {!disableActions(
+                                    "notarize",
+                                    notaryRequest
+                                  ) && (
+                                    <Menu.Item
+                                      c="green"
+                                      onClick={() => {
+                                        setSelectedNotaryRequest(notaryRequest);
+                                        openApproveNotaryRequestModal();
+                                      }}
+                                      leftSection={
+                                        <IconRubberStamp size={16} />
+                                      }
+                                    >
+                                      Notarize
+                                    </Menu.Item>
+                                  )}
+
+                                  {!disableActions("reject", notaryRequest) && (
+                                    <Menu.Item
+                                      c="red"
+                                      onClick={() => {
+                                        setSelectedNotaryRequest(notaryRequest);
+                                        openRejectNotaryRequestModal();
+                                      }}
+                                      leftSection={<IconX size={16} />}
+                                    >
+                                      Reject
+                                    </Menu.Item>
+                                  )}
+
+                                  {!disableActions(
+                                    "for_pickup",
+                                    notaryRequest
+                                  ) && (
+                                    <Menu.Item
+                                      c="purple"
+                                      onClick={() => {
+                                        setSelectedNotaryRequest(notaryRequest);
+                                        openConfirmationModal();
+                                      }}
+                                      leftSection={<IconPackage size={16} />}
+                                    >
+                                      Ready for Pickup
+                                    </Menu.Item>
+                                  )}
+
+                                  {!disableActions(
+                                    "completed",
+                                    notaryRequest
+                                  ) && (
+                                    <Menu.Item
+                                      c="green"
+                                      onClick={() => {
+                                        setSelectedNotaryRequest(notaryRequest);
+                                        openConfirmationModal();
+                                      }}
+                                      leftSection={<IconFileCheck size={16} />}
+                                    >
+                                      Complete
+                                    </Menu.Item>
+                                  )}
+                                </>
                               )}
 
-                            {user?.unsafeMetadata?.role !== "client" && (
-                              <>
-                                {!disableActions("process", notaryRequest) && (
-                                  <Menu.Item
-                                    c="blue.5"
-                                    onClick={() => {
-                                      setSelectedNotaryRequest(notaryRequest);
-                                      openReviewNotaryRequestModal();
-                                    }}
-                                    leftSection={<IconTools size={16} />}
-                                  >
-                                    Process
-                                  </Menu.Item>
-                                )}
-
-                                {!disableActions("notarize", notaryRequest) && (
+                              {user?.unsafeMetadata?.role === "client" &&
+                                !disableActions("review", notaryRequest) && (
                                   <Menu.Item
                                     c="green"
+                                    leftSection={<IconTextScan2 size={16} />}
                                     onClick={() => {
                                       setSelectedNotaryRequest(notaryRequest);
-                                      openApproveNotaryRequestModal();
+                                      openClientReviewModal();
                                     }}
-                                    leftSection={<IconRubberStamp size={16} />}
                                   >
-                                    Notarize
+                                    Review
                                   </Menu.Item>
                                 )}
+                            </Menu.Dropdown>
+                          </Menu>
+                        </Table.Td>
+                      </Table.Tr>
+                    ))}
+              </Table.Tbody>
+            </Table>
+          </TableScrollContainer>
 
-                                {!disableActions("reject", notaryRequest) && (
-                                  <Menu.Item
-                                    c="red"
-                                    onClick={() => {
-                                      setSelectedNotaryRequest(notaryRequest);
-                                      openRejectNotaryRequestModal();
-                                    }}
-                                    leftSection={<IconX size={16} />}
-                                  >
-                                    Reject
-                                  </Menu.Item>
-                                )}
+          <Group align="center">
+            {totalCount > 0 ? (
+              <Text size="sm">
+                Showing {(currentPage - 1) * 10 + 1}-
+                {Math.min(currentPage * 10, totalCount)} of {totalCount} Matters
+              </Text>
+            ) : (
+              <Text size="sm">No notary requests found</Text>
+            )}
 
-                                {!disableActions(
-                                  "for_pickup",
-                                  notaryRequest
-                                ) && (
-                                  <Menu.Item
-                                    c="purple"
-                                    onClick={() => {
-                                      setSelectedNotaryRequest(notaryRequest);
-                                      openConfirmationModal();
-                                    }}
-                                    leftSection={<IconPackage size={16} />}
-                                  >
-                                    Ready for Pickup
-                                  </Menu.Item>
-                                )}
-
-                                {!disableActions(
-                                  "completed",
-                                  notaryRequest
-                                ) && (
-                                  <Menu.Item
-                                    c="green"
-                                    onClick={() => {
-                                      setSelectedNotaryRequest(notaryRequest);
-                                      openConfirmationModal();
-                                    }}
-                                    leftSection={<IconFileCheck size={16} />}
-                                  >
-                                    Complete
-                                  </Menu.Item>
-                                )}
-                              </>
-                            )}
-
-                            {user?.unsafeMetadata?.role === "client" &&
-                              !disableActions("review", notaryRequest) && (
-                                <Menu.Item
-                                  c="green"
-                                  leftSection={<IconTextScan2 size={16} />}
-                                  onClick={() => {
-                                    setSelectedNotaryRequest(notaryRequest);
-                                    openClientReviewModal();
-                                  }}
-                                >
-                                  Review
-                                </Menu.Item>
-                              )}
-                          </Menu.Dropdown>
-                        </Menu>
-                      </Table.Td>
-                    </Table.Tr>
-                  ))}
-            </Table.Tbody>
-          </Table>
-        </TableScrollContainer>
+            <Pagination
+              ml="auto"
+              total={Math.ceil(totalCount / 10) || 1}
+              value={currentPage}
+              onChange={setCurrentPage}
+            />
+          </Group>
+        </Paper>
       </Flex>
 
       <UpsertNotaryRequestModal
         opened={isUpsertNotaryRequestModalOpen}
         onClose={closeUpsertNotaryRequestModal}
-        notaryRequest={selectedNotaryRequest}
+        notaryRequestId={selectedNotaryRequest?.$id ?? ""}
+        setDataChanged={setDataChanged}
       />
 
       {/* <DeleteNotaryRequestModal
@@ -495,37 +610,42 @@ export default function NotaryRequestsListing() {
       <ClientReviewModal
         opened={isClientReviewModalOpen}
         onClose={closeClientReviewModal}
-        notaryRequest={selectedNotaryRequest}
+        notaryRequestId={selectedNotaryRequest?.$id ?? ""}
+        setDataChanged={setDataChanged}
       />
 
       <ApproveNotaryRequestModal
         opened={isApproveNotaryRequestModalOpen}
         onClose={closeApproveNotaryRequestModal}
-        notaryRequest={selectedNotaryRequest}
+        notaryRequestId={selectedNotaryRequest?.$id ?? ""}
+        setDataChanged={setDataChanged}
       />
 
       <RejectNotaryRequestModal
         opened={isRejectNotaryRequestModalOpen}
         onClose={closeRejectNotaryRequestModal}
-        notaryRequest={selectedNotaryRequest}
+        notaryRequestId={selectedNotaryRequest?.$id ?? ""}
+        setDataChanged={setDataChanged}
       />
 
       <ViewNotaryRequestDrawer
         opened={isViewNotaryRequestDrawerOpen}
         onClose={closeViewNotaryRequestDrawer}
-        notaryRequest={selectedNotaryRequest}
+        notaryRequestId={selectedNotaryRequest?.$id ?? ""}
       />
 
       <ReviewNotaryRequestModal
         opened={isReviewNotaryRequestModalOpen}
         onClose={closeReviewNotaryRequestModal}
-        notaryRequest={selectedNotaryRequest}
+        notaryRequestId={selectedNotaryRequest?.$id ?? ""}
+        setDataChanged={setDataChanged}
       />
 
       <ConfirmationModal
         opened={isConfirmationModalOpen}
         onClose={closeConfirmationModal}
-        notaryRequest={selectedNotaryRequest}
+        notaryRequestId={selectedNotaryRequest?.$id ?? ""}
+        setDataChanged={setDataChanged}
       />
     </>
   );

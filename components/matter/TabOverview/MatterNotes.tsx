@@ -93,35 +93,43 @@ export default function MatterNotes({
         title="All Notes"
       >
         <Stack>
-          {notes
-            ?.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-            .map((note) => (
-              <Group key={note.id} align="start" gap="xs">
-                <Avatar src={note.user.profileImageUrl}>
-                  {note.user.fullname.charAt(0)}
-                </Avatar>
-                <Paper
-                  withBorder
-                  radius="md"
-                  px="md"
-                  py="sm"
-                  bg="gray.1"
-                  flex={1}
-                >
-                  <Group justify="space-between">
-                    <Text size="sm" fw={600}>
-                      {note.user.fullname}
+          {notes && notes?.length > 0 ? (
+            notes
+              ?.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+              .map((note) => (
+                <Group key={note.id} align="start" gap="xs">
+                  <Avatar src={note.user.profileImageUrl}>
+                    {note.user.fullname.charAt(0)}
+                  </Avatar>
+                  <Paper
+                    withBorder
+                    radius="md"
+                    px="md"
+                    py="sm"
+                    bg="gray.1"
+                    flex={1}
+                  >
+                    <Group justify="space-between">
+                      <Text size="sm" fw={600}>
+                        {note.user.fullname}
+                      </Text>
+                      <Text size="xs" c="gray.7">
+                        {getDateFormatDisplay(note.createdAt, true)}
+                      </Text>
+                    </Group>
+                    <Text
+                      size="sm"
+                      c="gray.7"
+                      style={{ whiteSpace: "pre-wrap" }}
+                    >
+                      {note.content}
                     </Text>
-                    <Text size="xs" c="gray.7">
-                      {getDateFormatDisplay(note.createdAt, true)}
-                    </Text>
-                  </Group>
-                  <Text size="sm" c="gray.7" style={{ whiteSpace: "pre-wrap" }}>
-                    {note.content}
-                  </Text>
-                </Paper>
-              </Group>
-            ))}
+                  </Paper>
+                </Group>
+              ))
+          ) : (
+            <Divider label="No notes found" labelPosition="center" my="md" />
+          )}
         </Stack>
       </ViewAllModal>
 

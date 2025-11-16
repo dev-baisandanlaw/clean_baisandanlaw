@@ -106,8 +106,11 @@ export default function TabDocuments({
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Failed to download file:", error);
+    } catch {
+      appNotifications.error({
+        title: "Failed to download file",
+        message: "The file could not be downloaded. Please try again.",
+      });
     }
   };
 

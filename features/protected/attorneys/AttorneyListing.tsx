@@ -12,8 +12,9 @@ import {
   Button,
   Flex,
   Group,
-  LoadingOverlay,
   Pagination,
+  Paper,
+  Progress,
   Stack,
   Table,
   TableScrollContainer,
@@ -55,9 +56,9 @@ export default function AttorneyListing() {
           {
             params: {
               organization_id: CLERK_ORG_IDS.attorney,
-              limit: 25,
-              offset: (page - 1) * 25,
-              search: searchTerm,
+              limit: 10,
+              offset: (page - 1) * 10,
+              search: searchTerm.trim(),
             },
           }
         );
@@ -82,7 +83,7 @@ export default function AttorneyListing() {
     const { data } = await axios.get("/api/clerk/fetch-total-count", {
       params: {
         organization_id: CLERK_ORG_IDS.attorney,
-        search: searchTerm,
+        search: searchTerm.trim(),
       },
     });
 
@@ -118,8 +119,8 @@ export default function AttorneyListing() {
       >
         <Group align="center" justify="space-between" w="100%">
           <TextInput
-            placeholder="Search"
-            w="300px"
+            placeholder="Search name, email"
+            flex={1}
             leftSectionPointerEvents="none"
             leftSection={<IconSearch />}
             value={search}
@@ -127,7 +128,7 @@ export default function AttorneyListing() {
           />
 
           <Button
-            variant="outline"
+            size="sm"
             leftSection={<IconCirclePlus />}
             onClick={openAddAttorneyModal}
           >
@@ -135,98 +136,108 @@ export default function AttorneyListing() {
           </Button>
         </Group>
 
-        <TableScrollContainer
-          minWidth={500}
-          h="calc(100vh - 220px)"
-          pos="relative"
-        >
-          <Table stickyHeader stickyHeaderOffset={0} verticalSpacing="sm">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Name</Table.Th>
-                <Table.Th>Contact</Table.Th>
-                <Table.Th>Practice Area</Table.Th>
-                <Table.Th>Admitted Since</Table.Th>
-                <Table.Th>Involved Cases</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-
-            <Table.Tbody>
-              {isFetching && (
-                <Table.Tr>
-                  <Table.Td h="100%">
-                    <LoadingOverlay visible />
-                  </Table.Td>
-                </Table.Tr>
-              )}
-
-              {!isFetching && !attorneys?.length && (
-                <EmptyTableComponent colspan={5} message="No attorneys found" />
-              )}
-
-              {!isFetching &&
-                attorneys &&
-                attorneys.map((attorney) => (
-                  <Table.Tr key={attorney.id}>
-                    <Table.Td>
-                      {attorney.first_name + " " + attorney.last_name}
-                    </Table.Td>
-                    <Table.Td>
-                      <Stack gap={2}>
-                        <Text size="sm">
-                          {attorney.email_addresses[0].email_address}
-                        </Text>
-                        <Text size="xs" c="dimmed">
-                          {attorney.unsafe_metadata.phoneNumber}
-                        </Text>
-                      </Stack>
-                    </Table.Td>
-                    <Table.Td>
-                      <Group gap={2}>
-                        {attorney.unsafe_metadata.practiceAreas?.map(
-                          (area, index) => (
-                            <Badge
-                              size="xs"
-                              key={index}
-                              variant="outline"
-                              radius="xs"
-                              color={theme.other.customPumpkin}
-                            >
-                              {area}
-                            </Badge>
-                          )
-                        )}
-                      </Group>
-                    </Table.Td>
-                    <Table.Td>
-                      {getDateFormatDisplay(attorney.created_at)}
-                    </Table.Td>
-                    <Table.Td>
-                      {attorney.unsafe_metadata.involvedCases || 0}
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-            </Table.Tbody>
-          </Table>
-        </TableScrollContainer>
-
-        <Group align="center">
-          {totalCount > 0 ? (
-            <Text size="sm">
-              Showing {(currentPage - 1) * 25 + 1}-
-              {Math.min(currentPage * 25, totalCount)} of {totalCount} attorneys
-            </Text>
-          ) : (
-            <Text size="sm">No attorneys found</Text>
+        <Paper withBorder shadow="sm" p={16} pos="relative">
+          {isFetching && (
+            <Progress
+              value={100}
+              animated
+              pos="absolute"
+              top={0}
+              left={0}
+              right={0}
+              radius="xs"
+            />
           )}
 
-          <Pagination
-            ml="auto"
-            total={Math.ceil(totalCount / 25) || 1}
-            value={currentPage}
-            onChange={setCurrentPage}
-          />
-        </Group>
+          <TableScrollContainer
+            minWidth={500}
+            h="calc(100vh - 220px)"
+            pos="relative"
+          >
+            <Table stickyHeader stickyHeaderOffset={0} verticalSpacing="sm">
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Name</Table.Th>
+                  <Table.Th>Contact</Table.Th>
+                  <Table.Th>Practice Area</Table.Th>
+                  <Table.Th>Account Created</Table.Th>
+                  <Table.Th>Involved Cases</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+
+              <Table.Tbody>
+                {!isFetching && !attorneys?.length && (
+                  <EmptyTableComponent
+                    colspan={5}
+                    message="No attorneys found"
+                  />
+                )}
+
+                {!isFetching &&
+                  attorneys &&
+                  attorneys.map((attorney) => (
+                    <Table.Tr key={attorney.id}>
+                      <Table.Td>
+                        {attorney.first_name + " " + attorney.last_name}
+                      </Table.Td>
+                      <Table.Td>
+                        <Stack gap={2}>
+                          <Text size="sm">
+                            {attorney.email_addresses[0].email_address}
+                          </Text>
+                          <Text size="xs" c="dimmed">
+                            {attorney.unsafe_metadata.phoneNumber}
+                          </Text>
+                        </Stack>
+                      </Table.Td>
+                      <Table.Td>
+                        <Group gap={2}>
+                          {attorney.unsafe_metadata.practiceAreas?.map(
+                            (area, index) => (
+                              <Badge
+                                size="xs"
+                                key={index}
+                                variant="outline"
+                                radius="xs"
+                                color={theme.other.customPumpkin}
+                              >
+                                {area}
+                              </Badge>
+                            )
+                          )}
+                        </Group>
+                      </Table.Td>
+                      <Table.Td>
+                        {getDateFormatDisplay(attorney.created_at, true)}
+                      </Table.Td>
+                      <Table.Td>
+                        {attorney.unsafe_metadata.involvedCases || 0}
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+              </Table.Tbody>
+            </Table>
+          </TableScrollContainer>
+
+          <Group align="center">
+            {totalCount > 0 ? (
+              <Text size="sm">
+                Showing {(currentPage - 1) * 10 + 1}-
+                {Math.min(currentPage * 10, totalCount)} of {totalCount}{" "}
+                Attorneys
+              </Text>
+            ) : (
+              <Text size="sm">No attorneys found</Text>
+            )}
+
+            <Pagination
+              ml="auto"
+              total={Math.ceil(totalCount / 10) || 1}
+              value={currentPage}
+              onChange={setCurrentPage}
+            />
+          </Group>
+        </Paper>
       </Flex>
 
       <AddAttorneyModal

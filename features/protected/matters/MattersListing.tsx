@@ -1,10 +1,9 @@
 "use client";
 
+import { listDatabaseDocuments } from "@/app/api/appwrite";
 import EmptyTableComponent from "@/components/EmptyTableComponent";
 import AddMatterModal from "@/components/matter/modals/AddMatterModal";
-import { COLLECTIONS } from "@/constants/constants";
-import { db } from "@/firebase/config";
-import { Matter } from "@/types/case";
+import { AppwriteMatterDocument } from "@/types/appwriteResponses";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { useUser } from "@clerk/nextjs";
 
@@ -14,8 +13,9 @@ import {
   Button,
   Flex,
   Group,
-  LoadingOverlay,
   Pagination,
+  Paper,
+  Progress,
   Table,
   TableScrollContainer,
   Text,
@@ -24,14 +24,14 @@ import {
 } from "@mantine/core";
 import { useDebouncedValue, useDisclosure } from "@mantine/hooks";
 import { IconCirclePlus, IconEye, IconSearch } from "@tabler/icons-react";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { Query } from "appwrite";
 import { useEffect, useState } from "react";
 
 export default function MattersListing() {
   const theme = useMantineTheme();
   const { user } = useUser();
 
-  const [matters, setMatters] = useState<Matter[]>([]);
+  const [matters, setMatters] = useState<AppwriteMatterDocument[]>([]);
   const [isFetching, setIsFetching] = useState(false);
 
   const [search, setSearch] = useState("");
@@ -45,45 +45,45 @@ export default function MattersListing() {
     { open: openAddMatterModal, close: closeAddMatterModal },
   ] = useDisclosure(false);
 
-  const fetchMatters = async () => {
+  const fetchMattersFromAppwrite = async (search: string, page: number = 1) => {
     if (!user) return;
 
     setIsFetching(true);
-    try {
-      let q;
+    const userRole = user.unsafeMetadata?.role;
+    const limit = 10;
+    const offset = (page - 1) * limit;
 
-      if (user.unsafeMetadata?.role === "attorney") {
-        q = query(
-          collection(db, COLLECTIONS.CASES),
-          where("leadAttorney.id", "==", user.id)
-        );
-      } else if (user.unsafeMetadata?.role === "admin") {
-        q = query(collection(db, COLLECTIONS.CASES));
-      } else {
-        q = query(
-          collection(db, COLLECTIONS.CASES),
-          where("clientData.id", "==", user.id)
-        );
-      }
+    const queries: string[] = [Query.limit(limit), Query.offset(offset)];
 
-      const querySnapshot = await getDocs(q);
-      const m = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Matter[];
-
-      setMatters(m);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setIsFetching(false);
+    if (userRole === "attorney") {
+      queries.push(Query.equal("leadAttorneyId", user.id));
+    } else if (userRole === "client") {
+      queries.push(Query.equal("clientId", user.id));
     }
+
+    if (search && search.trim().length > 0) {
+      queries.push(Query.search("search_blob", search.trim()));
+    }
+
+    await listDatabaseDocuments("matters", queries)
+      .then(({ documents, total }) => {
+        setMatters(documents as unknown as AppwriteMatterDocument[]);
+
+        setTotalCount(total);
+      })
+      .finally(() => setIsFetching(false));
   };
 
   useEffect(() => {
-    fetchMatters();
+    if (debouncedSearch.trim().length > 0) {
+      setCurrentPage(1);
+    }
+  }, [debouncedSearch]);
+
+  useEffect(() => {
+    fetchMattersFromAppwrite(debouncedSearch, currentPage);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [user?.id, debouncedSearch, currentPage]);
 
   const renderTableHeaders = () => {
     if (user?.unsafeMetadata?.role !== "client") {
@@ -96,8 +96,8 @@ export default function MattersListing() {
             <Table.Th>Status</Table.Th>
             <Table.Th>Matter Type</Table.Th>
             {/* <Table.Th>Involved Attorneys</Table.Th> */}
-            <Table.Th>Created At</Table.Th>
-            <Table.Th>Actions</Table.Th>
+            <Table.Th>Date Created</Table.Th>
+            <Table.Th ta="center">Actions</Table.Th>
           </Table.Tr>
         </Table.Thead>
       );
@@ -112,7 +112,7 @@ export default function MattersListing() {
           <Table.Th>Case Type</Table.Th>
           {/* <Table.Th>Involved Attorneys</Table.Th> */}
           <Table.Th>Created At</Table.Th>
-          <Table.Th>Actions</Table.Th>
+          <Table.Th ta="center">Actions</Table.Th>
         </Table.Tr>
       </Table.Thead>
     );
@@ -129,8 +129,8 @@ export default function MattersListing() {
       >
         <Group align="center" justify="space-between" w="100%">
           <TextInput
-            placeholder="Search"
-            w="300px"
+            placeholder="Search matter number, lead attorney, client, or matter type"
+            flex={1}
             leftSectionPointerEvents="none"
             leftSection={<IconSearch />}
             value={search}
@@ -141,110 +141,132 @@ export default function MattersListing() {
             <Button
               leftSection={<IconCirclePlus />}
               size="sm"
-              variant="outline"
               onClick={openAddMatterModal}
             >
-              Add Matter
+              New Matter
             </Button>
           )}
         </Group>
 
-        <TableScrollContainer
-          minWidth={500}
-          h="calc(100vh - 220px)"
-          pos="relative"
-        >
-          <Table stickyHeader stickyHeaderOffset={0} verticalSpacing="sm">
-            {renderTableHeaders()}
-
-            <Table.Tbody>
-              {isFetching && (
-                <Table.Tr>
-                  <Table.Td h="100%">
-                    <LoadingOverlay visible />
-                  </Table.Td>
-                </Table.Tr>
-              )}
-
-              {!isFetching && !matters?.length && (
-                <EmptyTableComponent
-                  colspan={user?.unsafeMetadata?.role !== "client" ? 8 : 7}
-                />
-              )}
-
-              {!isFetching &&
-                matters &&
-                matters.length > 0 &&
-                matters.map((matter) => (
-                  <Table.Tr key={matter.id}>
-                    <Table.Td>{matter.caseNumber}</Table.Td>
-                    <Table.Td>
-                      <Text size="sm">{matter.leadAttorney?.fullname}</Text>
-                    </Table.Td>
-                    {user?.unsafeMetadata?.role !== "client" && (
-                      <Table.Td>{matter.clientData.fullname}</Table.Td>
-                    )}
-                    <Table.Td>
-                      <Badge
-                        size="xs"
-                        radius="xs"
-                        color={matter.status === "active" ? "green" : "red"}
-                      >
-                        {matter.status}
-                      </Badge>
-                    </Table.Td>
-                    <Table.Td>
-                      <Group gap={2}>
-                        {matter.caseType?.map((type) => (
-                          <Badge
-                            size="xs"
-                            radius="xs"
-                            variant="outline"
-                            key={type}
-                            color={theme.other.customPumpkin}
-                          >
-                            {type}
-                          </Badge>
-                        ))}
-                      </Group>
-                    </Table.Td>
-
-                    <Table.Td>
-                      {getDateFormatDisplay(matter.createdAt)}
-                    </Table.Td>
-                    <Table.Td>
-                      <ActionIcon
-                        size="sm"
-                        variant="transparent"
-                        component="a"
-                        href={`/matters/${matter.id}`}
-                      >
-                        <IconEye size={24} />
-                      </ActionIcon>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-            </Table.Tbody>
-          </Table>
-        </TableScrollContainer>
-
-        <Group align="center">
-          {totalCount > 0 ? (
-            <Text size="sm">
-              Showing {(currentPage - 1) * 25 + 1}-
-              {Math.min(currentPage * 25, totalCount)} of {totalCount} clients
-            </Text>
-          ) : (
-            <Text size="sm">No matters found</Text>
+        <Paper withBorder shadow="sm" p={16} pos="relative">
+          {isFetching && (
+            <Progress
+              value={100}
+              animated
+              pos="absolute"
+              top={0}
+              left={0}
+              right={0}
+              radius="xs"
+            />
           )}
 
-          <Pagination
-            ml="auto"
-            total={Math.ceil(totalCount / 25) || 1}
-            value={currentPage}
-            onChange={setCurrentPage}
-          />
-        </Group>
+          <TableScrollContainer
+            minWidth={500}
+            h="calc(100vh - 220px)"
+            pos="relative"
+          >
+            <Table stickyHeader stickyHeaderOffset={0} verticalSpacing="sm">
+              {renderTableHeaders()}
+
+              <Table.Tbody>
+                {!isFetching && !matters?.length && (
+                  <EmptyTableComponent
+                    colspan={user?.unsafeMetadata?.role !== "client" ? 8 : 7}
+                  />
+                )}
+
+                {matters &&
+                  matters.length > 0 &&
+                  matters.map((matter) => (
+                    <Table.Tr key={matter.$id}>
+                      <Table.Td>{matter.matterNumber}</Table.Td>
+                      <Table.Td>
+                        <Text size="sm">
+                          {matter.leadAttorneyFirstName}{" "}
+                          {matter.leadAttorneyLastName}
+                        </Text>
+                      </Table.Td>
+                      {user?.unsafeMetadata?.role !== "client" && (
+                        <Table.Td>
+                          {matter.clientFirstName} {matter.clientLastName}
+                        </Table.Td>
+                      )}
+                      <Table.Td>
+                        <Badge
+                          size="xs"
+                          radius="xs"
+                          color={matter.status === "active" ? "green" : "red"}
+                        >
+                          {matter.status}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td width={250}>
+                        <Group gap={2}>
+                          {matter.matterType
+                            ?.split("&_&")
+                            ?.slice(0, 3)
+                            .map((type) => (
+                              <Badge
+                                size="xs"
+                                radius="xs"
+                                variant="outline"
+                                key={type}
+                                color={theme.other.customPumpkin}
+                              >
+                                {type}
+                              </Badge>
+                            ))}
+                          {matter.matterType?.split("&_&")?.length > 3 && (
+                            <Badge
+                              color={theme.other.customPumpkin}
+                              size="xs"
+                              radius="xs"
+                              variant="outline"
+                            >
+                              +{matter.matterType?.split("&_&")?.length - 3}
+                            </Badge>
+                          )}
+                        </Group>
+                      </Table.Td>
+
+                      <Table.Td>
+                        {getDateFormatDisplay(matter.$createdAt, true)}
+                      </Table.Td>
+                      <Table.Td ta="center">
+                        <ActionIcon
+                          size="sm"
+                          variant="transparent"
+                          component="a"
+                          href={`/matters/${matter.$id}`}
+                        >
+                          <IconEye size={24} />
+                        </ActionIcon>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+              </Table.Tbody>
+            </Table>
+          </TableScrollContainer>
+
+          <Group align="center">
+            {totalCount > 0 ? (
+              <Text size="sm">
+                Showing {(currentPage - 1) * 10 + 1}-
+                {Math.min(currentPage * 10, totalCount)} of {totalCount} Matters
+              </Text>
+            ) : (
+              <Text size="sm">No matters found</Text>
+            )}
+
+            <Pagination
+              ml="auto"
+              total={Math.ceil(totalCount / 10) || 1}
+              value={currentPage}
+              onChange={setCurrentPage}
+            />
+          </Group>
+        </Paper>
       </Flex>
 
       <AddMatterModal
