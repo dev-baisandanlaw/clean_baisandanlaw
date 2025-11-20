@@ -30,6 +30,7 @@ import { addMatterUpdate } from "./utils/addMatterUpdate";
 import { useUser } from "@clerk/nextjs";
 import MatterNotes from "./TabOverview/MatterNotes";
 import { appNotifications } from "@/utils/notifications/notifications";
+import SubscriptionBadge from "../Common/SubscriptionBadge";
 
 interface MatterTabOverviewProps {
   matterData: Matter;
@@ -143,19 +144,12 @@ export default function TabOverview({
     {
       th: "Subscription",
       td: (
-        <Badge
-          size="xs"
-          radius="xs"
-          color={
-            clientData.unsafe_metadata?.subscription?.isSubscribed
-              ? "green"
-              : theme.colors.gray[6]
+        <SubscriptionBadge
+          isSubscribed={
+            clientData.unsafe_metadata?.subscription?.isSubscribed || false
           }
-        >
-          {clientData.unsafe_metadata?.subscription?.isSubscribed
-            ? "Premium"
-            : "Basic"}
-        </Badge>
+          compact
+        />
       ),
     },
   ];

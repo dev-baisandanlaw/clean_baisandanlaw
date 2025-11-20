@@ -86,6 +86,13 @@ export default function Page() {
         unsafeMetadata: {
           role: "client",
           phoneNumber: values.phoneNumber,
+
+          subscription: {
+            count: 0,
+            isSubscribed: false,
+            subscribedStartDate: null,
+            subscribedEndDate: null,
+          },
         },
       });
 

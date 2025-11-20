@@ -26,6 +26,7 @@ import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
 import { ClerkAPIError } from "@clerk/types";
 import { useMediaQuery } from "@mantine/hooks";
 import { useRouter } from "next/navigation";
+import { appNotifications } from "@/utils/notifications/notifications";
 
 export default function Page() {
   const router = useRouter();
@@ -59,6 +60,10 @@ export default function Page() {
 
       if (signInAttempt.status === "complete") {
         await setActive({ session: signInAttempt.createdSessionId });
+        appNotifications.success({
+          title: "Logged in successfully",
+          message: "Redirecting to Appointments...",
+        });
         router.push("/");
       }
     } catch (err) {

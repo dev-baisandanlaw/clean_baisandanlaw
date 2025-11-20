@@ -20,12 +20,13 @@ interface BaseMetadata {
 interface ClientMetadata extends BaseMetadata {
   role: "client";
   subscription?: {
-    lastPaymentDate: string | Date;
-    renewsAt: string | Date;
-    paymentId: string;
-    subscribedStartDate: string | Date;
-    subscribedEndDate: string | Date;
-    isSubscribed: boolean;
+    count?: number;
+    // lastPaymentDate: string | Date;
+    // renewsAt: string | Date;
+    // paymentId: string;
+    subscribedStartDate?: string | Date;
+    subscribedEndDate?: string | Date;
+    isSubscribed?: boolean;
   };
 }
 
