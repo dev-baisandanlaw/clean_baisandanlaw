@@ -147,6 +147,7 @@ export default function UpgradeSubscriptionModal({
               Subscription End Date
             </Text>
             <DatePicker
+              hideOutsideDates
               minDate={minDate}
               value={subscriptionEndDate}
               onChange={(date) =>

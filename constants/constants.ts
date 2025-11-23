@@ -57,6 +57,7 @@ export const NAV_LINKS = [
 export const COLLECTIONS = {
   BOOKINGS: "bookings",
   GLOBAL_SETTINGS: "global_settings",
+  GLOBAL_SCHED: "global_sched",
   ATTORNEYS: "attorneys",
   CLIENTS: "clientUsers",
   CASES: "cases",

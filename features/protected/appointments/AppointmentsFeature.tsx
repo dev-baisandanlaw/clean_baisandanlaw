@@ -8,9 +8,7 @@ import DeleteDuplicateModal from "@/components/appointments/modals/DeleteDuplica
 import ViewAppointmentModal from "@/components/appointments/modals/ViewAppointmentModal";
 import { COLLECTIONS } from "@/constants/constants";
 import { db } from "@/firebase/config";
-import { useDocument } from "@/hooks/useDocument";
 import { Booking } from "@/types/booking";
-import { GlobalSettings } from "@/types/global-settings";
 import { useUser } from "@clerk/nextjs";
 import { Alert, Badge, Button, Flex, Group, Stack, Text } from "@mantine/core";
 import { useDebouncedValue, useDisclosure } from "@mantine/hooks";
@@ -18,6 +16,8 @@ import { IconCirclePlus, IconFlame, IconSettings } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import {
   collection,
+  doc,
+  getDoc,
   getDocs,
   onSnapshot,
   query,
@@ -25,20 +25,49 @@ import {
 } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
+import SettingsModal from "@/components/appointments/modals/SettingsModal";
+import { GlobalSched } from "@/types/global-sched";
+import { appNotifications } from "@/utils/notifications/notifications";
+import { useRouter } from "nextjs-toploader/app";
 
 const ymd = dayjs().format("YYYY-MM-DD");
 
 export default function AppointmentsFeature() {
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
+  const router = useRouter();
 
-  const {
-    document: settings,
-    // loading: loadingSettings,
-    fetchData: fetchGlobalSettings,
-  } = useDocument<GlobalSettings>({
-    collectionName: COLLECTIONS.GLOBAL_SETTINGS,
-    documentId: process.env.NEXT_PUBLIC_FIREBASE_SETTINGS_ID!,
-  });
+  const [dataChanged, setDataChanged] = useState(false);
+  const [globalSched, setGlobalSched] = useState<GlobalSched | null>(null);
+  const [isFetchingGlobalSched, setIsFetchingGlobalSched] = useState(false);
+
+  const fetchGlobalSched = async () => {
+    try {
+      setIsFetchingGlobalSched(true);
+      const snap = await getDoc(
+        doc(
+          db,
+          COLLECTIONS.GLOBAL_SCHED,
+          process.env.NEXT_PUBLIC_FIREBASE_HOLIDAYS_BLOCKED_SCHED_ID!
+        )
+      );
+      if (!snap.exists()) return;
+
+      setGlobalSched({ ...snap.data() } as GlobalSched);
+    } catch {
+      appNotifications.error({
+        title: "Failed to fetch global sched",
+        message: "The global sched could not be fetched. Please try again.",
+      });
+    } finally {
+      setIsFetchingGlobalSched(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!user || !isLoaded) return;
+
+    fetchGlobalSched();
+  }, [dataChanged, user, isLoaded]);
 
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -54,6 +83,10 @@ export default function AppointmentsFeature() {
     useDisclosure(false);
   const [viewModal, { open: openViewModal, close: closeViewModal }] =
     useDisclosure(false);
+  const [
+    settingsModalOpened,
+    { open: openSettingsModal, close: closeSettingsModal },
+  ] = useDisclosure(false);
 
   const handleSelectBooking = (
     booking: Booking | null,
@@ -139,50 +172,52 @@ export default function AppointmentsFeature() {
 
   return (
     <>
-      {noAttorneyBookings && noAttorneyBookings?.length > 0 && (
-        <Alert
-          title="Alert!"
-          color="red"
-          icon={<IconFlame />}
-          mb="xl"
-          styles={(theme) => ({
-            title: { fontWeight: 700, color: theme.colors.red[4] },
-            icon: { color: theme.colors.red[4] },
-            message: {
-              color: theme.colors.red[4],
-              textAlign: "justify",
-              paddingRight: 16,
-            },
-            root: {
-              backgroundColor: theme.colors.red[0],
-              boxShadow: theme.other.customBoxShadow,
-              borderRadius: 10,
-            },
-          })}
-        >
-          <Text mb="xs">
-            There are future bookings with no attorney assigned.
-          </Text>
+      {user?.unsafeMetadata?.role === "admin" &&
+        noAttorneyBookings &&
+        noAttorneyBookings?.length > 0 && (
+          <Alert
+            title="Alert!"
+            color="red"
+            icon={<IconFlame />}
+            mb="xl"
+            styles={(theme) => ({
+              title: { fontWeight: 700, color: theme.colors.red[4] },
+              icon: { color: theme.colors.red[4] },
+              message: {
+                color: theme.colors.red[4],
+                textAlign: "justify",
+                paddingRight: 16,
+              },
+              root: {
+                backgroundColor: theme.colors.red[0],
+                boxShadow: theme.other.customBoxShadow,
+                borderRadius: 10,
+              },
+            })}
+          >
+            <Text mb="xs">
+              There are future bookings with no attorney assigned.
+            </Text>
 
-          <Stack gap="xs">
-            {noAttorneyBookings
-              ?.sort((a, b) => dayjs(a.date).diff(dayjs(b.date)))
-              .map((booking) => (
-                <Badge
-                  key={booking.id}
-                  variant="outline"
-                  color="red"
-                  radius="xs"
-                >
-                  {getDateFormatDisplay(
-                    `${booking.date} ${booking.time}`,
-                    true
-                  )}
-                </Badge>
-              ))}
-          </Stack>
-        </Alert>
-      )}
+            <Group gap="xs">
+              {noAttorneyBookings
+                ?.sort((a, b) => dayjs(a.date).diff(dayjs(b.date)))
+                .map((booking) => (
+                  <Badge
+                    key={booking.id}
+                    variant="outline"
+                    color="red"
+                    radius="xs"
+                  >
+                    {getDateFormatDisplay(
+                      `${booking.date} ${booking.time}`,
+                      true
+                    )}
+                  </Badge>
+                ))}
+            </Group>
+          </Alert>
+        )}
       <Flex
         w="100%"
         h="100%"
@@ -200,7 +235,7 @@ export default function AppointmentsFeature() {
 
           <Stack flex={1}>
             {user?.unsafeMetadata?.role === "admin" && (
-              <Group>
+              <Group justify="space-between">
                 <Button
                   leftSection={<IconCirclePlus />}
                   size="sm"
@@ -210,14 +245,26 @@ export default function AppointmentsFeature() {
                   Add Appointment
                 </Button>
 
-                {/* <Button
+                <Button
                   leftSection={<IconSettings />}
                   size="sm"
+                  loading={isFetchingGlobalSched}
                   variant="outline"
+                  onClick={openSettingsModal}
                 >
                   Settings
-                </Button> */}
+                </Button>
               </Group>
+            )}
+
+            {user?.unsafeMetadata?.role === "client" && (
+              <Button
+                leftSection={<IconCirclePlus />}
+                size="sm"
+                onClick={() => router.push("/booking")}
+              >
+                Book Appointment
+              </Button>
             )}
 
             <AppointmentSummary
@@ -252,6 +299,26 @@ export default function AppointmentsFeature() {
         opened={viewModal}
         onClose={closeViewModal}
         booking={selectedBooking || null}
+      />
+
+      {/* <SettingsDrawer
+          opened={settingsDrawerOpened}
+          onClose={closeSettingsDrawer}
+          settings={settings}
+          fetchData={fetchGlobalSettings}
+          // loading={loadingSettings}
+        /> */}
+
+      {/* <SettingsDrawer2
+        opened={settingsDrawerOpened}
+        onClose={closeSettingsDrawer}
+      /> */}
+
+      <SettingsModal
+        opened={settingsModalOpened}
+        onClose={closeSettingsModal}
+        globalSched={globalSched}
+        setDataChanged={setDataChanged}
       />
     </>
   );

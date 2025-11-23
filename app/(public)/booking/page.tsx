@@ -2,7 +2,7 @@
 
 import logo from "@/public/images/logo.png";
 import BookingModal from "@/components/booking/BookingModal";
-import { UserButton, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import {
   Alert,
   Box,
@@ -24,41 +24,44 @@ import { useEffect, useState } from "react";
 import styles from "@/components/Appshell.module.css";
 import classes from "./Booking.module.css";
 
-import { collection, onSnapshot, query, where } from "firebase/firestore";
+import {
+  collection,
+  getDoc,
+  doc,
+  onSnapshot,
+  query,
+  where,
+} from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { Booking } from "@/types/booking";
-import { COLLECTIONS } from "@/constants/constants";
+import { CLERK_ORG_IDS, COLLECTIONS } from "@/constants/constants";
 import dayjs from "dayjs";
-import { useDocument } from "@/hooks/useDocument";
-import { GlobalSettings } from "@/types/global-settings";
 import { SPECIAL_HOLIDAYS } from "@/constants/constants";
 import { REGULAR_HOLIDAYS } from "@/constants/constants";
 import { appNotifications } from "@/utils/notifications/notifications";
+import axios from "axios";
+import { WORK_SCHEDULE } from "@/constants/non-working-sched";
 
-const now = dayjs();
+const timeSlots = getTimeRange({
+  startTime: "08:00",
+  endTime: "16:00",
+  interval: "01:00",
+});
 
 export default function BookingPage() {
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
 
-  const { document: settings, loading } = useDocument<GlobalSettings>({
-    collectionName: COLLECTIONS.GLOBAL_SETTINGS,
-    documentId: process.env.NEXT_PUBLIC_FIREBASE_SETTINGS_ID!,
-  });
+  const [isFetchingGlobalSched, setIsFetchingGlobalSched] = useState(false);
 
-  // const timeSlots = getTimeRange({
-  //   startTime: settings?.startOfDay ?? "08:00",
-  //   endTime: settings?.endOfDay ?? "16:30",
-  //   interval: settings?.hourInterval ?? "00:30",
-  // });
-  const timeSlots = getTimeRange({
-    startTime: "08:00",
-    endTime: "17:00",
-    interval: "01:00",
-  });
+  const [attorneyCount, setAttorneyCount] = useState(0);
+  const [isFetchingAttorneyCount, setIsFetchingAttorneyCount] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
+
+  const [validHolidays, setValidHolidays] = useState<string[]>([]);
+  const [workDays, setWorkDays] = useState<number[]>([]);
 
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -73,12 +76,76 @@ export default function BookingPage() {
     { open: openBookingModal, close: closeBookingModal },
   ] = useDisclosure();
 
+  const fetchGlobalSched = async () => {
+    setIsFetchingGlobalSched(true);
+    try {
+      const snap = await getDoc(
+        doc(
+          db,
+          COLLECTIONS.GLOBAL_SCHED,
+          process.env.NEXT_PUBLIC_FIREBASE_HOLIDAYS_BLOCKED_SCHED_ID!
+        )
+      );
+      if (!snap.exists()) return;
+
+      const d = snap.data();
+
+      const getValidKeys = (o: Record<string, boolean>) =>
+        Object.keys(o).filter((key) => o[key]);
+
+      const validHolidayIds = [
+        ...getValidKeys(d.regularHolidays),
+        ...getValidKeys(d.specialHolidays),
+      ];
+
+      const holidayMap = Object.fromEntries([
+        ...REGULAR_HOLIDAYS.map((h) => [h.id, h.date]),
+        ...SPECIAL_HOLIDAYS.map((h) => [h.id, h.date]),
+      ]);
+
+      const workDays = Object.keys(d.workSchedule)
+        .filter((key) => d.workSchedule[key])
+        .map((key) => WORK_SCHEDULE.find((w) => w.name === key)?.value);
+
+      setValidHolidays(
+        validHolidayIds.map((id) => holidayMap[id]).filter(Boolean)
+      );
+      setWorkDays(workDays as number[]);
+    } finally {
+      setIsFetchingGlobalSched(false);
+    }
+  };
+
+  const fetchAttorneyCount = async (searchTerm: string) => {
+    setIsFetchingAttorneyCount(true);
+
+    try {
+      const { data } = await axios.get("/api/clerk/fetch-total-count", {
+        params: {
+          organization_id: CLERK_ORG_IDS.attorney,
+          search: searchTerm.trim(),
+        },
+      });
+
+      setAttorneyCount(data?.total_count);
+    } finally {
+      setIsFetchingAttorneyCount(false);
+    }
+  };
+
   const successCallback = () => {
     setSelectedDate(null);
     setSelectedTime(null);
     setIsSuccess(true);
     setCurrentDate(dayjs().format("YYYY-MM-DD"));
   };
+
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    fetchGlobalSched();
+    fetchAttorneyCount("");
+  }, [user, isLoaded]);
 
   useEffect(() => {
     setSelectedTime(null);
@@ -137,7 +204,7 @@ export default function BookingPage() {
           active
           component={Link}
           key="Back to Home"
-          href={!!user ? "/appointmentsf" : "/sign-in"}
+          href={!!user ? "/appointments" : "/sign-in"}
           className={styles.appShellRoot}
           styles={{
             label: {
@@ -154,8 +221,6 @@ export default function BookingPage() {
           leftSection={<IconHome color="white" size={20} />}
           w={45}
         />
-
-        {!!user && <UserButton />}
       </Flex>
 
       <Flex justify="center" align="center" mih="calc(100vh - 100px)">
@@ -181,13 +246,16 @@ export default function BookingPage() {
               },
             })}
           >
-            Thank you for scheduling with us — we&apos;re excited to have you!
-            Your appointment is confirmed for your selected date and time, and
-            you can view all the details anytime through your{" "}
-            <Link href="/appointments" style={{ color: "#2B4E45" }}>
-              appointments
-            </Link>
-            .
+            Thank you for scheduling with us — we&apos;re excited to talk to
+            you! Your appointment is submitted, you will receive an email
+            confirmation once it&apos;s confirmed.
+            <br />
+            <br />
+            You can view all your bookings and their details anytime through
+            your appointments dashboard. If you don&apos;t have an account, you
+            can create one by clicking this <Link href={`/sign-in}`}>link</Link>
+            . Just make sure to use the same email address you used to book the
+            appointment.
             <Group mt={16} justify="end">
               <Button
                 variant="filled"
@@ -212,7 +280,11 @@ export default function BookingPage() {
             m={16}
             pos="relative"
           >
-            <LoadingOverlay visible={loading} />
+            <LoadingOverlay
+              visible={
+                isFetchingGlobalSched || isFetchingAttorneyCount || !isLoaded
+              }
+            />
             <Image
               src={logo}
               alt="logo"
@@ -289,75 +361,17 @@ export default function BookingPage() {
                     setCurrentDate(dayjs(date).format("YYYY-MM-DD"))
                   }
                   excludeDate={(date) => {
-                    const targetDate = dayjs(date);
-                    const dateStr = targetDate.format("YYYY-MM-DD");
+                    const truncatedDate = dayjs(date).format("MM/DD");
 
-                    // Check if it's a non-workday based on settings.workSchedule
-                    const dayName = targetDate.format("dddd"); // e.g., 'Monday'
-                    const isNonWorkday =
-                      settings?.workSchedule &&
-                      settings.workSchedule[dayName] === false;
+                    // if holiday, return true
+                    if (validHolidays.includes(truncatedDate)) return true;
 
-                    // Check if it's a special holiday and enabled in settings
-                    const monthDay = targetDate.format("MM/DD");
-                    const specialHoliday = SPECIAL_HOLIDAYS.find(
-                      (h) => h.date === monthDay
-                    );
-                    const isSpecialHoliday =
-                      specialHoliday &&
-                      settings?.specialHolidays?.[specialHoliday.id] === true;
+                    // if it's not a work day, return true
+                    if (!workDays.includes(dayjs(date).day())) return true;
 
-                    // Check if it's a regular holiday and enabled in settings
-                    const regularHoliday = REGULAR_HOLIDAYS.find(
-                      (h) => h.date === monthDay
-                    );
-                    const isRegularHoliday =
-                      regularHoliday &&
-                      settings?.regularHolidays?.[regularHoliday.id] === true;
-
-                    // Check if it's a specific date and not in specificDatesTime
-                    const isSpecificDate =
-                      settings?.specificDates?.includes(dateStr);
-                    const hasSpecificTimes =
-                      settings?.specificDatesTime &&
-                      Object.prototype.hasOwnProperty.call(
-                        settings.specificDatesTime,
-                        dateStr
-                      );
-                    const isSpecificDateFullDisabled =
-                      isSpecificDate && !hasSpecificTimes;
-
-                    // Check if today and past 5PM
-                    // const isToday = targetDate.isSame(now, "day");
-                    // const isPastOfficeHours = isToday && now.hour() >= 17;
-
-                    // Check if booking is at least 24 hours ahead
-                    const isWithin24Hours =
-                      dayjs(`${date} ${timeSlots[timeSlots.length - 1]}`).diff(
-                        now,
-                        "hour"
-                      ) < 24;
-
-                    // Check if all time slots are booked
-                    const bookedTimes = bookings
-                      .filter((booking) => booking.date === dateStr)
-                      .map((b) => b.time);
-
-                    const allTimesBooked = timeSlots.every((time) =>
-                      bookedTimes.includes(time)
-                    );
-
-                    return (
-                      isNonWorkday ||
-                      isSpecialHoliday ||
-                      isRegularHoliday ||
-                      isSpecificDateFullDisabled ||
-                      // isPastOfficeHours ||
-                      allTimesBooked ||
-                      isWithin24Hours
-                    );
+                    return false;
                   }}
-                  minDate={new Date()}
+                  minDate={dayjs().add(1, "day").toDate()}
                   allowDeselect
                   value={selectedDate}
                   onChange={setSelectedDate}
@@ -375,45 +389,18 @@ export default function BookingPage() {
                   data={timeSlots}
                   disableTime={(time) => {
                     const timeSlot = dayjs(`${selectedDate} ${time}`);
-
-                    // If selectedDate is in specificDates
-                    const isSpecificDate = settings?.specificDates?.includes(
-                      selectedDate ?? ""
-                    );
-                    const hasSpecificTimes =
-                      settings?.specificDatesTime &&
-                      Object.prototype.hasOwnProperty.call(
-                        settings.specificDatesTime,
-                        selectedDate ?? ""
-                      );
-                    if (isSpecificDate) {
-                      if (!hasSpecificTimes) {
-                        // All times should be disabled for this date
-                        return true;
-                      } else {
-                        // Only disable the times listed in specificDatesTime
-                        const disabledTimes =
-                          settings.specificDatesTime[selectedDate ?? ""] || [];
-                        // Compare only the time part (HH:mm:ss)
-                        const timeStr = timeSlot.format("HH:mm:ss");
-                        if (disabledTimes.includes(timeStr)) {
-                          return true;
-                        }
-                      }
-                    }
-
-                    // Check if time slot is in the past
-                    const isPastTime = timeSlot.isBefore(now);
-
-                    // Check if time slot is within 24 hours
-                    const isWithin24Hours = timeSlot.diff(now, "hour") < 24;
-
-                    // Check if time slot is already booked
-                    const isBooked = bookings.some(
-                      (b) => b.date === selectedDate && b.time === time
+                    const selectedDateBookings = bookings.filter(
+                      (booking) =>
+                        booking.date === selectedDate && booking.time === time
                     );
 
-                    return isPastTime || isWithin24Hours || isBooked;
+                    // 1 day before is before 5PM, return true
+                    if (timeSlot.isBefore(dayjs().add(1, "day"))) return true;
+
+                    if (selectedDateBookings.length >= attorneyCount)
+                      return true;
+
+                    return false;
                   }}
                   allowDeselect
                   format="12h"
@@ -443,6 +430,7 @@ export default function BookingPage() {
         selectedTime={selectedTime}
         user={user ?? null}
         successCallback={successCallback}
+        attorneyCount={attorneyCount || 0}
       />
     </Container>
   );

@@ -27,7 +27,6 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "@/firebase/config";
-import { toast } from "react-toastify";
 // import axios from "axios";
 import {
   ATTY_PRACTICE_AREAS,
@@ -44,6 +43,7 @@ export default function BookingModal({
   selectedTime,
   user,
   successCallback,
+  attorneyCount,
 }: {
   opened: boolean;
   onClose: () => void;
@@ -51,6 +51,7 @@ export default function BookingModal({
   selectedTime: string | null;
   user: UserResource | null;
   successCallback: () => void;
+  attorneyCount: number;
 }) {
   const theme = useMantineTheme();
 
@@ -74,8 +75,15 @@ export default function BookingModal({
 
     validate: {
       client: {
+        firstName: (value) => (!value.length ? "First name is required" : null),
+        lastName: (value) => (!value.length ? "Last name is required" : null),
         email: (value) => (/^\S+@\S+$/.test(value) ? null : "Invalid email"),
+        phoneNumber: (value) =>
+          String(value).length < 10 ? "Invalid Phone Number" : null,
       },
+      areas: (value) =>
+        !value.length ? "Please select at least one area" : null,
+      message: (value) => (!value.length ? "Message is required" : null),
     },
 
     validateInputOnChange: true,
@@ -91,7 +99,8 @@ export default function BookingModal({
     );
 
     await getDocs(q).then(({ docs }) => {
-      if (docs.length > 0) {
+      // if the number of bookings that day and time is greater than or equal to the attorney count, return an error
+      if (docs.length >= attorneyCount) {
         appNotifications.error({
           title: "Failed to book appointment",
           message:
@@ -187,8 +196,10 @@ export default function BookingModal({
         form.reset();
         successCallback();
         appNotifications.success({
-          title: "Booking submitte!",
-          message: "Your booking has been submitted successfully",
+          title: "Booking submitted!",
+          message:
+            "Your booking has been submitted. You will receive an email confirmation once it's confirmed.",
+          autoClose: 7500,
         });
       })
       .catch(() =>
@@ -357,15 +368,9 @@ export default function BookingModal({
             />
 
             <NumberInput
+              withAsterisk
               hideControls
-              label={
-                <Text>
-                  Phone number{" "}
-                  <Text span size="xs" c="gray.7">
-                    (optional)
-                  </Text>
-                </Text>
-              }
+              label="Phone Number"
               maxLength={10}
               placeholder="912 345 6789"
               leftSection={
@@ -374,12 +379,12 @@ export default function BookingModal({
                 </Text>
               }
               allowNegative={false}
-              readOnly={!!user?.unsafeMetadata?.phoneNumber}
-              {...form.getInputProps("phoneNumber")}
+              {...form.getInputProps("client.phoneNumber")}
             />
           </Group>
 
           <TagsInput
+            withAsterisk
             label="Areas"
             placeholder="Select Areas"
             data={ATTY_PRACTICE_AREAS}
@@ -398,6 +403,7 @@ export default function BookingModal({
           />
 
           <Textarea
+            withAsterisk
             label="Message"
             placeholder="Something you might want to share before the appointment"
             {...form.getInputProps("message")}

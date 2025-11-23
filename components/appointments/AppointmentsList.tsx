@@ -79,7 +79,7 @@ export default function AppointmentsList({
                     </Badge>
                   </Table.Td>
                   <Table.Td ta="center">
-                    <Group gap={6}>
+                    <Group gap={6} justify="center">
                       <ActionIcon
                         size="sm"
                         variant="subtle"
