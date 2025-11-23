@@ -32,7 +32,7 @@ export const NAV_LINKS = [
     label: "Retainers",
     href: "/retainers",
     icon: IconCloud,
-    roles: ["admin", "attorney"],
+    roles: ["admin", "attorney", "client"],
   },
   {
     label: "Notary Requests",

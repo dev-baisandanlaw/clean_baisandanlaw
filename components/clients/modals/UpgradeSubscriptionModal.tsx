@@ -63,10 +63,7 @@ export default function UpgradeSubscriptionModal({
             isSubscribed: true,
             subscribedStartDate: dayjs().toDate(),
             subscribedEndDate: subscriptionEndDate
-              ? dayjs(subscriptionEndDate)
-                  .set("hour", 23)
-                  .set("minute", 59)
-                  .toDate()
+              ? dayjs(subscriptionEndDate).format("YYYY-MM-DD")
               : null,
           },
         },

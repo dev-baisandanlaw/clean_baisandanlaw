@@ -6,6 +6,7 @@ import { CLERK_ORG_IDS } from "@/constants/constants";
 import { Attorney } from "@/types/user";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { appNotifications } from "@/utils/notifications/notifications";
+import { useUser } from "@clerk/nextjs";
 
 import {
   Badge,
@@ -26,8 +27,12 @@ import { useDebouncedValue, useDisclosure } from "@mantine/hooks";
 import { IconCirclePlus, IconSearch } from "@tabler/icons-react";
 import axios from "axios";
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "nextjs-toploader/app";
 
 export default function AttorneyListing() {
+  const { user, isLoaded } = useUser();
+  const router = useRouter();
+
   const theme = useMantineTheme();
 
   const [isDataChanged, setIsDataChanged] = useState(false);
@@ -46,38 +51,48 @@ export default function AttorneyListing() {
     { open: openAddAttorneyModal, close: closeAddAttorneyModal },
   ] = useDisclosure(false);
 
-  const fetchAttorneys = useCallback(
-    async (searchTerm: string, page: number) => {
-      setIsFetching(true);
+  const fetchAttorneys = async (searchTerm: string, page: number) => {
+    if (!user || !isLoaded) return;
 
-      try {
-        const { data } = await axios.get<Attorney[]>(
-          "/api/clerk/organization/fetch",
-          {
-            params: {
-              organization_id: CLERK_ORG_IDS.attorney,
-              limit: 10,
-              offset: (page - 1) * 10,
-              search: searchTerm.trim(),
-            },
-          }
-        );
+    if (user.unsafeMetadata?.role !== "admin") {
+      appNotifications.clean();
+      appNotifications.cleanQueue();
+      appNotifications.error({
+        title: "Unauthorized",
+        message: "You are not authorized to access this page.",
+      });
+      router.push("/appointments");
+      return;
+    }
 
-        setAttorneys(data);
-      } catch {
-        appNotifications.error({
-          title: "Failed to fetch attorneys",
-          message: "The attorneys could not be fetched. Please try again.",
-        });
+    setIsFetching(true);
 
-        setAttorneys([]);
-        setTotalCount(0);
-      } finally {
-        setIsFetching(false);
-      }
-    },
-    []
-  );
+    try {
+      const { data } = await axios.get<Attorney[]>(
+        "/api/clerk/organization/fetch",
+        {
+          params: {
+            organization_id: CLERK_ORG_IDS.attorney,
+            limit: 10,
+            offset: (page - 1) * 10,
+            search: searchTerm.trim(),
+          },
+        }
+      );
+
+      setAttorneys(data);
+    } catch {
+      appNotifications.error({
+        title: "Failed to fetch attorneys",
+        message: "The attorneys could not be fetched. Please try again.",
+      });
+
+      setAttorneys([]);
+      setTotalCount(0);
+    } finally {
+      setIsFetching(false);
+    }
+  };
 
   const fetchTotalCount = useCallback(async (searchTerm: string) => {
     const { data } = await axios.get("/api/clerk/fetch-total-count", {
@@ -98,15 +113,12 @@ export default function AttorneyListing() {
   }, [debouncedSearch]);
 
   useEffect(() => {
+    if (!isLoaded) return;
+
     fetchAttorneys(debouncedSearch, currentPage);
     fetchTotalCount(debouncedSearch);
-  }, [
-    debouncedSearch,
-    currentPage,
-    fetchAttorneys,
-    fetchTotalCount,
-    isDataChanged,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, currentPage, isDataChanged, isLoaded]);
 
   return (
     <>

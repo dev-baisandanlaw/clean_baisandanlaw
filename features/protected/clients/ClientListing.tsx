@@ -34,8 +34,13 @@ import {
 import axios from "axios";
 import dayjs from "dayjs";
 import { useCallback, useEffect, useState } from "react";
+import { useUser } from "@clerk/nextjs";
+import { useRouter } from "nextjs-toploader/app";
 
 export default function ClientListing() {
+  const { user, isLoaded } = useUser();
+  const router = useRouter();
+
   const [clients, setClients] = useState<Client[]>([]);
   const [isFetching, setIsFetching] = useState(false);
 
@@ -60,7 +65,20 @@ export default function ClientListing() {
     { open: openDeleteClientModal, close: closeDeleteClientModal },
   ] = useDisclosure(false);
 
-  const fetchClients = useCallback(async (searchTerm: string, page: number) => {
+  const fetchClients = async (searchTerm: string, page: number) => {
+    if (!user || !isLoaded) return;
+
+    if (user.unsafeMetadata?.role !== "admin") {
+      appNotifications.clean();
+      appNotifications.cleanQueue();
+      appNotifications.error({
+        title: "Unauthorized",
+        message: "You are not authorized to access this page.",
+      });
+      router.push("/appointments");
+      return;
+    }
+
     setIsFetching(true);
 
     try {
@@ -88,7 +106,7 @@ export default function ClientListing() {
     } finally {
       setIsFetching(false);
     }
-  }, []);
+  };
 
   const fetchTotalCount = useCallback(async (searchTerm: string) => {
     const { data } = await axios.get("/api/clerk/fetch-total-count", {
@@ -109,15 +127,12 @@ export default function ClientListing() {
   }, [debouncedSearch]);
 
   useEffect(() => {
+    if (!isLoaded) return;
+
     fetchClients(debouncedSearch, currentPage);
     fetchTotalCount(debouncedSearch);
-  }, [
-    debouncedSearch,
-    currentPage,
-    fetchClients,
-    fetchTotalCount,
-    dataChanged,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, currentPage, isLoaded, dataChanged]);
 
   return (
     <>
@@ -180,8 +195,8 @@ export default function ClientListing() {
                       client.unsafe_metadata.subscription?.subscribedEndDate;
 
                     const isSubscribed =
-                      client.unsafe_metadata.subscription?.isSubscribed &&
-                      dayjs(subscriptionEndDate).isAfter(dayjs().add(1, "day"));
+                      subscriptionEndDate &&
+                      dayjs(subscriptionEndDate).endOf("day").isAfter(dayjs());
 
                     return (
                       <Table.Tr key={client.id}>

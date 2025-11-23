@@ -21,6 +21,7 @@ import { NAV_LINKS } from "@/constants/constants";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
+import dayjs from "dayjs";
 
 export default function AppShellComponent({
   children,
@@ -29,7 +30,7 @@ export default function AppShellComponent({
 }) {
   const { user } = useUser();
   const pathname = usePathname();
-  const router = useRouter();
+  // const router = useRouter();
   const theme = useMantineTheme();
   const [opened, { toggle, close }] = useDisclosure();
   const [mounted, setMounted] = useState(false);
@@ -40,17 +41,17 @@ export default function AppShellComponent({
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    const currentPath = NAV_LINKS.find(({ href }) => pathname.startsWith(href));
+  // useEffect(() => {
+  //   const currentPath = NAV_LINKS.find(({ href }) => pathname.startsWith(href));
 
-    if (
-      user &&
-      user?.unsafeMetadata?.role &&
-      !currentPath?.roles.includes(user?.unsafeMetadata?.role as string)
-    ) {
-      router.push("/appointments");
-    }
-  }, [pathname, user, router]);
+  //   if (
+  //     user &&
+  //     user?.unsafeMetadata?.role &&
+  //     !currentPath?.roles.includes(user?.unsafeMetadata?.role as string)
+  //   ) {
+  //     router.push("/appointments");
+  //   }
+  // }, [pathname, user, router]);
 
   useEffect(() => {
     if (isMobile) {
@@ -135,46 +136,63 @@ export default function AppShellComponent({
         <AppShell.Section component={ScrollArea}>
           {NAV_LINKS.filter((n) =>
             n.roles.includes(user?.unsafeMetadata?.role as string)
-          ).map((link, i) => (
-            <React.Fragment key={link.label}>
-              <NavLink
-                active
-                component={Link}
-                label={link.label}
-                href={link.href}
-                variant={
-                  pathname === link.href || pathname.startsWith(link.href)
-                    ? "filled"
-                    : "light"
-                }
-                className={styles.appShellRoot}
-                styles={{
-                  label: {
-                    color: "white",
-                    fontWeight:
-                      pathname === link.href || pathname.startsWith(link.href)
-                        ? 700
-                        : 600,
-                    letterSpacing: 1.5,
-                  },
-                  root: {
-                    borderRadius: 6,
-                    backgroundColor:
-                      pathname === link.href || pathname.startsWith(link.href)
-                        ? theme.other.customLighterGreen
-                        : "transparent",
-                  },
-                }}
-                leftSection={<link.icon color="white" />}
-                mb="sm"
-              />
+          ).map((link, i) => {
+            if (
+              link.label === "Retainers" &&
+              user?.unsafeMetadata?.role === "client" &&
+              // @ts-expect-error - user is a client
+              (!user?.unsafeMetadata?.subscription?.subscribedEndDate ||
+                // subscription is still valid
+                dayjs().isAfter(
+                  dayjs(
+                    // @ts-expect-error - user is a client
+                    user?.unsafeMetadata?.subscription?.subscribedEndDate
+                  ).endOf("day")
+                ))
+            ) {
+              return null;
+            }
+            return (
+              <React.Fragment key={link.label}>
+                <NavLink
+                  active
+                  component={Link}
+                  label={link.label}
+                  href={link.href}
+                  variant={
+                    pathname === link.href || pathname.startsWith(link.href)
+                      ? "filled"
+                      : "light"
+                  }
+                  className={styles.appShellRoot}
+                  styles={{
+                    label: {
+                      color: "white",
+                      fontWeight:
+                        pathname === link.href || pathname.startsWith(link.href)
+                          ? 700
+                          : 600,
+                      letterSpacing: 1.5,
+                    },
+                    root: {
+                      borderRadius: 6,
+                      backgroundColor:
+                        pathname === link.href || pathname.startsWith(link.href)
+                          ? theme.other.customLighterGreen
+                          : "transparent",
+                    },
+                  }}
+                  leftSection={<link.icon color="white" />}
+                  mb="sm"
+                />
 
-              {user?.unsafeMetadata?.role === "admin" &&
-                i === NAV_LINKS.length - 3 && (
-                  <Divider mt="md" label="Users" labelPosition="left" />
-                )}
-            </React.Fragment>
-          ))}
+                {user?.unsafeMetadata?.role === "admin" &&
+                  i === NAV_LINKS.length - 3 && (
+                    <Divider mt="md" label="Users" labelPosition="left" />
+                  )}
+              </React.Fragment>
+            );
+          })}
         </AppShell.Section>
 
         <AppShell.Section mt="auto">

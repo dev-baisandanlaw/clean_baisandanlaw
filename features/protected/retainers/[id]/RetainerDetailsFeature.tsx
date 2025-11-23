@@ -6,11 +6,13 @@ import { COLLECTIONS } from "@/constants/constants";
 import { db } from "@/firebase/config";
 import { Retainer } from "@/types/retainer";
 import { appNotifications } from "@/utils/notifications/notifications";
+import { useUser } from "@clerk/nextjs";
 import { LoadingOverlay, ScrollArea, Tabs } from "@mantine/core";
 import { IconCategory, IconFolder } from "@tabler/icons-react";
 import { doc, getDoc } from "firebase/firestore";
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "react-toastify";
+import { useRouter } from "nextjs-toploader/app";
+import dayjs from "dayjs";
 
 interface RetainerDetailsFeatureProps {
   retainerId: string | null | undefined;
@@ -24,15 +26,51 @@ const tabs = [
 export default function RetainerDetailsFeature({
   retainerId,
 }: RetainerDetailsFeatureProps) {
+  const { user, isLoaded } = useUser();
+  const router = useRouter();
+
   const [dataChanged, setDataChanged] = useState(false);
 
   const [retainerData, setRetainerData] = useState<Retainer | null>(null);
 
   const [isFetching, setIsFetching] = useState(false);
 
-  const fetchRetainerDetails = useCallback(async () => {
+  const showNotification = useCallback((title: string, message: string) => {
+    appNotifications.clean();
+    appNotifications.cleanQueue();
+    appNotifications.error({
+      title,
+      message,
+    });
+  }, []);
+
+  const fetchRetainerDetails = async () => {
     if (!retainerId) {
       setRetainerData(null);
+      showNotification(
+        "Retainer not found",
+        "The retainer could not be found. Please try again."
+      );
+      router.push("/retainers");
+      return;
+    }
+
+    if (
+      user?.unsafeMetadata?.role === "client" &&
+      // @ts-expect-error - user is a client
+      (!user?.unsafeMetadata?.subscription?.subscribedEndDate ||
+        dayjs().isAfter(
+          // @ts-expect-error - user is a client
+          dayjs(user?.unsafeMetadata?.subscription?.subscribedEndDate).endOf(
+            "day"
+          )
+        ))
+    ) {
+      showNotification(
+        "Subscription Required",
+        "You need to subscribe to a plan to access this feature."
+      );
+      router.push("/appointments");
       return;
     }
 
@@ -41,6 +79,26 @@ export default function RetainerDetailsFeature({
       const snap = await getDoc(doc(db, COLLECTIONS.RETAINERS, retainerId));
       if (!snap.exists()) {
         setRetainerData(null);
+
+        showNotification(
+          "Retainer not found",
+          "The retainer could not be found. Please try again."
+        );
+        router.push("/retainers");
+
+        return;
+      }
+
+      if (
+        user?.unsafeMetadata?.role === "client" &&
+        snap.data()?.contactPerson?.email !==
+          user?.emailAddresses[0].emailAddress
+      ) {
+        showNotification(
+          "Unauthorized",
+          "You are not authorized to access this retainer."
+        );
+        router.push("/retainers");
         return;
       }
 
@@ -55,11 +113,14 @@ export default function RetainerDetailsFeature({
     } finally {
       setIsFetching(false);
     }
-  }, [retainerId]);
+  };
 
   useEffect(() => {
+    if (!retainerId || !isLoaded) return;
     fetchRetainerDetails();
-  }, [fetchRetainerDetails, dataChanged]);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [retainerId, isLoaded, dataChanged]);
 
   return (
     <Tabs defaultValue="documents" pos="relative" variant="outline">

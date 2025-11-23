@@ -9,6 +9,7 @@ import { db } from "@/firebase/config";
 import { Matter } from "@/types/case";
 import { MatterUpdateDocument } from "@/types/matter-updates";
 import { Attorney, Client } from "@/types/user";
+import { appNotifications } from "@/utils/notifications/notifications";
 import { LoadingOverlay, ScrollArea, Tabs } from "@mantine/core";
 import {
   IconCategory,
@@ -27,6 +28,8 @@ import {
   where,
 } from "firebase/firestore";
 import { createContext, useCallback, useEffect, useState } from "react";
+import { useRouter } from "nextjs-toploader/app";
+import { useUser } from "@clerk/nextjs";
 
 interface MatterDetailsFeatureProps {
   matterId: string | null | undefined;
@@ -45,6 +48,9 @@ export const DataChangedContext = createContext(false);
 export default function MatterDetailsFeature({
   matterId,
 }: MatterDetailsFeatureProps) {
+  const { user, isLoaded } = useUser();
+  const router = useRouter();
+
   const [matterData, setMatterData] = useState<Matter | null>(null);
   const [clientData, setClientData] = useState<Client | null>(null);
   const [attorneyData, setAttorneyData] = useState<Attorney | null>(null);
@@ -57,6 +63,15 @@ export default function MatterDetailsFeature({
 
   //context
   const [dataChanged, setDataChanged] = useState(false);
+
+  const showNotification = useCallback((title: string, message: string) => {
+    appNotifications.clean();
+    appNotifications.cleanQueue();
+    appNotifications.error({
+      title,
+      message,
+    });
+  }, []);
 
   const fetchClientDetails = useCallback(async (clientId: string) => {
     try {
@@ -90,11 +105,17 @@ export default function MatterDetailsFeature({
     }
   }, []);
 
-  const fetchMatterDetails = useCallback(async () => {
+  const fetchMatterDetails = async () => {
     if (!matterId) {
       setMatterData(null);
       setClientData(null);
       setAttorneyData(null);
+
+      showNotification(
+        "Matter not found",
+        "The matter could not be found. Please try again."
+      );
+      router.push("/matters");
       return;
     }
 
@@ -105,6 +126,13 @@ export default function MatterDetailsFeature({
         setMatterData(null);
         setClientData(null);
         setAttorneyData(null);
+
+        showNotification(
+          "Matter not found",
+          "The matter could not be found. Please try again."
+        );
+        router.push("/matters");
+
         return;
       }
 
@@ -113,6 +141,18 @@ export default function MatterDetailsFeature({
       setMatterData(m);
 
       if (m.clientData?.id) {
+        if (
+          user?.unsafeMetadata?.role === "client" &&
+          m.clientData.id !== user?.id
+        ) {
+          showNotification(
+            "Unauthorized",
+            "You are not authorized to access this matter."
+          );
+
+          router.push("/matters");
+          return;
+        }
         fetchClientDetails(m.clientData.id);
       } else {
         setClientData(null);
@@ -128,11 +168,14 @@ export default function MatterDetailsFeature({
     } finally {
       setIsMatterLoading(false);
     }
-  }, [matterId, fetchClientDetails, fetchAttorneyDetails]);
+  };
 
   useEffect(() => {
+    if (!matterId || !isLoaded) return;
     fetchMatterDetails();
-  }, [fetchMatterDetails, dataChanged]);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matterId, isLoaded, dataChanged]);
 
   useEffect(() => {
     if (!matterId) return;

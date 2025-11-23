@@ -27,9 +27,10 @@ import { AppwriteRetainersDocument } from "@/types/appwriteResponses";
 import { Query } from "appwrite";
 import { useRouter } from "next/navigation";
 import { listDatabaseDocuments } from "@/app/api/appwrite";
+import dayjs from "dayjs";
 
 export default function RetainerListing() {
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
   const router = useRouter();
   const theme = useMantineTheme();
 
@@ -57,13 +58,20 @@ export default function RetainerListing() {
     const userRole = user.unsafeMetadata?.role;
 
     if (
+      // user is a client
       userRole === "client" &&
-      !(
-        user.unsafeMetadata?.subscription &&
-        (user.unsafeMetadata.subscription as { isSubscribed?: boolean })
-          ?.isSubscribed
-      )
+      // @ts-expect-error - user is a client
+      (!user?.unsafeMetadata?.subscription?.subscribedEndDate ||
+        // subscription is still valid
+        dayjs().isAfter(
+          // @ts-expect-error - user is a client
+          dayjs(user?.unsafeMetadata?.subscription?.subscribedEndDate).endOf(
+            "day"
+          )
+        ))
     ) {
+      appNotifications.clean();
+      appNotifications.cleanQueue();
       appNotifications.error({
         title: "Subscription Required",
         message: "You need to subscribe to a plan to access this feature.",
@@ -103,9 +111,11 @@ export default function RetainerListing() {
   }, [debouncedSearch]);
 
   useEffect(() => {
+    if (!isLoaded) return;
+
     fetchRetainers(debouncedSearch, currentPage);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, debouncedSearch, currentPage, dataChanged]);
+  }, [user?.id, debouncedSearch, currentPage, dataChanged, isLoaded]);
 
   return (
     <>
@@ -126,13 +136,15 @@ export default function RetainerListing() {
             onChange={(e) => setSearch(e.target.value)}
           />
 
-          <Button
-            size="sm"
-            leftSection={<IconCirclePlus />}
-            onClick={openRetainerModal}
-          >
-            New Retainer Client
-          </Button>
+          {!!user && isLoaded && user?.unsafeMetadata?.role === "admin" && (
+            <Button
+              size="sm"
+              leftSection={<IconCirclePlus />}
+              onClick={openRetainerModal}
+            >
+              New Retainer Client
+            </Button>
+          )}
         </Group>
 
         <Paper withBorder shadow="sm" p={16} pos="relative">
