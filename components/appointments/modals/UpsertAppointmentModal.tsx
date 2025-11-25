@@ -375,7 +375,7 @@ export default function AddAppointmentModal({
     <Modal
       opened={opened}
       onClose={onClose}
-      title="Add Appointment"
+      title={booking ? "Update Appointment" : "Add Appointment"}
       centered
       transitionProps={{ transition: "pop" }}
       size="lg"
@@ -640,7 +640,7 @@ export default function AddAppointmentModal({
                     !clientForm.values.email))
               }
             >
-              Add Appointment
+              {booking ? "Update Appointment" : "Add Appointment"}
             </Button>
           </Group>
         </Stack>

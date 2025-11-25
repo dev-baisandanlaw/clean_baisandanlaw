@@ -67,7 +67,8 @@ export default function AppointmentsFeature() {
     if (!user || !isLoaded) return;
 
     fetchGlobalSched();
-  }, [dataChanged, user, isLoaded]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataChanged, isLoaded]);
 
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -300,19 +301,6 @@ export default function AppointmentsFeature() {
         onClose={closeViewModal}
         booking={selectedBooking || null}
       />
-
-      {/* <SettingsDrawer
-          opened={settingsDrawerOpened}
-          onClose={closeSettingsDrawer}
-          settings={settings}
-          fetchData={fetchGlobalSettings}
-          // loading={loadingSettings}
-        /> */}
-
-      {/* <SettingsDrawer2
-        opened={settingsDrawerOpened}
-        onClose={closeSettingsDrawer}
-      /> */}
 
       <SettingsModal
         opened={settingsModalOpened}

@@ -115,7 +115,7 @@ export default function ConfirmationModal({
         await syncToAppwrite("NOTARY_REQUESTS", notaryRequestId, {
           referenceNumber,
           status: NotaryRequestStatus.FOR_PICKUP,
-          search_blob: `${referenceNumber} ${notaryRequestData?.requestor?.fullname} ${notaryRequestData?.requestor?.email}`,
+          search_blob: `${notaryRequestId} ${referenceNumber} ${notaryRequestData?.requestor?.fullname} ${notaryRequestData?.requestor?.email}`,
         });
 
         await sendEmail({

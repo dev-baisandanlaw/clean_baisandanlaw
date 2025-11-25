@@ -25,11 +25,13 @@ import { useClerk } from "@clerk/nextjs";
 import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
 import { ClerkAPIError } from "@clerk/types";
 import { useMediaQuery } from "@mantine/hooks";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { appNotifications } from "@/utils/notifications/notifications";
 
 export default function Page() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
   const shrink = useMediaQuery(`(max-width: ${em(576)})`);
 
   const { signOut } = useClerk();
@@ -62,9 +64,11 @@ export default function Page() {
         await setActive({ session: signInAttempt.createdSessionId });
         appNotifications.success({
           title: "Logged in successfully",
-          message: "Redirecting to Appointments...",
+          message: "Redirecting to the requested page...",
         });
-        router.push("/");
+
+        const redirectUrl = searchParams.get("redirect_url");
+        router.push(redirectUrl || "/");
       }
     } catch (err) {
       if (

@@ -54,9 +54,23 @@ import { appNotifications } from "@/utils/notifications/notifications";
 import { Query } from "appwrite";
 import { listDatabaseDocuments } from "@/app/api/appwrite";
 import { AppwriteNotaryRequestDocument } from "@/types/appwriteResponses";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function NotaryRequestsListing() {
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const idFromSearchParams = searchParams.get("id");
+
+  useEffect(() => {
+    if (isLoaded && idFromSearchParams) {
+      setSearch(idFromSearchParams);
+      router.replace("/notary-requests");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, idFromSearchParams]);
+
   const [notaryRequests, setNotaryRequests] = useState<
     AppwriteNotaryRequestDocument[]
   >([]);
@@ -279,7 +293,7 @@ export default function NotaryRequestsListing() {
       >
         <Group align="center" justify="space-between" w="100%">
           <TextInput
-            placeholder="Search reference number, or requestor"
+            placeholder="Search ID, reference number, or requestor"
             flex={1}
             leftSectionPointerEvents="none"
             leftSection={<IconSearch />}
@@ -338,6 +352,7 @@ export default function NotaryRequestsListing() {
             <Table stickyHeader stickyHeaderOffset={0} verticalSpacing="sm">
               <Table.Thead>
                 <Table.Tr>
+                  <Table.Th>ID</Table.Th>
                   <Table.Th>Reference Number</Table.Th>
 
                   {user?.unsafeMetadata?.role !== "client" && (
@@ -353,7 +368,7 @@ export default function NotaryRequestsListing() {
               <Table.Tbody>
                 {!notaryRequests?.length && (
                   <EmptyTableComponent
-                    colspan={5}
+                    colspan={user?.unsafeMetadata?.role === "client" ? 6 : 7}
                     message="No notary requests found"
                   />
                 )}
@@ -363,6 +378,7 @@ export default function NotaryRequestsListing() {
                     .sort((a, b) => b.$createdAt.localeCompare(a.$createdAt))
                     .map((notaryRequest) => (
                       <Table.Tr key={notaryRequest.$id}>
+                        <Table.Td>{notaryRequest.$id}</Table.Td>
                         <Table.Td>
                           {notaryRequest?.referenceNumber ?? "-"}
                         </Table.Td>
