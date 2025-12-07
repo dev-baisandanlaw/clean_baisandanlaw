@@ -10,6 +10,7 @@ import EmptyTableComponent from "../EmptyTableComponent";
 import dayjs from "dayjs";
 import { getBookingViaColor } from "@/utils/getBookingStatusColor";
 import { IconEye, IconPencil, IconPennant } from "@tabler/icons-react";
+import { useUser } from "@clerk/nextjs";
 
 interface AppointmentsListProps {
   data: Booking[];
@@ -27,6 +28,8 @@ export default function AppointmentsList({
   selectedDate,
   handleSelectBooking,
 }: AppointmentsListProps) {
+  const { user } = useUser();
+
   const todayAppointments = data.filter(
     (booking) => booking.date === selectedDate
   );
@@ -80,13 +83,15 @@ export default function AppointmentsList({
                   </Table.Td>
                   <Table.Td ta="center">
                     <Group gap={6} justify="center">
-                      <ActionIcon
-                        size="sm"
-                        variant="subtle"
-                        onClick={() => handleSelectBooking(booking, "view")}
-                      >
-                        <IconEye />
-                      </ActionIcon>
+                      {user?.unsafeMetadata?.role === "admin" && (
+                        <ActionIcon
+                          size="sm"
+                          variant="subtle"
+                          onClick={() => handleSelectBooking(booking, "view")}
+                        >
+                          <IconEye />
+                        </ActionIcon>
+                      )}
 
                       {!dayjs().isAfter(
                         dayjs(`${booking.date} ${booking.time}`)
@@ -101,14 +106,16 @@ export default function AppointmentsList({
                         </ActionIcon>
                       )}
 
-                      <ActionIcon
-                        size="sm"
-                        variant="subtle"
-                        color="red"
-                        onClick={() => handleSelectBooking(booking, "delete")}
-                      >
-                        <IconPennant />
-                      </ActionIcon>
+                      {user?.unsafeMetadata?.role === "admin" && (
+                        <ActionIcon
+                          size="sm"
+                          variant="subtle"
+                          color="red"
+                          onClick={() => handleSelectBooking(booking, "delete")}
+                        >
+                          <IconPennant />
+                        </ActionIcon>
+                      )}
                     </Group>
                   </Table.Td>
                 </Table.Tr>
