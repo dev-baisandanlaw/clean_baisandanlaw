@@ -48,7 +48,9 @@ export default function AppointmentsList({
             <Table.Th>Client</Table.Th>
             <Table.Th>Attorney</Table.Th>
             <Table.Th>Via</Table.Th>
-            <Table.Th ta="center">Actions</Table.Th>
+            {user?.unsafeMetadata?.role === "admin" && (
+              <Table.Th ta="center">Actions</Table.Th>
+            )}
           </Table.Tr>
         </Table.Thead>
 
@@ -81,9 +83,9 @@ export default function AppointmentsList({
                       {booking.via}
                     </Badge>
                   </Table.Td>
-                  <Table.Td ta="center">
-                    <Group gap={6} justify="center">
-                      {user?.unsafeMetadata?.role === "admin" && (
+                  {user?.unsafeMetadata?.role === "admin" && (
+                    <Table.Td ta="center">
+                      <Group gap={6} justify="center">
                         <ActionIcon
                           size="sm"
                           variant="subtle"
@@ -91,22 +93,22 @@ export default function AppointmentsList({
                         >
                           <IconEye />
                         </ActionIcon>
-                      )}
 
-                      {!dayjs().isAfter(
-                        dayjs(`${booking.date} ${booking.time}`)
-                      ) && (
-                        <ActionIcon
-                          size="sm"
-                          color="yellow"
-                          variant="subtle"
-                          onClick={() => handleSelectBooking(booking, "update")}
-                        >
-                          <IconPencil />
-                        </ActionIcon>
-                      )}
+                        {!dayjs().isAfter(
+                          dayjs(`${booking.date} ${booking.time}`)
+                        ) && (
+                          <ActionIcon
+                            size="sm"
+                            color="yellow"
+                            variant="subtle"
+                            onClick={() =>
+                              handleSelectBooking(booking, "update")
+                            }
+                          >
+                            <IconPencil />
+                          </ActionIcon>
+                        )}
 
-                      {user?.unsafeMetadata?.role === "admin" && (
                         <ActionIcon
                           size="sm"
                           variant="subtle"
@@ -115,9 +117,9 @@ export default function AppointmentsList({
                         >
                           <IconPennant />
                         </ActionIcon>
-                      )}
-                    </Group>
-                  </Table.Td>
+                      </Group>
+                    </Table.Td>
+                  )}
                 </Table.Tr>
               ))}
         </Table.Tbody>
