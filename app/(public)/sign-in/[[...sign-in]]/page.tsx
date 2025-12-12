@@ -154,7 +154,7 @@ export default function Page() {
                   />
 
                   <Anchor
-                    href="/"
+                    href="/forgot-password"
                     size="xs"
                     tabIndex={-1}
                     ml="auto"
