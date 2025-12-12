@@ -2,13 +2,16 @@
 
 import {
   AppShell,
+  Avatar,
   Box,
   Burger,
   Container,
   Divider,
   Group,
+  Menu,
   NavLink,
   ScrollArea,
+  Stack,
   Text,
   useMantineTheme,
 } from "@mantine/core";
@@ -16,12 +19,14 @@ import styles from "./Appshell.module.css";
 import { useDisclosure, useMediaQuery } from "@mantine/hooks";
 import Image from "next/image";
 import logo from "@/public/images/logo.png";
-import { UserButton, useUser } from "@clerk/nextjs";
+import { useClerk, useUser } from "@clerk/nextjs";
 import { NAV_LINKS } from "@/constants/constants";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import dayjs from "dayjs";
+import { IconLogout } from "@tabler/icons-react";
+import { appNotifications } from "@/utils/notifications/notifications";
 
 export default function AppShellComponent({
   children,
@@ -29,8 +34,8 @@ export default function AppShellComponent({
   children: React.ReactNode;
 }) {
   const { user } = useUser();
+  const { signOut } = useClerk();
   const pathname = usePathname();
-  // const router = useRouter();
   const theme = useMantineTheme();
   const [opened, { toggle, close }] = useDisclosure();
   const [mounted, setMounted] = useState(false);
@@ -41,18 +46,6 @@ export default function AppShellComponent({
     setMounted(true);
   }, []);
 
-  // useEffect(() => {
-  //   const currentPath = NAV_LINKS.find(({ href }) => pathname.startsWith(href));
-
-  //   if (
-  //     user &&
-  //     user?.unsafeMetadata?.role &&
-  //     !currentPath?.roles.includes(user?.unsafeMetadata?.role as string)
-  //   ) {
-  //     router.push("/appointments");
-  //   }
-  // }, [pathname, user, router]);
-
   useEffect(() => {
     if (isMobile) {
       close();
@@ -61,6 +54,8 @@ export default function AppShellComponent({
   }, [pathname]);
 
   if (!mounted) return null;
+
+  console.log(user?.fullName);
 
   return (
     <AppShell
@@ -121,7 +116,41 @@ export default function AppShellComponent({
           </Text>
 
           <Box ml="auto">
-            <UserButton showName={!isMobile} afterSignOutUrl="/sign-in" />
+            <Group>
+              {!isMobile && (
+                <Stack gap={2} align="flex-end">
+                  <Text size="sm">{user?.fullName || ""}</Text>
+                  <Text size="xs">
+                    {user?.emailAddresses[0].emailAddress || ""}
+                  </Text>
+                </Stack>
+              )}
+              <Menu shadow="md" width={150} withArrow position="bottom-end">
+                <Menu.Target>
+                  <Avatar
+                    size={32}
+                    src={user?.imageUrl}
+                    style={{ cursor: "pointer" }}
+                  />
+                </Menu.Target>
+
+                <Menu.Dropdown>
+                  <Menu.Item
+                    leftSection={<IconLogout size={14} />}
+                    onClick={() =>
+                      signOut({ redirectUrl: "/sign-in" }).then(() =>
+                        appNotifications.success({
+                          title: "Logged out successfully",
+                          message: "Redirecting to the login page...",
+                        })
+                      )
+                    }
+                  >
+                    Logout
+                  </Menu.Item>
+                </Menu.Dropdown>
+              </Menu>
+            </Group>
           </Box>
         </Group>
       </AppShell.Header>
