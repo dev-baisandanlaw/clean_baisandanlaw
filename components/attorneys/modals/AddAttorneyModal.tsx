@@ -1,8 +1,9 @@
 import {
   ActionIcon,
   Button,
-  Group,
+  em,
   Modal,
+  SimpleGrid,
   Stack,
   TagsInput,
   TextInput,
@@ -15,6 +16,7 @@ import { useEffect, useState } from "react";
 import { nanoid } from "nanoid";
 import axios from "axios";
 import { appNotifications } from "@/utils/notifications/notifications";
+import { useMediaQuery } from "@mantine/hooks";
 
 interface AddAttorneyModalProps {
   opened: boolean;
@@ -27,6 +29,7 @@ export const AddAttorneyModal = ({
   onClose,
   setIsDataChanged,
 }: AddAttorneyModalProps) => {
+  const isMobile = useMediaQuery(`(max-width: ${em(600)})`);
   const theme = useMantineTheme();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -122,8 +125,11 @@ export const AddAttorneyModal = ({
       size="lg"
     >
       <form onSubmit={form.onSubmit(handleSubmit)}>
-        <Stack gap="md">
-          <Group gap="md">
+        <Stack>
+          <SimpleGrid
+            cols={isMobile ? 1 : 2}
+            verticalSpacing={isMobile ? "2px" : "md"}
+          >
             <TextInput
               withAsterisk
               label="First Name"
@@ -138,9 +144,7 @@ export const AddAttorneyModal = ({
               flex={1}
               {...form.getInputProps("lastName")}
             />
-          </Group>
 
-          <Group gap="md">
             <TextInput
               withAsterisk
               label="Email"
@@ -148,14 +152,14 @@ export const AddAttorneyModal = ({
               flex={1}
               {...form.getInputProps("email")}
             />
+
             <TextInput
               label="Phone Number"
               placeholder="09123456789"
               flex={1}
               {...form.getInputProps("phoneNumber")}
             />
-          </Group>
-
+          </SimpleGrid>
           <TextInput
             withAsterisk
             label="Password"

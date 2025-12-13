@@ -31,6 +31,7 @@ import { useUser } from "@clerk/nextjs";
 import MatterNotes from "./TabOverview/MatterNotes";
 import { appNotifications } from "@/utils/notifications/notifications";
 import SubscriptionBadge from "../Common/SubscriptionBadge";
+import { useMediaQuery } from "@mantine/hooks";
 
 interface MatterTabOverviewProps {
   matterData: Matter;
@@ -55,6 +56,8 @@ export default function TabOverview({
   matterUpdates,
   setDataChanged,
 }: MatterTabOverviewProps) {
+  const shrink = useMediaQuery("(max-width: 948px)");
+  const shrinkSmall = useMediaQuery("(max-width: 768px)");
   const theme = useMantineTheme();
   const { user } = useUser();
 
@@ -223,7 +226,7 @@ export default function TabOverview({
 
   return (
     <Flex direction="column" gap="md">
-      <SimpleGrid cols={3}>
+      <SimpleGrid cols={shrink ? 1 : 3}>
         <VerticalTable title="Matter Details" data={caseDetailsCardData} />
         <VerticalTable title="Client Details" data={clientDetailsCardData} />
         <VerticalTable title="Lead Attorney" data={attorneyDetailsCardData} />
@@ -298,14 +301,14 @@ export default function TabOverview({
         )}
       </Paper>
 
-      <Group grow align="start">
+      <Flex direction={shrinkSmall ? "column-reverse" : "column"} gap="md">
         <MatterUpdates updates={matterUpdates.items} />
         <MatterNotes
           notes={matterData.notes || null}
           matterId={matterData.id}
           setDataChanged={setDataChanged}
         />
-      </Group>
+      </Flex>
     </Flex>
   );
 }

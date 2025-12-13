@@ -20,6 +20,7 @@ import { addDoc, collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { appNotifications } from "@/utils/notifications/notifications";
 import { syncToAppwrite } from "@/lib/syncToAppwrite";
+import { useMediaQuery } from "@mantine/hooks";
 
 interface AddRetainerModalProps {
   opened: boolean;
@@ -32,6 +33,7 @@ export default function AddRetainerModal({
   onClose,
   setIsDataChanged,
 }: AddRetainerModalProps) {
+  const shrink = useMediaQuery("(max-width: 500px)");
   const theme = useMantineTheme();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -155,7 +157,10 @@ export default function AddRetainerModal({
 
           <Stack gap="xs" mb="xs">
             <Divider label="Contact Person" color="blue" />
-            <SimpleGrid cols={2}>
+            <SimpleGrid
+              cols={shrink ? 1 : 2}
+              verticalSpacing={shrink ? "2px" : "md"}
+            >
               <TextInput
                 withAsterisk
                 label="Full Name"

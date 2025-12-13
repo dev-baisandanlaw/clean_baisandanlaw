@@ -1,0 +1,17 @@
+.tabsListCustom::before {
+  right: 0 !important;
+  left: 0 !important;
+  border: none !important;
+}
+
+.tabsTabCustom {
+  border-bottom: 2px solid #e0e0e0 !important;
+}
+
+.tabsTabCustom:hover {
+  border-color: var(--mantine-color-primary-filled) !important;
+}
+
+.tabsTabCustom[data-active] {
+  border-color: var(--mantine-color-primary-filled) !important;
+}

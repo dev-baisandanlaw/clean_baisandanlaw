@@ -6,6 +6,8 @@ import {
 import {
   Alert,
   Button,
+  em,
+  Flex,
   Group,
   Modal,
   Paper,
@@ -25,6 +27,7 @@ import { doc, setDoc } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { GlobalSched } from "@/types/global-sched";
 import dayjs from "dayjs";
+import { useMediaQuery } from "@mantine/hooks";
 
 const timeSlots = getTimeRange({
   startTime: "08:00",
@@ -45,6 +48,8 @@ export default function SettingsModal({
   globalSched,
   setDataChanged,
 }: SettingsModalProps) {
+  const isMobile = useMediaQuery(`(max-width: ${em(600)})`);
+
   const [acc, setAcc] = useState<string[]>([]);
 
   const [isSavingHolidays, setIsSavingHolidays] = useState(false);
@@ -279,7 +284,10 @@ export default function SettingsModal({
         </Tabs.Panel>
 
         <Tabs.Panel value="block-schedules" pt="md">
-          <Group align="flex-start">
+          <Flex
+            align={isMobile ? "center" : "flex-start"}
+            direction={isMobile ? "column" : "row"}
+          >
             <DatePicker
               size="xs"
               hideOutsideDates
@@ -362,7 +370,7 @@ export default function SettingsModal({
                 ))}
               </SimpleGrid>
             </Stack>
-          </Group>
+          </Flex>
 
           <Paper withBorder p="sm" my="md">
             <Text size="xs" c="dimmed">

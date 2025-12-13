@@ -278,13 +278,18 @@ export default function TabRDocumentsUploadFileModal({
             size={50}
             color={files.length >= 5 ? "gray" : "green"}
           />
-          <Text>
+          <Text ta="center">
             <Text span fw={700} c="green">
               Click here
             </Text>{" "}
             to upload your files or drag
           </Text>
-          <Text c={files.length >= 5 ? "dimmed" : "green"} size="sm" fw={500}>
+          <Text
+            c={files.length >= 5 ? "dimmed" : "green"}
+            size="sm"
+            fw={500}
+            ta="center"
+          >
             Supported formats:{" "}
             <Text span fw={700}>
               Images

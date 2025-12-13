@@ -11,10 +11,12 @@ import {
   Badge,
   Button,
   Divider,
+  em,
   Group,
   Modal,
   Paper,
   Select,
+  SimpleGrid,
   Stack,
   Table,
   TableScrollContainer,
@@ -27,6 +29,7 @@ import {
 } from "@mantine/core";
 import { DatePickerInput, TimeValue } from "@mantine/dates";
 import { useForm } from "@mantine/form";
+import { useMediaQuery } from "@mantine/hooks";
 import axios from "axios";
 import dayjs from "dayjs";
 import {
@@ -66,6 +69,7 @@ export default function AddAppointmentModal({
   onClose,
   booking,
 }: AddAppointmentModalProps) {
+  const isMobile = useMediaQuery(`(max-width: ${em(750)})`);
   const theme = useMantineTheme();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -501,47 +505,50 @@ export default function AddAppointmentModal({
             )}
 
             {selectedClientType === "New Client" && (
-              <Stack>
-                <Group grow>
-                  <TextInput
-                    withAsterisk
-                    label="First Name"
-                    placeholder="Enter First Name"
-                    {...clientForm.getInputProps("firstName")}
-                  />
-                  <TextInput
-                    withAsterisk
-                    label="Last Name"
-                    placeholder="Enter Last Name"
-                    {...clientForm.getInputProps("lastName")}
-                  />
-                </Group>
+              <SimpleGrid
+                cols={isMobile ? 1 : 2}
+                verticalSpacing={isMobile ? "2px" : "md"}
+              >
+                <TextInput
+                  withAsterisk
+                  label="First Name"
+                  placeholder="Enter First Name"
+                  {...clientForm.getInputProps("firstName")}
+                />
 
-                <Group grow>
-                  <TextInput
-                    withAsterisk
-                    label="Email"
-                    placeholder="Enter Email"
-                    {...clientForm.getInputProps("email")}
-                  />
-                  <TextInput
-                    label="Phone Number"
-                    placeholder="Enter Phone Number"
-                    leftSection={
-                      <Text size="sm" c="black">
-                        +63
-                      </Text>
-                    }
-                    {...clientForm.getInputProps("phoneNumber")}
-                  />
-                </Group>
-              </Stack>
+                <TextInput
+                  withAsterisk
+                  label="Last Name"
+                  placeholder="Enter Last Name"
+                  {...clientForm.getInputProps("lastName")}
+                />
+
+                <TextInput
+                  withAsterisk
+                  label="Email"
+                  placeholder="Enter Email"
+                  {...clientForm.getInputProps("email")}
+                />
+                <TextInput
+                  label="Phone Number"
+                  placeholder="Enter Phone Number"
+                  leftSection={
+                    <Text size="sm" c="black">
+                      +63
+                    </Text>
+                  }
+                  {...clientForm.getInputProps("phoneNumber")}
+                />
+              </SimpleGrid>
             )}
           </Stack>
 
           <Stack gap="xs">
             <Divider label="Date & Time" color="blue" />
-            <Group grow>
+            <SimpleGrid
+              cols={isMobile ? 1 : 2}
+              verticalSpacing={isMobile ? "2px" : "md"}
+            >
               <DatePickerInput
                 withAsterisk
                 label="Date"
@@ -564,7 +571,7 @@ export default function AddAppointmentModal({
                 }))}
                 {...form.getInputProps("time")}
               />
-            </Group>
+            </SimpleGrid>
           </Stack>
 
           <Stack gap="xs">

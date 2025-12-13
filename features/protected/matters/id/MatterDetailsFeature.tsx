@@ -196,7 +196,18 @@ export default function MatterDetailsFeature({
   }, [matterId]);
 
   return (
-    <Tabs defaultValue="overview" variant="outline" pos="relative">
+    <Tabs
+      defaultValue="overview"
+      variant="outline"
+      pos="relative"
+      styles={{
+        list: {
+          flexWrap: "nowrap",
+          overflowX: "auto",
+          scrollbarWidth: "none",
+        },
+      }}
+    >
       <LoadingOverlay
         visible={isMatterLoading || isClientLoading || isAttorneyLoading}
       />

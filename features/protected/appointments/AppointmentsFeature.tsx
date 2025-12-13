@@ -10,8 +10,21 @@ import { COLLECTIONS } from "@/constants/constants";
 import { db } from "@/firebase/config";
 import { Booking } from "@/types/booking";
 import { useUser } from "@clerk/nextjs";
-import { Alert, Badge, Button, Flex, Group, Stack, Text } from "@mantine/core";
-import { useDebouncedValue, useDisclosure } from "@mantine/hooks";
+import {
+  Alert,
+  Badge,
+  Button,
+  em,
+  Flex,
+  Group,
+  Stack,
+  Text,
+} from "@mantine/core";
+import {
+  useDebouncedValue,
+  useDisclosure,
+  useMediaQuery,
+} from "@mantine/hooks";
 import { IconCirclePlus, IconFlame, IconSettings } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import {
@@ -33,6 +46,8 @@ import { useRouter } from "nextjs-toploader/app";
 const ymd = dayjs().format("YYYY-MM-DD");
 
 export default function AppointmentsFeature() {
+  const isMobile = useMediaQuery(`(max-width: ${em(750)})`);
+
   const { user, isLoaded } = useUser();
   const router = useRouter();
 
@@ -196,7 +211,7 @@ export default function AppointmentsFeature() {
               },
             })}
           >
-            <Text mb="xs">
+            <Text mb="xs" size="sm">
               There are future bookings with no attorney assigned.
             </Text>
 
@@ -226,7 +241,7 @@ export default function AppointmentsFeature() {
         px={{ sm: 12, md: 0 }}
         direction="column"
       >
-        <Group align="flex-start">
+        <Group align="center" justify="center">
           <AppointmentsDatePicker
             bookings={bookings}
             selectedDate={selectedDate}
@@ -236,7 +251,10 @@ export default function AppointmentsFeature() {
 
           <Stack flex={1}>
             {user?.unsafeMetadata?.role === "admin" && (
-              <Group justify="space-between">
+              <Group
+                justify="space-between"
+                {...(isMobile ? { grow: true } : {})}
+              >
                 <Button
                   leftSection={<IconCirclePlus />}
                   size="sm"

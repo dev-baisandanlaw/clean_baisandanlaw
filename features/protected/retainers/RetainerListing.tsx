@@ -18,7 +18,11 @@ import {
 import { IconCirclePlus, IconEye, IconSearch } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import EmptyTableComponent from "@/components/EmptyTableComponent";
-import { useDebouncedValue, useDisclosure } from "@mantine/hooks";
+import {
+  useDebouncedValue,
+  useDisclosure,
+  useMediaQuery,
+} from "@mantine/hooks";
 import AddRetainerModal from "@/components/retainers/modals/AddRetainerModal";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { appNotifications } from "@/utils/notifications/notifications";
@@ -30,6 +34,7 @@ import { listDatabaseDocuments } from "@/app/api/appwrite";
 import dayjs from "dayjs";
 
 export default function RetainerListing() {
+  const shrink = useMediaQuery("(max-width: 768px)");
   const { user, isLoaded } = useUser();
   const router = useRouter();
   const theme = useMantineTheme();
@@ -126,7 +131,12 @@ export default function RetainerListing() {
         px={{ sm: 12, md: 0 }}
         direction="column"
       >
-        <Group align="center" justify="space-between" w="100%">
+        <Flex
+          align="stretch"
+          direction={shrink ? "column-reverse" : "row"}
+          gap={16}
+          w="100%"
+        >
           <TextInput
             placeholder="Search client, contact person, or matter type"
             flex={1}
@@ -145,7 +155,7 @@ export default function RetainerListing() {
               New Retainer Client
             </Button>
           )}
-        </Group>
+        </Flex>
 
         <Paper withBorder shadow="sm" p={16} pos="relative">
           {isFetching && (
@@ -161,7 +171,7 @@ export default function RetainerListing() {
           )}
 
           <TableScrollContainer
-            minWidth={500}
+            minWidth={800}
             h="calc(100vh - 220px)"
             pos="relative"
           >
@@ -234,7 +244,12 @@ export default function RetainerListing() {
             </Table>
           </TableScrollContainer>
 
-          <Group align="center">
+          <Flex
+            align="center"
+            direction={shrink ? "column" : "row"}
+            gap={16}
+            w="100%"
+          >
             {totalCount > 0 ? (
               <Text size="sm">
                 Showing {(currentPage - 1) * 10 + 1}-
@@ -246,12 +261,12 @@ export default function RetainerListing() {
             )}
 
             <Pagination
-              ml="auto"
+              ml={shrink ? 0 : "auto"}
               total={Math.ceil(totalCount / 10) || 1}
               value={currentPage}
               onChange={setCurrentPage}
             />
-          </Group>
+          </Flex>
         </Paper>
       </Flex>
 

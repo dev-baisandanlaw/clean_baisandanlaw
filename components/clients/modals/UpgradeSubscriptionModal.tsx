@@ -4,6 +4,8 @@ import { appNotifications } from "@/utils/notifications/notifications";
 import {
   Badge,
   Button,
+  em,
+  Flex,
   Group,
   Modal,
   Paper,
@@ -14,7 +16,9 @@ import {
   useMantineTheme,
 } from "@mantine/core";
 import { DatePicker } from "@mantine/dates";
+import { useMediaQuery } from "@mantine/hooks";
 import {
+  IconArrowDown,
   IconArrowRight,
   IconPackage,
   IconStarFilled,
@@ -38,6 +42,7 @@ export default function UpgradeSubscriptionModal({
   clientDetails,
   setDataChanged,
 }: UpgradeSubscriptionModalProps) {
+  const isMobile = useMediaQuery(`(max-width: ${em(750)})`);
   const theme = useMantineTheme();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -106,31 +111,31 @@ export default function UpgradeSubscriptionModal({
         <Table variant="vertical" layout="fixed">
           <Table.Tbody>
             <Table.Tr>
-              <Table.Th w={160}>Client Name</Table.Th>
+              <Table.Th w={isMobile ? 120 : 160}>Client Name</Table.Th>
               <Table.Td>
                 {clientDetails.first_name} {clientDetails.last_name}
               </Table.Td>
             </Table.Tr>
             <Table.Tr>
-              <Table.Th w={160}>Email</Table.Th>
+              <Table.Th w={isMobile ? 120 : 160}>Email</Table.Th>
               <Table.Td>
                 {clientDetails.email_addresses[0].email_address}
               </Table.Td>
             </Table.Tr>
             <Table.Tr>
-              <Table.Th w={160}>Phone Number</Table.Th>
+              <Table.Th w={isMobile ? 120 : 160}>Phone Number</Table.Th>
               <Table.Td>
                 {clientDetails.unsafe_metadata?.phoneNumber || "-"}
               </Table.Td>
             </Table.Tr>
             <Table.Tr>
-              <Table.Th w={160}>Member Since</Table.Th>
+              <Table.Th w={isMobile ? 120 : 160}>Member Since</Table.Th>
               <Table.Td>
                 {getDateFormatDisplay(clientDetails.created_at, true)}
               </Table.Td>
             </Table.Tr>
             <Table.Tr>
-              <Table.Th w={160}>Total Subscriptions</Table.Th>
+              <Table.Th w={isMobile ? 120 : 160}>Total Subscriptions</Table.Th>
               <Table.Td>
                 {clientDetails.unsafe_metadata?.subscription?.count || 0}
               </Table.Td>
@@ -138,9 +143,13 @@ export default function UpgradeSubscriptionModal({
           </Table.Tbody>
         </Table>
 
-        <Group mt="lg" align="flex-start" wrap="nowrap">
+        <Flex
+          mt="lg"
+          align={isMobile ? "center" : "flex-start"}
+          direction={isMobile ? "column" : "row"}
+        >
           <Stack gap="xs">
-            <Text size="sm" fw={600}>
+            <Text size="sm" fw={600} ta={isMobile ? "center" : "left"}>
               Subscription End Date
             </Text>
             <DatePicker
@@ -153,13 +162,13 @@ export default function UpgradeSubscriptionModal({
             />
           </Stack>
 
-          <Stack flex={1}>
+          <Stack flex={1} mt={isMobile ? "sm" : 0} ml={isMobile ? 0 : "sm"}>
             <Paper shadow="sm" p="md" bg="#f5f5f5">
-              <Group
+              <Flex
                 gap="xs"
                 align="center"
-                justify="space-between"
-                wrap="nowrap"
+                justify={isMobile ? "center" : "space-between"}
+                direction={isMobile ? "column" : "row"}
               >
                 <Stack align="center" gap="xs">
                   <Text size="sm" fw={600}>
@@ -177,7 +186,11 @@ export default function UpgradeSubscriptionModal({
                 </Stack>
 
                 <ThemeIcon variant="transparent" my="lg">
-                  <IconArrowRight size={20} />
+                  {isMobile ? (
+                    <IconArrowDown size={20} />
+                  ) : (
+                    <IconArrowRight size={20} />
+                  )}
                 </ThemeIcon>
 
                 <Stack align="center" gap="xs">
@@ -193,19 +206,23 @@ export default function UpgradeSubscriptionModal({
                     Premium
                   </Badge>
                 </Stack>
-              </Group>
+              </Flex>
             </Paper>
 
             <Table variant="vertical" layout="fixed">
               <Table.Tbody>
                 <Table.Tr>
-                  <Table.Th w={180}>Subscription Start Date</Table.Th>
+                  <Table.Th w={isMobile ? 120 : 180}>
+                    Subscription Start Date
+                  </Table.Th>
                   <Table.Td c="green" fw={600}>
                     {getDateFormatDisplay(dayjs().toDate(), true)}
                   </Table.Td>
                 </Table.Tr>
                 <Table.Tr>
-                  <Table.Th w={180}>Subscription End Date</Table.Th>
+                  <Table.Th w={isMobile ? 120 : 180}>
+                    Subscription End Date
+                  </Table.Th>
                   <Table.Td c="green" fw={600}>
                     {subscriptionEndDate
                       ? getDateFormatDisplay(
@@ -219,7 +236,7 @@ export default function UpgradeSubscriptionModal({
                   </Table.Td>
                 </Table.Tr>
                 <Table.Tr>
-                  <Table.Th w={180}>Total Days</Table.Th>
+                  <Table.Th w={isMobile ? 120 : 180}>Total Days</Table.Th>
                   <Table.Td c="green" fw={600}>
                     {subscriptionEndDate
                       ? dayjs(subscriptionEndDate).diff(dayjs(), "day")
@@ -243,7 +260,7 @@ export default function UpgradeSubscriptionModal({
               </Button>
             </Group>
           </Stack>
-        </Group>
+        </Flex>
       </Stack>
     </Modal>
   );

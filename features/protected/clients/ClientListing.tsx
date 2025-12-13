@@ -24,7 +24,11 @@ import {
   Text,
   TextInput,
 } from "@mantine/core";
-import { useDebouncedValue, useDisclosure } from "@mantine/hooks";
+import {
+  useDebouncedValue,
+  useDisclosure,
+  useMediaQuery,
+} from "@mantine/hooks";
 import {
   IconArrowBadgeDown,
   IconArrowBadgeUp,
@@ -38,6 +42,7 @@ import { useUser } from "@clerk/nextjs";
 import { useRouter } from "nextjs-toploader/app";
 
 export default function ClientListing() {
+  const shrink = useMediaQuery("(max-width: 768px)");
   const { user, isLoaded } = useUser();
   const router = useRouter();
 
@@ -167,7 +172,7 @@ export default function ClientListing() {
             />
           )}
           <TableScrollContainer
-            minWidth={500}
+            minWidth={800}
             h="calc(100vh - 220px)"
             pos="relative"
           >
@@ -277,7 +282,12 @@ export default function ClientListing() {
             </Table>
           </TableScrollContainer>
 
-          <Group align="center">
+          <Flex
+            align="center"
+            direction={shrink ? "column" : "row"}
+            gap={16}
+            w="100%"
+          >
             {totalCount > 0 ? (
               <Text size="sm">
                 Showing {(currentPage - 1) * 25 + 1}-
@@ -289,12 +299,12 @@ export default function ClientListing() {
 
             <Pagination
               size="sm"
-              ml="auto"
+              ml={shrink ? 0 : "auto"}
               total={Math.ceil(totalCount / 25) || 1}
               value={currentPage}
               onChange={setCurrentPage}
             />
-          </Group>
+          </Flex>
         </Paper>
       </Flex>
 

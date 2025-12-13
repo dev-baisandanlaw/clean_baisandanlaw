@@ -22,12 +22,17 @@ import {
   TextInput,
   useMantineTheme,
 } from "@mantine/core";
-import { useDebouncedValue, useDisclosure } from "@mantine/hooks";
+import {
+  useDebouncedValue,
+  useDisclosure,
+  useMediaQuery,
+} from "@mantine/hooks";
 import { IconCirclePlus, IconEye, IconSearch } from "@tabler/icons-react";
 import { Query } from "appwrite";
 import { useEffect, useState } from "react";
 
 export default function MattersListing() {
+  const shrink = useMediaQuery("(max-width: 768px)");
   const theme = useMantineTheme();
   const { user } = useUser();
 
@@ -127,7 +132,12 @@ export default function MattersListing() {
         px={{ sm: 12, md: 0 }}
         direction="column"
       >
-        <Group align="center" justify="space-between" w="100%">
+        <Flex
+          align="stretch"
+          direction={shrink ? "column-reverse" : "row"}
+          gap={16}
+          w="100%"
+        >
           <TextInput
             placeholder="Search matter number, lead attorney, client, or matter type"
             flex={1}
@@ -146,7 +156,7 @@ export default function MattersListing() {
               New Matter
             </Button>
           )}
-        </Group>
+        </Flex>
 
         <Paper withBorder shadow="sm" p={16} pos="relative">
           {isFetching && (
@@ -162,7 +172,7 @@ export default function MattersListing() {
           )}
 
           <TableScrollContainer
-            minWidth={500}
+            minWidth={800}
             h="calc(100vh - 220px)"
             pos="relative"
           >
@@ -249,7 +259,13 @@ export default function MattersListing() {
             </Table>
           </TableScrollContainer>
 
-          <Group align="center">
+          <Flex
+            align="center"
+            direction={shrink ? "column" : "row"}
+            gap={16}
+            justify={shrink ? "center" : "space-between"}
+            w="100%"
+          >
             {totalCount > 0 ? (
               <Text size="sm">
                 Showing {(currentPage - 1) * 10 + 1}-
@@ -260,12 +276,12 @@ export default function MattersListing() {
             )}
 
             <Pagination
-              ml="auto"
+              ml={shrink ? 0 : "auto"}
               total={Math.ceil(totalCount / 10) || 1}
               value={currentPage}
               onChange={setCurrentPage}
             />
-          </Group>
+          </Flex>
         </Paper>
       </Flex>
 

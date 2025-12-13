@@ -23,13 +23,18 @@ import {
   TextInput,
   useMantineTheme,
 } from "@mantine/core";
-import { useDebouncedValue, useDisclosure } from "@mantine/hooks";
+import {
+  useDebouncedValue,
+  useDisclosure,
+  useMediaQuery,
+} from "@mantine/hooks";
 import { IconCirclePlus, IconSearch } from "@tabler/icons-react";
 import axios from "axios";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "nextjs-toploader/app";
 
 export default function AttorneyListing() {
+  const shrink = useMediaQuery("(max-width: 768px)");
   const { user, isLoaded } = useUser();
   const router = useRouter();
 
@@ -129,7 +134,12 @@ export default function AttorneyListing() {
         px={{ sm: 12, md: 0 }}
         direction="column"
       >
-        <Group align="center" justify="space-between" w="100%">
+        <Flex
+          align="stretch"
+          direction={shrink ? "column-reverse" : "row"}
+          gap={16}
+          w="100%"
+        >
           <TextInput
             placeholder="Search name, email"
             flex={1}
@@ -146,7 +156,7 @@ export default function AttorneyListing() {
           >
             Add Attorney
           </Button>
-        </Group>
+        </Flex>
 
         <Paper withBorder shadow="sm" p={16} pos="relative">
           {isFetching && (
@@ -162,7 +172,7 @@ export default function AttorneyListing() {
           )}
 
           <TableScrollContainer
-            minWidth={500}
+            minWidth={800}
             h="calc(100vh - 220px)"
             pos="relative"
           >
@@ -231,7 +241,12 @@ export default function AttorneyListing() {
             </Table>
           </TableScrollContainer>
 
-          <Group align="center">
+          <Flex
+            align="center"
+            direction={shrink ? "column" : "row"}
+            gap={16}
+            w="100%"
+          >
             {totalCount > 0 ? (
               <Text size="sm">
                 Showing {(currentPage - 1) * 10 + 1}-
@@ -243,12 +258,12 @@ export default function AttorneyListing() {
             )}
 
             <Pagination
-              ml="auto"
+              ml={shrink ? 0 : "auto"}
               total={Math.ceil(totalCount / 10) || 1}
               value={currentPage}
               onChange={setCurrentPage}
             />
-          </Group>
+          </Flex>
         </Paper>
       </Flex>
 

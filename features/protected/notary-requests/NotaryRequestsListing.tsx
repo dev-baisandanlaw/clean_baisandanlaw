@@ -11,7 +11,6 @@ import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { getNotaryStatus } from "@/utils/getNotaryStatus";
 import { useUser } from "@clerk/nextjs";
 import {
-  Group,
   Flex,
   TextInput,
   TableScrollContainer,
@@ -26,7 +25,11 @@ import {
   Pagination,
   Tabs,
 } from "@mantine/core";
-import { useDebouncedValue, useDisclosure } from "@mantine/hooks";
+import {
+  useDebouncedValue,
+  useDisclosure,
+  useMediaQuery,
+} from "@mantine/hooks";
 import {
   IconCirclePlus,
   IconDots,
@@ -55,8 +58,11 @@ import { Query } from "appwrite";
 import { listDatabaseDocuments } from "@/app/api/appwrite";
 import { AppwriteNotaryRequestDocument } from "@/types/appwriteResponses";
 import { useRouter, useSearchParams } from "next/navigation";
+import classes from "@/app/custom-css/TabsCustomCss.module.css";
 
 export default function NotaryRequestsListing() {
+  const shrink = useMediaQuery("(max-width: 768px)");
+
   const { user, isLoaded } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -291,7 +297,12 @@ export default function NotaryRequestsListing() {
         px={{ sm: 12, md: 0 }}
         direction="column"
       >
-        <Group align="center" justify="space-between" w="100%">
+        <Flex
+          align="stretch"
+          direction={shrink ? "column-reverse" : "row"}
+          gap={16}
+          w="100%"
+        >
           <TextInput
             placeholder="Search ID, reference number, or requestor"
             flex={1}
@@ -313,13 +324,24 @@ export default function NotaryRequestsListing() {
               New Request
             </Button>
           )}
-        </Group>
+        </Flex>
 
         <Tabs
           value={activeTab}
           onChange={(value) =>
             setActiveTab(value as NotaryRequestStatus | "All")
           }
+          styles={{
+            list: {
+              flexWrap: "nowrap",
+              overflowX: "auto",
+              scrollbarWidth: "none",
+            },
+          }}
+          classNames={{
+            list: classes.tabsListCustom,
+            tab: classes.tabsTabCustom,
+          }}
         >
           <Tabs.List>
             <Tabs.Tab value="All">All</Tabs.Tab>
@@ -345,14 +367,14 @@ export default function NotaryRequestsListing() {
           )}
 
           <TableScrollContainer
-            minWidth={500}
+            minWidth={800}
             h="calc(100vh - 273px)"
             pos="relative"
           >
             <Table stickyHeader stickyHeaderOffset={0} verticalSpacing="sm">
               <Table.Thead>
                 <Table.Tr>
-                  <Table.Th>ID</Table.Th>
+                  <Table.Th w={shrink ? 50 : "auto"}>ID</Table.Th>
                   <Table.Th>Reference Number</Table.Th>
 
                   {user?.unsafeMetadata?.role !== "client" && (
@@ -378,7 +400,17 @@ export default function NotaryRequestsListing() {
                     .sort((a, b) => b.$createdAt.localeCompare(a.$createdAt))
                     .map((notaryRequest) => (
                       <Table.Tr key={notaryRequest.$id}>
-                        <Table.Td>{notaryRequest.$id}</Table.Td>
+                        <Table.Td w={shrink ? 50 : "auto"}>
+                          <Text
+                            truncate
+                            maw={shrink ? 50 : "auto"}
+                            size="sm"
+                            fw={600}
+                            c="green"
+                          >
+                            {notaryRequest.$id}
+                          </Text>
+                        </Table.Td>
                         <Table.Td>
                           {notaryRequest?.referenceNumber ?? "-"}
                         </Table.Td>
@@ -590,7 +622,12 @@ export default function NotaryRequestsListing() {
             </Table>
           </TableScrollContainer>
 
-          <Group align="center">
+          <Flex
+            align="center"
+            direction={shrink ? "column" : "row"}
+            gap={16}
+            w="100%"
+          >
             {totalCount > 0 ? (
               <Text size="sm">
                 Showing {(currentPage - 1) * 10 + 1}-
@@ -601,12 +638,12 @@ export default function NotaryRequestsListing() {
             )}
 
             <Pagination
-              ml="auto"
+              ml={shrink ? 0 : "auto"}
               total={Math.ceil(totalCount / 10) || 1}
               value={currentPage}
               onChange={setCurrentPage}
             />
-          </Group>
+          </Flex>
         </Paper>
       </Flex>
 

@@ -191,7 +191,7 @@ export default function TabTasks({ matterData }: MatterTabTasksProps) {
             </Card.Section>
 
             <TableScrollContainer
-              minWidth={500}
+              minWidth={800}
               mah="40vh"
               pos="relative"
               w="100%"
@@ -226,7 +226,7 @@ export default function TabTasks({ matterData }: MatterTabTasksProps) {
           </Card.Section>
 
           <TableScrollContainer
-            minWidth={500}
+            minWidth={800}
             mah="40vh"
             pos="relative"
             w="100%"

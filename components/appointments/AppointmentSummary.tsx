@@ -1,6 +1,7 @@
 import { Booking } from "@/types/booking";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
-import { Card, Table, Text } from "@mantine/core";
+import { Card, em, Table, Text } from "@mantine/core";
+import { useMediaQuery } from "@mantine/hooks";
 import dayjs from "dayjs";
 
 interface AppointmentSummaryProps {
@@ -14,6 +15,8 @@ export default function AppointmentSummary({
   currentDate,
   selectedDate,
 }: AppointmentSummaryProps) {
+  const isMobile = useMediaQuery(`(max-width: ${em(750)})`);
+
   return (
     <Card withBorder radius="sm" p="md">
       <Card.Section inheritPadding py="xs">
@@ -25,7 +28,7 @@ export default function AppointmentSummary({
       <Table variant="vertical" layout="fixed">
         <Table.Tbody>
           <Table.Tr>
-            <Table.Th w={240}>Month/Year</Table.Th>
+            <Table.Th w={isMobile ? 120 : 240}>Month/Year</Table.Th>
             <Table.Td>
               <Text c="green" fw={600} size="sm">
                 {dayjs(currentDate).format("MMMM YYYY")}
@@ -34,7 +37,7 @@ export default function AppointmentSummary({
           </Table.Tr>
 
           <Table.Tr>
-            <Table.Th w={240}>Selected Date</Table.Th>
+            <Table.Th w={isMobile ? 120 : 240}>Selected Date</Table.Th>
             <Table.Td>
               <Text c="green" fw={600} size="sm">
                 {getDateFormatDisplay(selectedDate || "")}
@@ -43,7 +46,7 @@ export default function AppointmentSummary({
           </Table.Tr>
 
           <Table.Tr>
-            <Table.Th w={240}>Monthly Appointments</Table.Th>
+            <Table.Th w={isMobile ? 120 : 240}>Monthly Appointments</Table.Th>
             <Table.Td>
               <Text c="green" fw={600} size="sm">
                 {bookings.length}
@@ -52,7 +55,9 @@ export default function AppointmentSummary({
           </Table.Tr>
 
           <Table.Tr>
-            <Table.Th w={240}>Today&apos;s Appointments</Table.Th>
+            <Table.Th w={isMobile ? 120 : 240}>
+              Today&apos;s Appointments
+            </Table.Th>
             <Table.Td>
               <Text c="green" fw={600} size="sm">
                 {

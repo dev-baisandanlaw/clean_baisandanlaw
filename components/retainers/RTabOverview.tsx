@@ -9,6 +9,7 @@ import {
   Button,
   Card,
   Divider,
+  em,
   Flex,
   Group,
   Paper,
@@ -31,6 +32,7 @@ import { nanoid } from "nanoid";
 import dayjs from "dayjs";
 import { Note } from "@/types/matter-notes";
 import { appNotifications } from "@/utils/notifications/notifications";
+import { useMediaQuery } from "@mantine/hooks";
 
 interface RTabOverviewProps {
   retainerData: Retainer;
@@ -49,6 +51,7 @@ export default function RTabOverview({
   retainerData,
   setDataChanged,
 }: RTabOverviewProps) {
+  const shrink = useMediaQuery("(max-width: 948px)");
   const theme = useMantineTheme();
 
   const retainerDetailsCardData = [
@@ -154,7 +157,7 @@ export default function RTabOverview({
 
   return (
     <Flex direction="column" gap="md">
-      <SimpleGrid cols={2}>
+      <SimpleGrid cols={shrink ? 1 : 2}>
         <VerticalTable
           title="Retainer Details"
           data={retainerDetailsCardData}
