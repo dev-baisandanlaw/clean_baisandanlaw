@@ -62,11 +62,14 @@ export default function BookingPage() {
 
   const [validHolidays, setValidHolidays] = useState<string[]>([]);
   const [workDays, setWorkDays] = useState<number[]>([]);
+  const [blockedDates, setBlockedDates] = useState<Record<string, string[]>>(
+    {},
+  );
 
   const [isSuccess, setIsSuccess] = useState(false);
 
   const [currentDate, setCurrentDate] = useState<string>(
-    dayjs().format("YYYY-MM-DD")
+    dayjs().format("YYYY-MM-DD"),
   );
 
   const [debounced] = useDebouncedValue(currentDate, 500);
@@ -83,8 +86,8 @@ export default function BookingPage() {
         doc(
           db,
           COLLECTIONS.GLOBAL_SCHED,
-          process.env.NEXT_PUBLIC_FIREBASE_HOLIDAYS_BLOCKED_SCHED_ID!
-        )
+          process.env.NEXT_PUBLIC_FIREBASE_HOLIDAYS_BLOCKED_SCHED_ID!,
+        ),
       );
       if (!snap.exists()) return;
 
@@ -107,10 +110,13 @@ export default function BookingPage() {
         .filter((key) => d.workSchedule[key])
         .map((key) => WORK_SCHEDULE.find((w) => w.name === key)?.value);
 
+      const blockedDatesMap = d?.blockedDates;
+
       setValidHolidays(
-        validHolidayIds.map((id) => holidayMap[id]).filter(Boolean)
+        validHolidayIds.map((id) => holidayMap[id]).filter(Boolean),
       );
       setWorkDays(workDays as number[]);
+      setBlockedDates(blockedDatesMap);
     } finally {
       setIsFetchingGlobalSched(false);
     }
@@ -145,7 +151,7 @@ export default function BookingPage() {
 
     fetchGlobalSched();
     fetchAttorneyCount("");
-  }, [user, isLoaded]);
+  }, [isLoaded]);
 
   useEffect(() => {
     setSelectedTime(null);
@@ -159,7 +165,7 @@ export default function BookingPage() {
     const q = query(
       ref,
       where("date", ">=", startOfMonth),
-      where("date", "<=", endOfMonth)
+      where("date", "<=", endOfMonth),
     );
 
     const unsub = onSnapshot(
@@ -178,7 +184,7 @@ export default function BookingPage() {
           message: "The bookings could not be fetched. Please try again.",
           autoClose: false,
         });
-      }
+      },
     );
 
     return () => unsub();
@@ -310,7 +316,6 @@ export default function BookingPage() {
                 bg="transparent"
                 multiline
                 w={220}
-                withArrow
                 transitionProps={{ duration: 200 }}
                 events={{ hover: true, focus: true, touch: true }}
                 label={
@@ -391,11 +396,18 @@ export default function BookingPage() {
                     const timeSlot = dayjs(`${selectedDate} ${time}`);
                     const selectedDateBookings = bookings.filter(
                       (booking) =>
-                        booking.date === selectedDate && booking.time === time
+                        booking.date === selectedDate && booking.time === time,
                     );
 
                     // 1 day before is before 5PM, return true
                     if (timeSlot.isBefore(dayjs().add(1, "day"))) return true;
+
+                    // if time is in blocked dates
+                    if (
+                      selectedDate &&
+                      blockedDates?.[selectedDate]?.includes(time)
+                    )
+                      return true;
 
                     if (selectedDateBookings.length >= attorneyCount)
                       return true;

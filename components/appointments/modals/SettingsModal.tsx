@@ -58,7 +58,7 @@ export default function SettingsModal({
 
   const handleAccordion = (key: string) => {
     setAcc((prev) =>
-      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
     );
   };
 
@@ -120,7 +120,7 @@ export default function SettingsModal({
     if (globalSched?.blockedDates?.[blockedDatesForm.values.selectedDate]) {
       blockedDatesForm.setFieldValue(
         "selectedTimeSlots",
-        globalSched.blockedDates[blockedDatesForm.values.selectedDate]
+        globalSched.blockedDates[blockedDatesForm.values.selectedDate],
       );
     } else {
       blockedDatesForm.setFieldValue("selectedTimeSlots", []);
@@ -140,12 +140,12 @@ export default function SettingsModal({
         doc(
           db,
           COLLECTIONS.GLOBAL_SCHED,
-          process.env.NEXT_PUBLIC_FIREBASE_HOLIDAYS_BLOCKED_SCHED_ID!
+          process.env.NEXT_PUBLIC_FIREBASE_HOLIDAYS_BLOCKED_SCHED_ID!,
         ),
         {
           ...holidaysForm.values,
         },
-        { merge: true }
+        { merge: true },
       );
 
       appNotifications.success({
@@ -181,12 +181,12 @@ export default function SettingsModal({
         doc(
           db,
           COLLECTIONS.GLOBAL_SCHED,
-          process.env.NEXT_PUBLIC_FIREBASE_HOLIDAYS_BLOCKED_SCHED_ID!
+          process.env.NEXT_PUBLIC_FIREBASE_HOLIDAYS_BLOCKED_SCHED_ID!,
         ),
         {
           ...(globalSched ?? {}),
           blockedDates,
-        }
+        },
       );
       appNotifications.success({
         title: "Blocked schedules saved successfully",
@@ -287,6 +287,7 @@ export default function SettingsModal({
           <Flex
             align={isMobile ? "center" : "flex-start"}
             direction={isMobile ? "column" : "row"}
+            gap={8}
           >
             <DatePicker
               size="xs"
@@ -354,8 +355,8 @@ export default function SettingsModal({
                         blockedDatesForm.setFieldValue(
                           "selectedTimeSlots",
                           blockedDatesForm.values.selectedTimeSlots.filter(
-                            (s) => s !== slot
-                          )
+                            (s) => s !== slot,
+                          ),
                         );
                       } else {
                         blockedDatesForm.setFieldValue("selectedTimeSlots", [
