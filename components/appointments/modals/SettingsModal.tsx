@@ -11,6 +11,7 @@ import {
   Group,
   Modal,
   Paper,
+  Select,
   SimpleGrid,
   Stack,
   Table,
@@ -20,7 +21,12 @@ import {
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import SettingsSection from "./SettingsSection";
 import { useForm } from "@mantine/form";
-import { DatePicker, getTimeRange, TimeValue } from "@mantine/dates";
+import {
+  DatePicker,
+  getTimeRange,
+  TimePicker,
+  TimeValue,
+} from "@mantine/dates";
 import { appNotifications } from "@/utils/notifications/notifications";
 import { IconInfoCircle } from "@tabler/icons-react";
 import { doc, setDoc } from "firebase/firestore";
@@ -34,6 +40,11 @@ const timeSlots = getTimeRange({
   endTime: "16:00",
   interval: "01:00",
 });
+
+const toMinutes = (time: string) => {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
+};
 
 interface SettingsModalProps {
   opened: boolean;
@@ -82,6 +93,11 @@ export default function SettingsModal({
         "christmas-eve": false,
         "last-day": false,
       },
+      officeHours: {
+        officeStart: "08:00",
+        officeEnd: "17:00",
+        bookingInterval: "01:00",
+      },
       workSchedule: {
         monday: false,
         tuesday: false,
@@ -105,12 +121,15 @@ export default function SettingsModal({
   useEffect(() => {
     if (!globalSched || !opened) return;
 
-    const { regularHolidays, specialHolidays, workSchedule } = globalSched;
+    const { regularHolidays, specialHolidays, workSchedule, officeHours } =
+      globalSched;
+
     if (regularHolidays && specialHolidays && workSchedule) {
       holidaysForm.setValues({
         regularHolidays,
         specialHolidays,
         workSchedule,
+        officeHours,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -133,6 +152,16 @@ export default function SettingsModal({
   const workScheduleCount = `${Object?.values(holidaysForm.values.workSchedule)?.filter(Boolean).length}/${WORK_SCHEDULE.length}`;
 
   const handleSaveHolidays = async () => {
+    const { officeStart, officeEnd } = holidaysForm.values.officeHours;
+
+    if (toMinutes(officeStart) >= toMinutes(officeEnd)) {
+      appNotifications.error({
+        title: "An error occurred",
+        message: "Office Start Time should be less than Office End Time",
+      });
+      return;
+    }
+
     setIsSavingHolidays(true);
 
     try {
@@ -149,16 +178,17 @@ export default function SettingsModal({
       );
 
       appNotifications.success({
-        title: "Holidays saved successfully",
+        title: "Settings saved successfully",
         message:
-          "The holidays and work schedule settings have been saved successfully",
+          "The holidays, work schedule, and Office hour settings have been saved successfully",
       });
       setDataChanged((prev) => !prev);
       onClose();
     } catch {
       appNotifications.error({
-        title: "Failed to save holidays",
-        message: "The holidays could not be saved. Please try again.",
+        title: "Failed to save settings",
+        message:
+          "The holidays, work schedule, and office hours could not be saved. Please try again.",
       });
     } finally {
       setIsSavingHolidays(false);
@@ -263,6 +293,71 @@ export default function SettingsModal({
               }}
             />
 
+            <Paper withBorder radius="md" p="sm">
+              <Group grow>
+                <TimePicker
+                  onKeyDown={(e) => e.preventDefault()}
+                  label="Office Hour Start"
+                  withDropdown
+                  hoursStep={1}
+                  minutesStep={15}
+                  size="sm"
+                  {...holidaysForm.getInputProps("officeHours.officeStart")}
+                />
+                <TimePicker
+                  onKeyDown={(e) => e.preventDefault()}
+                  label="Office Hour End"
+                  withDropdown
+                  hoursStep={1}
+                  minutesStep={15}
+                  size="sm"
+                  {...holidaysForm.getInputProps("officeHours.officeEnd")}
+                />
+                <Select
+                  {...holidaysForm.getInputProps("officeHours.bookingInterval")}
+                  label="Booking interval"
+                  size="sm"
+                  defaultValue="01:00"
+                  clearable={false}
+                  allowDeselect={false}
+                  data={[
+                    {
+                      label: "15 minutes",
+                      value: "00:15",
+                    },
+                    {
+                      label: "30 minutes",
+                      value: "00:30",
+                    },
+                    {
+                      label: "45 minutes",
+                      value: "00:45",
+                    },
+                    {
+                      label: "1 hour",
+                      value: "01:00",
+                    },
+                    {
+                      label: "2 hours",
+                      value: "02:00",
+                    },
+                    {
+                      label: "3 hours",
+                      value: "03:00",
+                    },
+                    {
+                      label: "4 hours",
+                      value: "04:00",
+                    },
+                    {
+                      label: "5 hours",
+                      value: "05:00",
+                    },
+                  ]}
+                />
+              </Group>
+            </Paper>
+
             <Group justify="flex-end">
               <Button
                 variant="default"
@@ -276,6 +371,10 @@ export default function SettingsModal({
                 size="sm"
                 onClick={handleSaveHolidays}
                 loading={isSavingHolidays}
+                disabled={
+                  !holidaysForm.values.officeHours.officeStart ||
+                  !holidaysForm.values.officeHours.officeEnd
+                }
               >
                 Save Changes
               </Button>

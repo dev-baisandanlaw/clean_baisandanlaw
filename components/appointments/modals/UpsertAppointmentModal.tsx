@@ -5,6 +5,7 @@ import {
 } from "@/constants/constants";
 import { db } from "@/firebase/config";
 import { Booking } from "@/types/booking";
+import { GlobalSched } from "@/types/global-sched";
 import { Attorney, Client } from "@/types/user";
 import { appNotifications } from "@/utils/notifications/notifications";
 import {
@@ -27,7 +28,7 @@ import {
   TextInput,
   useMantineTheme,
 } from "@mantine/core";
-import { DatePickerInput, TimeValue } from "@mantine/dates";
+import { DatePickerInput, getTimeRange, TimeValue } from "@mantine/dates";
 import { useForm } from "@mantine/form";
 import { useMediaQuery } from "@mantine/hooks";
 import axios from "axios";
@@ -47,30 +48,20 @@ type AddAppointmentModalProps = {
   opened: boolean;
   onClose: () => void;
   booking: Booking | null;
+  globalSched: GlobalSched | null;
 };
-
-const times = [
-  { label: "7:00 AM", value: "07:00:00" },
-  { label: "8:00 AM", value: "08:00:00" },
-  { label: "9:00 AM", value: "09:00:00" },
-  { label: "10:00 AM", value: "10:00:00" },
-  { label: "11:00 AM", value: "11:00:00" },
-  { label: "12:00 PM", value: "12:00:00" },
-  { label: "1:00 PM", value: "13:00:00" },
-  { label: "2:00 PM", value: "14:00:00" },
-  { label: "3:00 PM", value: "15:00:00" },
-  { label: "4:00 PM", value: "16:00:00" },
-  { label: "5:00 PM", value: "17:00:00" },
-  { label: "6:00 PM", value: "18:00:00" },
-];
 
 export default function AddAppointmentModal({
   opened,
   onClose,
   booking,
+  globalSched,
 }: AddAppointmentModalProps) {
   const isMobile = useMediaQuery(`(max-width: ${em(750)})`);
   const theme = useMantineTheme();
+
+  const [times, setTimes] = useState<{ label: string; value: string }[]>([]);
+
   const [isLoading, setIsLoading] = useState(false);
 
   const [hasFetchedAtty, setHasFetchedAtty] = useState(false);
@@ -93,7 +84,7 @@ export default function AddAppointmentModal({
           organization_id: CLERK_ORG_IDS.attorney,
           limit: 9999,
         },
-      }
+      },
     );
     setAttorneyUsers(data);
     setHasFetchedAtty(true);
@@ -107,7 +98,7 @@ export default function AddAppointmentModal({
           organization_id: CLERK_ORG_IDS.client,
           limit: 9999,
         },
-      }
+      },
     );
     setClientUsers(data);
     setHasFetchedClient(true);
@@ -118,11 +109,11 @@ export default function AddAppointmentModal({
       query(
         collection(db, COLLECTIONS.BOOKINGS),
         where("attorney.id", "==", form.values.attorney),
-        where("date", "==", dayjs(form.values.date).format("YYYY-MM-DD"))
-      )
+        where("date", "==", dayjs(form.values.date).format("YYYY-MM-DD")),
+      ),
     );
     setAttyBookings(
-      docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Booking)
+      docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Booking),
     );
   };
 
@@ -154,12 +145,12 @@ export default function AddAppointmentModal({
     let clientData;
 
     const attyDetails = attorneyUsers.find(
-      (attorney) => attorney.id === values.attorney
+      (attorney) => attorney.id === values.attorney,
     );
 
     if (selectedClientType === "Existing Client") {
       const clientDetails = clientUsers.find(
-        (client) => client.id === values.client
+        (client) => client.id === values.client,
       );
       clientData = {
         fullname: clientDetails?.first_name + " " + clientDetails?.last_name,
@@ -181,7 +172,7 @@ export default function AddAppointmentModal({
     }
 
     const startISO = dayjs(
-      `${dayjs(values.date).format("YYYY-MM-DD")} ${values.time}`
+      `${dayjs(values.date).format("YYYY-MM-DD")} ${values.time}`,
     );
     const endISO = startISO.add(1, "hour");
 
@@ -221,7 +212,7 @@ export default function AddAppointmentModal({
           appNotifications.error({
             title: "Failed to add appointment",
             message: "The appointment could not be added. Please try again.",
-          })
+          }),
         )
         .finally(() => setIsLoading(false));
     };
@@ -259,7 +250,7 @@ export default function AddAppointmentModal({
           appNotifications.error({
             title: "Failed to update appointment",
             message: "The appointment could not be updated. Please try again.",
-          })
+          }),
         )
         .finally(() => setIsLoading(false));
     };
@@ -375,6 +366,29 @@ export default function AddAppointmentModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.values.attorney, form.values.date]);
 
+  useEffect(() => {
+    if (opened && globalSched && globalSched?.officeHours) {
+      const { officeHours } = globalSched;
+
+      const timeHours = getTimeRange({
+        startTime: officeHours.officeStart,
+        endTime: officeHours.officeEnd,
+        interval: officeHours.bookingInterval,
+      });
+
+      setTimes(
+        timeHours.map((t) => {
+          const hhmm = t.slice(0, 5);
+          const d = dayjs(`2000-01-01 ${hhmm}`);
+          return {
+            value: hhmm,
+            label: d.format("h:mm A"),
+          };
+        }),
+      );
+    }
+  }, [opened, globalSched]);
+
   return (
     <Modal
       opened={opened}
@@ -400,7 +414,7 @@ export default function AddAppointmentModal({
               }))}
               renderOption={({ option }) => {
                 const selectedAttorney = attorneyUsers.find(
-                  (attorney) => attorney.id === option.value
+                  (attorney) => attorney.id === option.value,
                 );
                 const practiceAreas =
                   selectedAttorney?.unsafe_metadata.practiceAreas || [];
@@ -562,11 +576,11 @@ export default function AddAppointmentModal({
                 withAsterisk
                 label="Time"
                 placeholder="Select Time"
-                data={times.map((time) => ({
+                data={times?.map((time) => ({
                   value: time.value,
                   label: time.label,
                   disabled: attyBookings.some(
-                    (b) => b.time === time.value && b.id !== booking?.id
+                    (b) => b.time === time.value && b.id !== booking?.id,
                   ),
                 }))}
                 {...form.getInputProps("time")}

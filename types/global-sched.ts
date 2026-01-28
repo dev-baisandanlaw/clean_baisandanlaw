@@ -28,10 +28,18 @@ export interface WorkSchedule {
   sunday: boolean;
 }
 
+export interface OfficeHours {
+  officeStart: string;
+  officeEnd: string;
+  bookingInterval: string;
+}
+
 export interface GlobalSched {
   regularHolidays: RegularHolidays;
   specialHolidays: SpecialHolidays;
   workSchedule: WorkSchedule;
+
+  officeHours: OfficeHours;
 
   blockedDates: Record<string, string[]>;
 }

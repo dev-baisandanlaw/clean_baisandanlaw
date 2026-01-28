@@ -303,6 +303,7 @@ export default function AppointmentsFeature() {
         opened={appModal}
         onClose={closeAppModal}
         booking={selectedBooking || null}
+        globalSched={globalSched}
       />
 
       <DeleteDuplicateModal

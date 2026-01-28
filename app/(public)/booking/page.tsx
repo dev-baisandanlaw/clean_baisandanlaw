@@ -42,14 +42,10 @@ import { appNotifications } from "@/utils/notifications/notifications";
 import axios from "axios";
 import { WORK_SCHEDULE } from "@/constants/non-working-sched";
 
-const timeSlots = getTimeRange({
-  startTime: "08:00",
-  endTime: "16:00",
-  interval: "01:00",
-});
-
 export default function BookingPage() {
   const { user, isLoaded } = useUser();
+
+  const [timeSlots, setTimeSlots] = useState<string[]>([]);
 
   const [isFetchingGlobalSched, setIsFetchingGlobalSched] = useState(false);
 
@@ -106,6 +102,12 @@ export default function BookingPage() {
         ...SPECIAL_HOLIDAYS.map((h) => [h.id, h.date]),
       ]);
 
+      const timeHours = getTimeRange({
+        startTime: d.officeHours.officeStart,
+        endTime: d.officeHours.officeEnd,
+        interval: d.officeHours.bookingInterval,
+      });
+
       const workDays = Object.keys(d.workSchedule)
         .filter((key) => d.workSchedule[key])
         .map((key) => WORK_SCHEDULE.find((w) => w.name === key)?.value);
@@ -116,6 +118,7 @@ export default function BookingPage() {
         validHolidayIds.map((id) => holidayMap[id]).filter(Boolean),
       );
       setWorkDays(workDays as number[]);
+      setTimeSlots(timeHours);
       setBlockedDates(blockedDatesMap);
     } finally {
       setIsFetchingGlobalSched(false);
