@@ -42,6 +42,9 @@ import SettingsModal from "@/components/appointments/modals/SettingsModal";
 import { GlobalSched } from "@/types/global-sched";
 import { appNotifications } from "@/utils/notifications/notifications";
 import { useRouter } from "nextjs-toploader/app";
+import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
+
+dayjs.extend(isSameOrAfter);
 
 const ymd = dayjs().format("YYYY-MM-DD");
 
@@ -62,8 +65,8 @@ export default function AppointmentsFeature() {
         doc(
           db,
           COLLECTIONS.GLOBAL_SCHED,
-          process.env.NEXT_PUBLIC_FIREBASE_HOLIDAYS_BLOCKED_SCHED_ID!,
-        ),
+          process.env.NEXT_PUBLIC_FIREBASE_HOLIDAYS_BLOCKED_SCHED_ID!
+        )
       );
       if (!snap.exists()) return;
 
@@ -106,7 +109,7 @@ export default function AppointmentsFeature() {
 
   const handleSelectBooking = (
     booking: Booking | null,
-    mode: "update" | "delete" | "view" | "add",
+    mode: "update" | "delete" | "view" | "add"
   ) => {
     setSelectedBooking(booking);
 
@@ -133,7 +136,7 @@ export default function AppointmentsFeature() {
     const q = query(ref, ...constraints);
     const snapshot = await getDocs(q);
     const bookings = snapshot.docs.map(
-      (doc) => ({ id: doc.id, ...doc.data() }) as Booking,
+      (doc) => ({ id: doc.id, ...doc.data() }) as Booking
     );
     setNoAttorneyBookings(bookings);
   };
@@ -177,7 +180,7 @@ export default function AppointmentsFeature() {
       (error) => {
         console.error("Firestore onSnapshot error:", error);
         setIsFetchingBookings(false);
-      },
+      }
     );
 
     return () => unsub();
@@ -189,7 +192,7 @@ export default function AppointmentsFeature() {
         noAttorneyBookings &&
         noAttorneyBookings?.length > 0 && (
           <Alert
-            title="Alert!"
+            title="Pending Attorney Assignment"
             color="red"
             icon={<IconFlame />}
             mb="xl"
@@ -209,11 +212,14 @@ export default function AppointmentsFeature() {
             })}
           >
             <Text mb="xs" size="sm">
-              There are bookings with no attorney assigned.
+              There are future bookings waiting for an attorney assignment.
             </Text>
 
             <Group gap="xs">
               {noAttorneyBookings
+                ?.filter((booking) =>
+                  dayjs(booking.date).isSameOrAfter(dayjs())
+                )
                 ?.sort((a, b) => dayjs(a.date).diff(dayjs(b.date)))
                 .map((booking) => (
                   <Badge
@@ -224,7 +230,7 @@ export default function AppointmentsFeature() {
                   >
                     {getDateFormatDisplay(
                       `${booking.date} ${booking.time}`,
-                      true,
+                      true
                     )}
                   </Badge>
                 ))}
