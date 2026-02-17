@@ -45,7 +45,7 @@ export const UpsertNotaryRequestModal = ({
   setDataChanged,
 }: UpsertNotaryRequestModalProps) => {
   const upsertLabels = {
-    modalTitle: notaryRequestId ? "Edit Notary Request" : "New Notary Request",
+    modalTitle: notaryRequestId ? "Edit Request" : "New Request",
     submitButton: notaryRequestId ? "Update" : "Submit",
   };
 

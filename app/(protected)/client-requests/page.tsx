@@ -1,8 +1,8 @@
 import NotaryRequestsListing from "@/features/protected/notary-requests/NotaryRequestsListing";
 
 export const metadata = {
-  title: "Notary Requests",
-  description: "View and manage all notary requests.",
+  title: "Client Requests",
+  description: "View and manage all client requests.",
 };
 
 export default function NotaryRequestsPage() {

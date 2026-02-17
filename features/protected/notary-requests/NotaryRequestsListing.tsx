@@ -391,7 +391,7 @@ export default function NotaryRequestsListing() {
                 {!notaryRequests?.length && (
                   <EmptyTableComponent
                     colspan={user?.unsafeMetadata?.role === "client" ? 6 : 7}
-                    message="No notary requests found"
+                    message="No client requests found"
                   />
                 )}
 

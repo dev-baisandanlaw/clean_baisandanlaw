@@ -1,6 +1,5 @@
 import { NotaryRequestStatus } from "@/types/notary-requests";
 import {
-  IconLayoutDashboard,
   IconCalendar,
   IconUsers,
   IconGavel,
@@ -35,8 +34,8 @@ export const NAV_LINKS = [
     roles: ["admin", "attorney", "client"],
   },
   {
-    label: "Notary Requests",
-    href: "/notary-requests",
+    label: "Client Requests",
+    href: "/client-requests",
     icon: IconRubberStamp,
     roles: ["admin", "attorney", "client"],
   },
@@ -172,8 +171,8 @@ export const ATTY_PRACTICE_AREAS = [
 
 export const NOTARY_STEPS = [
   {
-    title: "Request for Notary",
-    description: "Start by telling us what you need notarized",
+    title: "Request",
+    description: "Start by telling us what you need.",
   },
   {
     title: "Process",
@@ -188,7 +187,7 @@ export const NOTARY_STEPS = [
   {
     title: "Notify",
     description:
-      "Once it’s ready, we’ll notify you right away so you can pick it up.",
+      "Once it's ready, we'll notify you so you can review or pick it up.",
   },
 ];
 
