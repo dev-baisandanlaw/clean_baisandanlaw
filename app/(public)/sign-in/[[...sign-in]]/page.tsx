@@ -129,10 +129,12 @@ export default function Page() {
                   <Alert
                     key={code}
                     title={longMessage}
-                    variant="light"
                     color="red.9"
                     icon={<IconAlertCircle />}
-                    styles={{ icon: { marginBlock: "auto" } }}
+                    styles={{
+                      icon: { marginBlock: "auto" },
+                      title: { fontSize: "12px" },
+                    }}
                     mb={16}
                   />
                 ))}
