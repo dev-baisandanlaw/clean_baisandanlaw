@@ -9,6 +9,7 @@ export interface User {
     id: string;
   }[];
   unsafe_metadata: BaseMetadata;
+  banned?: boolean;
 }
 
 interface BaseMetadata {

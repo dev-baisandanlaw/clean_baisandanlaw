@@ -9,10 +9,12 @@ export async function GET(req: Request) {
     const offset = searchParams.get("offset") || "0";
     const organizationId = searchParams.get("organization_id");
     const search = searchParams.get("search");
+    const banned = searchParams.get("banned"); // "true" | "false" | null (omit for "All")
 
     const params: Record<string, string> = { limit, offset };
     if (organizationId) params.organization_id = organizationId;
     if (search) params.query = search;
+    if (banned === "true" || banned === "false") params.banned = banned;
 
     const { data } = await axios.get(`${CLERK_API_CONFIG.baseUrl}/users`, {
       headers: CLERK_API_CONFIG.headers,

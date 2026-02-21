@@ -9,6 +9,7 @@ import { appNotifications } from "@/utils/notifications/notifications";
 import { useUser } from "@clerk/nextjs";
 
 import {
+  ActionIcon,
   Badge,
   Button,
   Flex,
@@ -19,6 +20,7 @@ import {
   Stack,
   Table,
   TableScrollContainer,
+  Tabs,
   Text,
   TextInput,
   useMantineTheme,
@@ -28,10 +30,17 @@ import {
   useDisclosure,
   useMediaQuery,
 } from "@mantine/hooks";
-import { IconCirclePlus, IconSearch } from "@tabler/icons-react";
+import {
+  IconBan,
+  IconCirclePlus,
+  IconRestore,
+  IconSearch,
+} from "@tabler/icons-react";
 import axios from "axios";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "nextjs-toploader/app";
+import BanAttorneyModal from "@/components/attorneys/modals/BanAttorneyModal";
+import UnbanAttorneyModal from "@/components/attorneys/modals/UnbanAttorneyModal";
 
 export default function AttorneyListing() {
   const shrink = useMediaQuery("(max-width: 768px)");
@@ -41,6 +50,7 @@ export default function AttorneyListing() {
   const theme = useMantineTheme();
 
   const [isDataChanged, setIsDataChanged] = useState(false);
+  const [selectedAtty, setSelectedAtty] = useState<Attorney | null>(null);
 
   const [attorneys, setAttorneys] = useState<Attorney[]>([]);
   const [isFetching, setIsFetching] = useState(false);
@@ -51,12 +61,29 @@ export default function AttorneyListing() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
+  type StatusTab = "All" | "Active" | "Banned";
+  const [statusTab, setStatusTab] = useState<StatusTab>("Active");
+
   const [
     isAddAttorneyModalOpen,
     { open: openAddAttorneyModal, close: closeAddAttorneyModal },
   ] = useDisclosure(false);
 
-  const fetchAttorneys = async (searchTerm: string, page: number) => {
+  const [
+    isBanAttorneyModalOpen,
+    { open: openBanAttorneyModal, close: closeBanAttorneyModal },
+  ] = useDisclosure(false);
+
+  const [
+    isUnbanAttorneyModalOpen,
+    { open: openUnbanAttorneyModal, close: closeUnbanAttorneyModal },
+  ] = useDisclosure(false);
+
+  const fetchAttorneys = async (
+    searchTerm: string,
+    page: number,
+    bannedFilter: StatusTab
+  ) => {
     if (!user || !isLoaded) return;
 
     if (user.unsafeMetadata?.role !== "admin") {
@@ -72,17 +99,19 @@ export default function AttorneyListing() {
 
     setIsFetching(true);
 
+    const params: Record<string, string | number> = {
+      organization_id: CLERK_ORG_IDS.attorney,
+      limit: 10,
+      offset: (page - 1) * 10,
+      search: searchTerm.trim(),
+    };
+    if (bannedFilter === "Active") params.banned = "false";
+    else if (bannedFilter === "Banned") params.banned = "true";
+
     try {
       const { data } = await axios.get<Attorney[]>(
         "/api/clerk/organization/fetch",
-        {
-          params: {
-            organization_id: CLERK_ORG_IDS.attorney,
-            limit: 10,
-            offset: (page - 1) * 10,
-            search: searchTerm.trim(),
-          },
-        }
+        { params }
       );
 
       setAttorneys(data);
@@ -99,31 +128,38 @@ export default function AttorneyListing() {
     }
   };
 
-  const fetchTotalCount = useCallback(async (searchTerm: string) => {
-    const { data } = await axios.get("/api/clerk/fetch-total-count", {
-      params: {
+  const fetchTotalCount = useCallback(
+    async (searchTerm: string, bannedFilter: StatusTab) => {
+      const params: Record<string, string> = {
         organization_id: CLERK_ORG_IDS.attorney,
         search: searchTerm.trim(),
-      },
-    });
+      };
+      if (bannedFilter === "Active") params.banned = "false";
+      else if (bannedFilter === "Banned") params.banned = "true";
 
-    setTotalCount(data?.total_count);
-  }, []);
+      const { data } = await axios.get("/api/clerk/fetch-total-count", {
+        params,
+      });
+
+      setTotalCount(data?.total_count);
+    },
+    []
+  );
 
   useEffect(() => {
     if (currentPage !== 1) {
       setCurrentPage(1);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch]);
+  }, [debouncedSearch, statusTab]);
 
   useEffect(() => {
     if (!isLoaded) return;
 
-    fetchAttorneys(debouncedSearch, currentPage);
-    fetchTotalCount(debouncedSearch);
+    fetchAttorneys(debouncedSearch, currentPage, statusTab);
+    fetchTotalCount(debouncedSearch, statusTab);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, currentPage, isDataChanged, isLoaded]);
+  }, [debouncedSearch, currentPage, isDataChanged, isLoaded, statusTab]);
 
   return (
     <>
@@ -158,6 +194,17 @@ export default function AttorneyListing() {
           </Button>
         </Flex>
 
+        <Tabs
+          value={statusTab}
+          onChange={(v) => setStatusTab((v as StatusTab) ?? "Active")}
+        >
+          <Tabs.List>
+            <Tabs.Tab value="All">All</Tabs.Tab>
+            <Tabs.Tab value="Active">Active</Tabs.Tab>
+            <Tabs.Tab value="Banned">Banned</Tabs.Tab>
+          </Tabs.List>
+        </Tabs>
+
         <Paper withBorder shadow="sm" p={16} pos="relative">
           {isFetching && (
             <Progress
@@ -184,13 +231,14 @@ export default function AttorneyListing() {
                   <Table.Th>Practice Area</Table.Th>
                   <Table.Th>Account Created</Table.Th>
                   <Table.Th>Involved Cases</Table.Th>
+                  <Table.Th ta="center">Actions</Table.Th>
                 </Table.Tr>
               </Table.Thead>
 
               <Table.Tbody>
                 {!isFetching && !attorneys?.length && (
                   <EmptyTableComponent
-                    colspan={5}
+                    colspan={6}
                     message="No attorneys found"
                   />
                 )}
@@ -198,7 +246,10 @@ export default function AttorneyListing() {
                 {!isFetching &&
                   attorneys &&
                   attorneys.map((attorney) => (
-                    <Table.Tr key={attorney.id}>
+                    <Table.Tr
+                      key={attorney.id}
+                      bg={attorney?.banned ? "red.0" : "white"}
+                    >
                       <Table.Td>
                         {attorney.first_name + " " + attorney.last_name}
                       </Table.Td>
@@ -234,6 +285,34 @@ export default function AttorneyListing() {
                       </Table.Td>
                       <Table.Td>
                         {attorney.unsafe_metadata.involvedCases || 0}
+                      </Table.Td>
+
+                      <Table.Td ta="center">
+                        {attorney?.banned ? (
+                          <ActionIcon
+                            size="sm"
+                            variant="subtle"
+                            color="green"
+                            onClick={() => {
+                              setSelectedAtty(attorney);
+                              openUnbanAttorneyModal();
+                            }}
+                          >
+                            <IconRestore />
+                          </ActionIcon>
+                        ) : (
+                          <ActionIcon
+                            size="sm"
+                            variant="subtle"
+                            color="red"
+                            onClick={() => {
+                              setSelectedAtty(attorney);
+                              openBanAttorneyModal();
+                            }}
+                          >
+                            <IconBan />
+                          </ActionIcon>
+                        )}
                       </Table.Td>
                     </Table.Tr>
                   ))}
@@ -271,6 +350,20 @@ export default function AttorneyListing() {
         opened={isAddAttorneyModalOpen}
         onClose={closeAddAttorneyModal}
         setIsDataChanged={setIsDataChanged}
+      />
+
+      <BanAttorneyModal
+        opened={isBanAttorneyModalOpen}
+        userDetails={selectedAtty}
+        onClose={closeBanAttorneyModal}
+        setDataChanged={setIsDataChanged}
+      />
+
+      <UnbanAttorneyModal
+        opened={isUnbanAttorneyModalOpen}
+        userDetails={selectedAtty}
+        onClose={closeUnbanAttorneyModal}
+        setDataChanged={setIsDataChanged}
       />
     </>
   );
