@@ -28,6 +28,8 @@ interface ClientMetadata extends BaseMetadata {
     subscribedEndDate?: string | Date;
     isSubscribed?: boolean;
   };
+  fullAddress?: string;
+  birthday?: string;
 }
 
 interface AttorneyMetadata extends BaseMetadata {

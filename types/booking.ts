@@ -7,12 +7,18 @@ export interface Booking {
     lastName: string;
     email: string;
     phoneNumber: string;
+    birthday?: string;
+    fullAddress?: string;
   };
   attorney: {
     fullname: string;
     email: string;
     id: string;
   } | null;
+  adverseParty: string;
+  representedByPreviousLawyer: boolean;
+  consultationMode: "in-person" | "online";
+  branch?: "Angeles branch" | "Magalang branch" | null;
   areas?: string[];
   message: string;
   existingClient: boolean;

@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  // Alert,
+  Alert,
   Button,
   Group,
   Modal,
@@ -11,12 +11,16 @@ import {
   Text,
   Textarea,
   TextInput,
+  Checkbox,
+  Select,
+  Radio,
   useMantineTheme,
+  Flex,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { UserResource } from "@clerk/types";
 import dayjs from "dayjs";
-import { TimeValue } from "@mantine/dates";
+import { TimeValue, DateInput } from "@mantine/dates";
 import { useEffect, useState } from "react";
 import {
   addDoc,
@@ -34,6 +38,7 @@ import {
   // PAYMONGO_CONFIG,
 } from "@/constants/constants";
 import { appNotifications } from "@/utils/notifications/notifications";
+import { IconInfoCircle } from "@tabler/icons-react";
 // import { IconInfoCircle } from "@tabler/icons-react";
 
 export default function BookingModal({
@@ -66,7 +71,13 @@ export default function BookingModal({
         lastName: "",
         email: "",
         phoneNumber: "",
+        fullAddress: "",
+        birthday: null as Date | null,
       },
+      adverseParty: "",
+      representedByPreviousLawyer: false,
+      consultationMode: "in-person",
+      branch: "",
       message: "",
       date: "",
       time: "",
@@ -77,10 +88,22 @@ export default function BookingModal({
       client: {
         firstName: (value) => (!value.length ? "First name is required" : null),
         lastName: (value) => (!value.length ? "Last name is required" : null),
-        email: (value) => (/^\S+@\S+$/.test(value) ? null : "Invalid email"),
+        email: (value) =>
+          !value?.length
+            ? "Email is required"
+            : /^\S+@\S+$/.test(value)
+              ? null
+              : "Invalid Email",
         phoneNumber: (value) =>
           String(value).length < 10 ? "Invalid Phone Number" : null,
+        fullAddress: (value) =>
+          !value || !String(value).length ? "Full address is required" : null,
+        birthday: (value) => (value ? null : "Birthday is required"),
       },
+      branch: (value, values) =>
+        values.consultationMode === "in-person" && !value
+          ? "Please select a branch"
+          : null,
       areas: (value) =>
         !value.length ? "Please select at least one area" : null,
       message: (value) => (!value.length ? "Message is required" : null),
@@ -160,6 +183,10 @@ export default function BookingModal({
   const handleAddBooking = async (values: typeof form.values) => {
     let clientDetails = {};
 
+    const birthday = values.client.birthday
+      ? dayjs(values.client.birthday).format("YYYY-MM-DD")
+      : null;
+
     if (user) {
       clientDetails = {
         fullname: user.fullName || "",
@@ -167,7 +194,11 @@ export default function BookingModal({
         email: user.emailAddresses[0].emailAddress as string,
         firstName: user.firstName || "",
         lastName: user.lastName || "",
-        phoneNumber: (user.unsafeMetadata?.phoneNumber as string) || "",
+        phoneNumber:
+          (user.unsafeMetadata?.phoneNumber as string) ||
+          values.client.phoneNumber,
+        fullAddress: form.values.client.fullAddress || "",
+        birthday,
       };
     } else {
       clientDetails = {
@@ -177,6 +208,8 @@ export default function BookingModal({
         firstName: values.client.firstName,
         lastName: values.client.lastName,
         phoneNumber: values.client.phoneNumber || "",
+        fullAddress: values.client.fullAddress || "",
+        birthday,
       };
     }
 
@@ -184,8 +217,7 @@ export default function BookingModal({
       ...values,
       existingClient: !!user,
       client: clientDetails,
-      // TODO: Integrate Attorney
-      attorney: null,
+      attorney: null, // Always null since the flow is: staff will assign the attorney
       via: "Website",
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -271,14 +303,28 @@ export default function BookingModal({
 
   useEffect(() => {
     if (opened && !!user) {
+      const unsafeAddress = user.unsafeMetadata?.fullAddress as
+        | string
+        | undefined;
+      const unsafeBirthday = user.unsafeMetadata?.birthday as
+        | string
+        | undefined;
+      const unsafePhoneNumber = user.unsafeMetadata?.phoneNumber as
+        | string
+        | undefined;
+
       form.setValues({
         client: {
+          fullAddress: unsafeAddress || "",
+          birthday: unsafeBirthday
+            ? dayjs(unsafeBirthday, "YYYY-MM-DD").toDate()
+            : null,
           fullname: user.fullName || "",
           id: user.id,
           email: user.emailAddresses[0].emailAddress as string,
           firstName: user.firstName || "",
           lastName: user.lastName || "",
-          phoneNumber: (user.unsafeMetadata?.phoneNumber as string) || "",
+          phoneNumber: unsafePhoneNumber || "",
         },
       });
     }
@@ -301,34 +347,26 @@ export default function BookingModal({
       centered
       size="xl"
     >
-      {/* <Alert
-        title="Important"
-        color="blue"
-        icon={<IconInfoCircle />}
-        mb="sm"
-        styles={(theme) => ({
-          title: { fontWeight: 700, color: theme.colors.blue[4] },
-          icon: { color: theme.colors.blue[4] },
-          message: {
-            color: theme.colors.blue[4],
-            textAlign: "justify",
-            paddingRight: 16,
-          },
-          root: {
-            backgroundColor: theme.colors.blue[0],
-            boxShadow: theme.other.customBoxShadow,
-            borderRadius: 10,
-          },
-          body: { gap: 2 },
-        })}
-      >
-        <Text size="xs" fw={600}>
-          To secure your booking, a non-refundable booking fee of{" "}
-          <strong>₱200</strong> is required. This fee confirms your reservation
-          and ensures that your preferred schedule is reserved exclusively for
-          you.
-        </Text>
-      </Alert> */}
+      {user && (
+        <Alert
+          mb="sm"
+          color="blue"
+          variant="light"
+          styles={(theme) => ({
+            title: { fontWeight: 600, color: theme.colors.blue[7] },
+            message: { color: theme.colors.blue[7] },
+            body: { gap: 2 },
+            root: { paddingBlock: 12 },
+          })}
+          icon={<IconInfoCircle />}
+          title="You are currently logged in"
+        >
+          <Text size="xs">
+            Some of your personal details are already filled in and disabled
+            because you are currently logged in.
+          </Text>
+        </Alert>
+      )}
 
       <Text mb={8}>
         Booking for{" "}
@@ -340,13 +378,14 @@ export default function BookingModal({
 
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack mb="md">
-          <Group grow>
+          <Flex gap="sm" direction={{ base: "column", sm: "row" }}>
             <TextInput
               withAsterisk
               label="First Name"
               placeholder="Enter First Name"
               {...form.getInputProps("client.firstName")}
-              readOnly={!!user?.firstName}
+              disabled={!!user?.firstName}
+              flex={1}
             />
 
             <TextInput
@@ -354,17 +393,19 @@ export default function BookingModal({
               label="Last Name"
               placeholder="Enter Last Name"
               {...form.getInputProps("client.lastName")}
-              readOnly={!!user?.lastName}
+              disabled={!!user?.lastName}
+              flex={1}
             />
-          </Group>
+          </Flex>
 
-          <Group grow>
+          <Flex gap="sm" direction={{ base: "column", sm: "row" }}>
             <TextInput
               withAsterisk
               label="Email"
               placeholder="Enter your email"
               {...form.getInputProps("client.email")}
-              readOnly={!!user?.emailAddresses[0].emailAddress}
+              disabled={!!user?.emailAddresses[0].emailAddress}
+              flex={1}
             />
 
             <NumberInput
@@ -374,14 +415,74 @@ export default function BookingModal({
               maxLength={10}
               placeholder="912 345 6789"
               leftSection={
-                <Text size="sm" c="black">
+                <Text size="sm" c="dimmed">
                   +63
                 </Text>
               }
               allowNegative={false}
               {...form.getInputProps("client.phoneNumber")}
+              disabled={!!user?.unsafeMetadata?.phoneNumber}
+              flex={1}
             />
-          </Group>
+          </Flex>
+
+          <TextInput
+            withAsterisk
+            label="Full Address"
+            placeholder="Enter full address"
+            {...form.getInputProps("client.fullAddress")}
+            disabled={!!user?.unsafeMetadata?.fullAddress}
+          />
+
+          <Flex gap="sm" direction={{ base: "column", sm: "row" }}>
+            <DateInput
+              withAsterisk
+              label="Birthday"
+              placeholder="1970-01-01"
+              valueFormat="YYYY-MM-DD"
+              value={form.values.client.birthday}
+              onChange={(value: string | null) =>
+                form.setFieldValue(
+                  "client.birthday",
+                  value ? dayjs(value, "YYYY-MM-DD").toDate() : null
+                )
+              }
+              disabled={!!user?.unsafeMetadata?.birthday}
+              flex={1}
+            />
+
+            <TextInput
+              label="Adverse Party"
+              placeholder="Enter adverse party"
+              {...form.getInputProps("adverseParty")}
+              flex={1}
+            />
+          </Flex>
+
+          <Radio.Group
+            name="consultationMode"
+            label="Consultation Type"
+            withAsterisk
+            {...form.getInputProps("consultationMode")}
+          >
+            <Group mt="xs">
+              <Radio value="in-person" label="In person consultation" />
+              <Radio value="online" label="Online consultation" />
+            </Group>
+          </Radio.Group>
+
+          {form.values.consultationMode === "in-person" && (
+            <Select
+              withAsterisk
+              label="Branch"
+              placeholder="Select Branch"
+              data={[
+                { value: "Angeles branch", label: "Angeles branch" },
+                { value: "Magalang branch", label: "Magalang branch" },
+              ]}
+              {...form.getInputProps("branch")}
+            />
+          )}
 
           <TagsInput
             withAsterisk
@@ -409,6 +510,13 @@ export default function BookingModal({
             {...form.getInputProps("message")}
             styles={{ input: { paddingBlock: 6 } }}
             rows={5}
+          />
+
+          <Checkbox
+            label="Represented by previous lawyer"
+            {...form.getInputProps("representedByPreviousLawyer", {
+              type: "checkbox",
+            })}
           />
         </Stack>
 

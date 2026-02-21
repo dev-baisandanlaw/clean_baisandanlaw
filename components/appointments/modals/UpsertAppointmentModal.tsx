@@ -84,7 +84,7 @@ export default function AddAppointmentModal({
           organization_id: CLERK_ORG_IDS.attorney,
           limit: 9999,
         },
-      },
+      }
     );
     setAttorneyUsers(data);
     setHasFetchedAtty(true);
@@ -98,7 +98,7 @@ export default function AddAppointmentModal({
           organization_id: CLERK_ORG_IDS.client,
           limit: 9999,
         },
-      },
+      }
     );
     setClientUsers(data);
     setHasFetchedClient(true);
@@ -109,11 +109,11 @@ export default function AddAppointmentModal({
       query(
         collection(db, COLLECTIONS.BOOKINGS),
         where("attorney.id", "==", form.values.attorney),
-        where("date", "==", dayjs(form.values.date).format("YYYY-MM-DD")),
-      ),
+        where("date", "==", dayjs(form.values.date).format("YYYY-MM-DD"))
+      )
     );
     setAttyBookings(
-      docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Booking),
+      docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Booking)
     );
   };
 
@@ -136,6 +136,8 @@ export default function AddAppointmentModal({
       lastName: "",
       email: "",
       phoneNumber: "",
+      fullAddress: "",
+      birthday: null as Date | null,
     },
   });
 
@@ -145,12 +147,12 @@ export default function AddAppointmentModal({
     let clientData;
 
     const attyDetails = attorneyUsers.find(
-      (attorney) => attorney.id === values.attorney,
+      (attorney) => attorney.id === values.attorney
     );
 
     if (selectedClientType === "Existing Client") {
       const clientDetails = clientUsers.find(
-        (client) => client.id === values.client,
+        (client) => client.id === values.client
       );
       clientData = {
         fullname: clientDetails?.first_name + " " + clientDetails?.last_name,
@@ -159,6 +161,8 @@ export default function AddAppointmentModal({
         firstName: clientDetails?.first_name,
         lastName: clientDetails?.last_name,
         phoneNumber: clientDetails?.unsafe_metadata?.phoneNumber,
+        fullAddress: clientDetails?.unsafe_metadata?.fullAddress || "",
+        birthday: clientDetails?.unsafe_metadata?.birthday || "",
       };
     } else {
       clientData = {
@@ -168,11 +172,15 @@ export default function AddAppointmentModal({
           clientForm.values.firstName + " " + clientForm.values.lastName,
         email: clientForm.values.email,
         phoneNumber: clientForm.values.phoneNumber || "",
+        fullAddress: clientForm.values.fullAddress || "",
+        birthday: clientForm.values.birthday
+          ? dayjs(clientForm.values.birthday).format("YYYY-MM-DD")
+          : undefined,
       };
     }
 
     const startISO = dayjs(
-      `${dayjs(values.date).format("YYYY-MM-DD")} ${values.time}`,
+      `${dayjs(values.date).format("YYYY-MM-DD")} ${values.time}`
     );
     const endISO = startISO.add(1, "hour");
 
@@ -212,7 +220,7 @@ export default function AddAppointmentModal({
           appNotifications.error({
             title: "Failed to add appointment",
             message: "The appointment could not be added. Please try again.",
-          }),
+          })
         )
         .finally(() => setIsLoading(false));
     };
@@ -250,7 +258,7 @@ export default function AddAppointmentModal({
           appNotifications.error({
             title: "Failed to update appointment",
             message: "The appointment could not be updated. Please try again.",
-          }),
+          })
         )
         .finally(() => setIsLoading(false));
     };
@@ -337,7 +345,7 @@ export default function AddAppointmentModal({
       form.setValues({
         attorney: booking.attorney?.id || "",
         date: new Date(booking.date),
-        time: booking.time,
+        time: dayjs(`2000-01-01 ${booking.time}`).format("HH:mm"),
         message: booking.message,
         via: booking.via,
         areas: booking.areas || [],
@@ -354,12 +362,16 @@ export default function AddAppointmentModal({
           lastName: booking.client.lastName,
           email: booking.client.email,
           phoneNumber: booking.client.phoneNumber,
+          fullAddress: booking.client.fullAddress || "",
+          birthday: booking.client.birthday
+            ? new Date(booking.client.birthday)
+            : null,
         });
       }
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opened]);
+  }, [opened, times]);
 
   useEffect(() => {
     if (form.values.attorney && form.values.date) fetchAttyBookings();
@@ -384,7 +396,7 @@ export default function AddAppointmentModal({
             value: hhmm,
             label: d.format("h:mm A"),
           };
-        }),
+        })
       );
     }
   }, [opened, globalSched]);
@@ -414,7 +426,7 @@ export default function AddAppointmentModal({
               }))}
               renderOption={({ option }) => {
                 const selectedAttorney = attorneyUsers.find(
-                  (attorney) => attorney.id === option.value,
+                  (attorney) => attorney.id === option.value
                 );
                 const practiceAreas =
                   selectedAttorney?.unsafe_metadata.practiceAreas || [];
@@ -544,6 +556,7 @@ export default function AddAppointmentModal({
                   {...clientForm.getInputProps("email")}
                 />
                 <TextInput
+                  withAsterisk
                   label="Phone Number"
                   placeholder="Enter Phone Number"
                   leftSection={
@@ -552,6 +565,18 @@ export default function AddAppointmentModal({
                     </Text>
                   }
                   {...clientForm.getInputProps("phoneNumber")}
+                />
+                <TextInput
+                  label="Full Address"
+                  placeholder="Enter Full Address"
+                  {...clientForm.getInputProps("fullAddress")}
+                />
+                <DatePickerInput
+                  label="Birthday"
+                  placeholder="Select Birthday"
+                  clearable
+                  valueFormat="YYYY-MM-DD"
+                  {...clientForm.getInputProps("birthday")}
                 />
               </SimpleGrid>
             )}
@@ -580,7 +605,7 @@ export default function AddAppointmentModal({
                   value: time.value,
                   label: time.label,
                   disabled: attyBookings.some(
-                    (b) => b.time === time.value && b.id !== booking?.id,
+                    (b) => b.time === time.value && b.id !== booking?.id
                   ),
                 }))}
                 {...form.getInputProps("time")}
@@ -658,7 +683,8 @@ export default function AddAppointmentModal({
                 (selectedClientType === "New Client" &&
                   (!clientForm.values.firstName ||
                     !clientForm.values.lastName ||
-                    !clientForm.values.email))
+                    !clientForm.values.email ||
+                    !clientForm.values.phoneNumber))
               }
             >
               {booking ? "Update Appointment" : "Add Appointment"}

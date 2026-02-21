@@ -12,6 +12,7 @@ import {
   PasswordInput,
   PinInput,
   ScrollArea,
+  Stack,
   Text,
   TextInput,
   Title,
@@ -29,6 +30,8 @@ import { useMediaQuery } from "@mantine/hooks";
 import axios from "axios";
 import { CLERK_ORG_IDS } from "@/constants/constants";
 import { appNotifications } from "@/utils/notifications/notifications";
+import { DateInput } from "@mantine/dates";
+import dayjs from "dayjs";
 
 export default function Page() {
   const shrink = useMediaQuery(`(max-width: ${em(576)})`);
@@ -51,17 +54,23 @@ export default function Page() {
       email: "",
       password: "",
       confirmPassword: "",
+      address: "",
+      birthday: "",
     },
 
     validate: {
       firstName: (value) => (!value.length ? "First name is required" : null),
       lastName: (value) => (!value.length ? "Last name is required" : null),
+      phoneNumber: (value) =>
+        !value?.toString().length ? "Phone number is required" : null,
       email: (value) =>
         !value.length
           ? "Email is required"
           : /^\S+@\S+$/.test(value)
             ? null
             : "Invalid Email",
+      address: (value) => (!value.length ? "Full address is required" : null),
+      birthday: (value) => (!value.length ? "Birthday is required" : null),
       password: (value) =>
         value.length < 8 ? "Password must be at least 8 characters" : null,
       confirmPassword: (value, values) =>
@@ -83,9 +92,12 @@ export default function Page() {
         lastName: values.lastName,
         emailAddress: values.email,
         password: values.password,
+
         unsafeMetadata: {
           role: "client",
           phoneNumber: values.phoneNumber,
+          fullAddress: values.address,
+          birthday: dayjs(values.birthday).format("YYYY-MM-DD"),
 
           subscription: {
             count: 0,
@@ -198,9 +210,9 @@ export default function Page() {
               borderBottomLeftRadius: shrink ? theme.radius.md : 0,
             })}
           >
-            <ScrollArea h="100%" mah={620}>
+            <ScrollArea h="100%" mah={700}>
               {!isVerifying ? (
-                <Box p={32}>
+                <Box p={16}>
                   <header>
                     <Title order={3} mb={6}>
                       Sign Up
@@ -224,67 +236,100 @@ export default function Page() {
                   </header>
 
                   <form onSubmit={form.onSubmit(handleSubmit)}>
-                    <Box>
-                      <Flex gap={6}>
+                    <Stack gap="xs">
+                      <Flex
+                        gap={6}
+                        direction={{
+                          base: "column",
+                          xs: "row",
+                        }}
+                      >
                         <TextInput
                           w="100%"
+                          withAsterisk
                           label="First name"
                           placeholder="John"
-                          mb={12}
                           {...form.getInputProps("firstName")}
                         />
                         <TextInput
                           w="100%"
+                          withAsterisk
                           label="Last name"
                           placeholder="Doe"
-                          mb={12}
                           {...form.getInputProps("lastName")}
                         />
                       </Flex>
 
-                      <NumberInput
-                        hideControls
-                        leftSection={
-                          <Text size="sm" c="black">
-                            +63
-                          </Text>
-                        }
-                        allowNegative={false}
-                        label={
-                          <Text>
-                            Phone number{" "}
-                            <Text span size="xs" c="gray.7">
-                              (optional)
+                      <Flex
+                        gap={6}
+                        direction={{
+                          base: "column",
+                          xs: "row",
+                        }}
+                      >
+                        <NumberInput
+                          w="100%"
+                          withAsterisk
+                          hideControls
+                          leftSection={
+                            <Text size="sm" c="black">
+                              +63
                             </Text>
-                          </Text>
-                        }
-                        maxLength={10}
-                        placeholder="912 345 6789"
-                        mb={12}
-                        {...form.getInputProps("phoneNumber")}
-                      />
+                          }
+                          allowNegative={false}
+                          label="Phone number"
+                          maxLength={10}
+                          placeholder="912 345 6789"
+                          {...form.getInputProps("phoneNumber")}
+                        />
 
-                      <TextInput
-                        label={<Text>Email </Text>}
-                        placeholder="your@email.com"
-                        mb={12}
-                        {...form.getInputProps("email")}
-                      />
+                        <TextInput
+                          w="100%"
+                          withAsterisk
+                          label="Email"
+                          placeholder="your@email.com"
+                          {...form.getInputProps("email")}
+                        />
+                      </Flex>
+
+                      <Flex
+                        gap={6}
+                        direction={{
+                          base: "column",
+                          xs: "row",
+                        }}
+                      >
+                        <TextInput
+                          w="100%"
+                          withAsterisk
+                          label="Full address"
+                          placeholder="House, street, city, province"
+                          {...form.getInputProps("address")}
+                        />
+
+                        <DateInput
+                          w="100%"
+                          withAsterisk
+                          placeholder="January 01, 2000"
+                          label="Birthday"
+                          {...form.getInputProps("birthday")}
+                        />
+                      </Flex>
 
                       <PasswordInput
-                        label={<Text>Password </Text>}
+                        withAsterisk
+                        label="Password"
                         placeholder="********"
-                        mb={12}
                         {...form.getInputProps("password")}
                       />
 
                       <PasswordInput
-                        label={<Text>Confirm password </Text>}
+                        withAsterisk
+                        label="Confirm password"
                         placeholder="********"
-                        mb={12}
                         {...form.getInputProps("confirmPassword")}
                       />
-                    </Box>
+                    </Stack>
 
                     <Button
                       type="submit"

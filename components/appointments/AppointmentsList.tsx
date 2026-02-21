@@ -3,8 +3,10 @@ import {
   ActionIcon,
   Badge,
   Group,
+  Stack,
   Table,
   TableScrollContainer,
+  Text,
 } from "@mantine/core";
 import EmptyTableComponent from "../EmptyTableComponent";
 import dayjs from "dayjs";
@@ -48,6 +50,7 @@ export default function AppointmentsList({
             <Table.Th>Client</Table.Th>
             <Table.Th>Attorney</Table.Th>
             <Table.Th>Via</Table.Th>
+            <Table.Th>Consultation</Table.Th>
             {user?.unsafeMetadata?.role === "admin" && (
               <Table.Th ta="center">Actions</Table.Th>
             )}
@@ -82,6 +85,20 @@ export default function AppointmentsList({
                     >
                       {booking.via}
                     </Badge>
+                  </Table.Td>
+                  <Table.Td>
+                    <Stack gap="2">
+                      <Text size="sm" fw={600} tt="capitalize">
+                        {booking?.consultationMode || "-"}
+                      </Text>
+                      {booking?.consultationMode && (
+                        <Text size="xs" c="dimmed">
+                          {booking?.consultationMode === "in-person"
+                            ? booking?.branch || "-"
+                            : ""}
+                        </Text>
+                      )}
+                    </Stack>
                   </Table.Td>
                   {user?.unsafeMetadata?.role === "admin" && (
                     <Table.Td ta="center">

@@ -11,7 +11,8 @@ import {
   Text,
   useMantineTheme,
 } from "@mantine/core";
-import { IconMail, IconPhone } from "@tabler/icons-react";
+import { IconCake, IconMail, IconMapPin, IconPhone } from "@tabler/icons-react";
+import dayjs from "dayjs";
 
 type ViewAppointmentModalProps = {
   opened: boolean;
@@ -28,13 +29,22 @@ export default function ViewAppointmentModal({
 
   if (!booking) return null;
 
+  console.log(booking);
+
   return (
     <Modal
       opened={opened}
       onClose={onClose}
-      title="View Appointment"
+      title={
+        <Group gap="xs">
+          <Text fw={600}>View Appointment</Text>
+          <Badge size="xs" radius="xs" color={getBookingViaColor(booking.via)}>
+            {booking.via}
+          </Badge>
+        </Group>
+      }
       centered
-      size="lg"
+      size="xl"
       transitionProps={{ transition: "pop" }}
     >
       <Table variant="vertical" layout="fixed">
@@ -50,14 +60,32 @@ export default function ViewAppointmentModal({
                 <Group gap="xs">
                   <IconMail size={16} />
                   <Text c="green" fw={600} size="sm">
-                    ({booking.client.email})
+                    {booking.client.email}
                   </Text>
                 </Group>
 
                 <Group gap="xs">
                   <IconPhone size={16} />
                   <Text c="green" fw={600} size="sm">
-                    ({booking.client.phoneNumber || "-"})
+                    {booking.client.phoneNumber || "-"}
+                  </Text>
+                </Group>
+
+                <Group gap="xs">
+                  <IconCake size={16} />
+                  <Text c="green" fw={600} size="sm">
+                    {booking?.client?.birthday
+                      ? dayjs(booking?.client?.birthday).format("MMM D, YYYY")
+                      : "-"}
+                  </Text>
+                </Group>
+
+                <Group gap="xs">
+                  <IconMapPin size={16} />
+                  <Text c="green" fw={600} size="sm">
+                    {booking?.client?.fullAddress
+                      ? booking?.client?.fullAddress
+                      : "-"}
                   </Text>
                 </Group>
               </Stack>
@@ -85,24 +113,38 @@ export default function ViewAppointmentModal({
           </Table.Tr>
 
           <Table.Tr>
-            <Table.Th w={160}>Date & Time</Table.Th>
+            <Table.Th w={160}>Consultation Type</Table.Th>
             <Table.Td>
-              <Text c="green" fw={600} size="sm">
-                {getDateFormatDisplay(`${booking.date} ${booking.time}`, true)}
+              <Stack gap="0">
+                <Text c="green" fw={600} size="sm" tt="capitalize">
+                  {booking?.consultationMode || "-"}
+                </Text>
+                {booking?.consultationMode && (
+                  <Text size="xs" c="dimmed">
+                    {booking?.consultationMode === "in-person"
+                      ? booking?.branch || "-"
+                      : ""}
+                  </Text>
+                )}
+              </Stack>
+            </Table.Td>
+          </Table.Tr>
+
+          <Table.Tr>
+            <Table.Th w={160}>Represented by Previous Lawyer</Table.Th>
+            <Table.Td>
+              <Text c="green" fw={600} size="sm" tt="capitalize">
+                {booking?.representedByPreviousLawyer ? "Yes" : "No"}
               </Text>
             </Table.Td>
           </Table.Tr>
 
           <Table.Tr>
-            <Table.Th w={160}>Via</Table.Th>
+            <Table.Th w={160}>Date & Time</Table.Th>
             <Table.Td>
-              <Badge
-                size="xs"
-                radius="xs"
-                color={getBookingViaColor(booking.via)}
-              >
-                {booking.via}
-              </Badge>
+              <Text c="green" fw={600} size="sm">
+                {getDateFormatDisplay(`${booking.date} ${booking.time}`, true)}
+              </Text>
             </Table.Td>
           </Table.Tr>
 
@@ -128,7 +170,12 @@ export default function ViewAppointmentModal({
           <Table.Tr>
             <Table.Th w={160}>Description</Table.Th>
             <Table.Td>
-              <Text c="green" fw={600} size="sm">
+              <Text
+                c="green"
+                fw={600}
+                size="sm"
+                style={{ whiteSpace: "pre-wrap" }}
+              >
                 {booking.message}
               </Text>
             </Table.Td>

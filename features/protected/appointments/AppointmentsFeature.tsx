@@ -132,7 +132,10 @@ export default function AppointmentsFeature() {
 
   const fetchNoAttorneyBookings = async () => {
     const ref = collection(db, COLLECTIONS.BOOKINGS);
-    const constraints = [where("attorney", "==", null)];
+    const constraints = [
+      where("attorney", "==", null),
+      where("date", ">=", dayjs().format("YYYY-MM-DD")),
+    ];
     const q = query(ref, ...constraints);
     const snapshot = await getDocs(q);
     const bookings = snapshot.docs.map(
@@ -217,9 +220,6 @@ export default function AppointmentsFeature() {
 
             <Group gap="xs">
               {noAttorneyBookings
-                ?.filter((booking) =>
-                  dayjs(booking.date).isSameOrAfter(dayjs())
-                )
                 ?.sort((a, b) => dayjs(a.date).diff(dayjs(b.date)))
                 .map((booking) => (
                   <Badge
