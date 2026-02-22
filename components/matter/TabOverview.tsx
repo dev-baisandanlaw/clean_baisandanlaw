@@ -35,7 +35,7 @@ import { useMediaQuery } from "@mantine/hooks";
 
 interface MatterTabOverviewProps {
   matterData: Matter;
-  clientData: Client;
+  clientData: Client | null;
   attorneyData: Attorney;
   matterUpdates: MatterUpdateDocument;
   setDataChanged: React.Dispatch<React.SetStateAction<boolean>>;
@@ -128,7 +128,7 @@ export default function TabOverview({
       th: "Name",
       td: (
         <Text c="green" fw={600} size="sm">
-          {matterData.clientData.fullname}
+          {matterData.clientData.fullname || ""}
         </Text>
       ),
     },
@@ -136,20 +136,20 @@ export default function TabOverview({
       th: "Email",
       td: (
         <Text c="green" fw={600} size="sm">
-          {clientData.email_addresses[0].email_address}
+          {matterData.clientData?.email || ""}
         </Text>
       ),
     },
     {
       th: "Phone",
-      td: clientData.unsafe_metadata?.phoneNumber || "-",
+      td: clientData?.unsafe_metadata?.phoneNumber || "-",
     },
     {
       th: "Subscription",
       td: (
         <SubscriptionBadge
           isSubscribed={
-            clientData.unsafe_metadata?.subscription?.isSubscribed || false
+            clientData?.unsafe_metadata?.subscription?.isSubscribed || false
           }
           compact
         />
@@ -176,7 +176,7 @@ export default function TabOverview({
     },
     {
       th: "Phone",
-      td: clientData.unsafe_metadata?.phoneNumber || "-",
+      td: clientData?.unsafe_metadata?.phoneNumber || "-",
     },
   ];
 

@@ -6,6 +6,7 @@ export enum TaskStatus {
 export enum TaskDivision {
   Client = "Client",
   Attorney = "Attorney",
+  Staff = "Staff",
 }
 
 export interface Task {

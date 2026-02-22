@@ -17,7 +17,6 @@ import { useForm } from "@mantine/form";
 import { arrayUnion, doc, increment, setDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { nanoid } from "nanoid";
-import { toast } from "react-toastify";
 import dayjs from "dayjs";
 import { TaskDivision } from "@/types/task";
 import { addMatterUpdate } from "../utils/addMatterUpdate";
@@ -47,6 +46,7 @@ export default function TabTasksAddTaskModal({
       label: `Client (${matterData?.clientData.fullname})`,
       value: "client",
     },
+    { label: "Staff", value: "staff" },
   ];
 
   const [isLoading, setIsLoading] = useState(false);
@@ -55,6 +55,7 @@ export default function TabTasksAddTaskModal({
     initialValues: {
       priority: "",
       name: "",
+      staffName: "",
       dueDate: "",
       description: "",
       assignee: "",
@@ -68,7 +69,14 @@ export default function TabTasksAddTaskModal({
       const assigneeDetails =
         form.values.assignee === "attorney"
           ? matterData?.leadAttorney
-          : matterData?.clientData;
+          : form.values.assignee === "client"
+            ? matterData?.clientData
+            : {
+                id: `id-${nanoid(8)}-staff`,
+                fullname: form.values.staffName,
+                email: `email-${nanoid(8)}-staff`,
+                division: "Staff",
+              };
 
       await setDoc(
         doc(db, COLLECTIONS.TASKS, matterData!.id),
@@ -157,6 +165,15 @@ export default function TabTasksAddTaskModal({
             {...form.getInputProps("assignee")}
           />
 
+          {form.values.assignee === "staff" && (
+            <TextInput
+              withAsterisk
+              label="Staff name"
+              placeholder="Enter staff name"
+              {...form.getInputProps("staffName")}
+            />
+          )}
+
           <TextInput
             withAsterisk
             label="Name"
@@ -192,7 +209,9 @@ export default function TabTasksAddTaskModal({
                 !form.values.taskName ||
                 !form.values.dueDate ||
                 !form.values.description ||
-                !form.values.priority
+                !form.values.priority ||
+                (form.values.assignee === "staff" &&
+                  !form.values.staffName.trim())
               }
             >
               Add Task

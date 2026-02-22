@@ -229,7 +229,6 @@ export default function MatterDetailsFeature({
           !isClientLoading &&
           !isAttorneyLoading &&
           matterData &&
-          clientData &&
           attorneyData &&
           matterUpdates && (
             <Tabs.Panel value="overview">
