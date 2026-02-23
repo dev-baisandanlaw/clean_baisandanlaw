@@ -38,6 +38,9 @@ export interface AppwriteNotaryRequestDocument {
 
   status: string;
   search_blob: string;
+
+  pickupBranch?: "Angeles branch" | "Magalang branch" | "Soft copy only";
+  pickupDate?: Date | string | null;
 }
 
 export interface AppwriteRetainersDocument {

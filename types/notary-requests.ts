@@ -66,6 +66,8 @@ export interface NotaryRequest {
     initialFile: NotaryRequestDocument | null;
     finishedFile: NotaryRequestDocument | null;
   };
+  pickupBranch?: "Angeles branch" | "Magalang branch" | "Soft copy only";
+  pickupDate?: Date | string | null;
 }
 
 type NotaryRequestTimelineItem = {

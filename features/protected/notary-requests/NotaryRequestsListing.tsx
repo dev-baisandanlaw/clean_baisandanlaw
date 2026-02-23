@@ -80,58 +80,21 @@ export default function NotaryRequestsListing() {
   const [notaryRequests, setNotaryRequests] = useState<
     AppwriteNotaryRequestDocument[]
   >([]);
+  const [selectedNotaryRequest, setSelectedNotaryRequest] =
+    useState<AppwriteNotaryRequestDocument | null>(null);
 
   const [dataChanged, setDataChanged] = useState(false);
 
   const [isFetching, setIsFetching] = useState(false);
 
   const [activeTab, setActiveTab] = useState<NotaryRequestStatus | "All">(
-    "All"
+    "All",
   );
   const [search, setSearch] = useState("");
   const [debouncedSearch] = useDebouncedValue(search, 500);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-
-  const fetchNotaryRequestsFromAppwrite = async (
-    search: string,
-    page: number = 1,
-    status: NotaryRequestStatus | "All" = "All"
-  ) => {
-    if (!user) return;
-
-    setIsFetching(true);
-    const userRole = user.unsafeMetadata?.role;
-    const limit = 10;
-    const offset = (page - 1) * limit;
-
-    const queries: string[] = [Query.limit(limit), Query.offset(offset)];
-
-    if (userRole === "client") {
-      queries.push(
-        Query.equal("requestorEmail", user.emailAddresses[0].emailAddress)
-      );
-    }
-
-    if (search && search.trim().length > 0) {
-      queries.push(Query.search("search_blob", search.trim()));
-    }
-
-    if (status !== "All") {
-      queries.push(Query.equal("status", status));
-    }
-
-    await listDatabaseDocuments("notary_requests", queries)
-      .then(({ documents, total }) => {
-        setNotaryRequests(
-          documents as unknown as AppwriteNotaryRequestDocument[]
-        );
-
-        setTotalCount(total);
-      })
-      .finally(() => setIsFetching(false));
-  };
 
   const [
     isUpsertNotaryRequestModalOpen,
@@ -180,8 +143,44 @@ export default function NotaryRequestsListing() {
     { open: openConfirmationModal, close: closeConfirmationModal },
   ] = useDisclosure(false);
 
-  const [selectedNotaryRequest, setSelectedNotaryRequest] =
-    useState<AppwriteNotaryRequestDocument | null>(null);
+  const fetchNotaryRequestsFromAppwrite = async (
+    search: string,
+    page: number = 1,
+    status: NotaryRequestStatus | "All" = "All",
+  ) => {
+    if (!user) return;
+
+    setIsFetching(true);
+    const userRole = user.unsafeMetadata?.role;
+    const limit = 10;
+    const offset = (page - 1) * limit;
+
+    const queries: string[] = [Query.limit(limit), Query.offset(offset)];
+
+    if (userRole === "client") {
+      queries.push(
+        Query.equal("requestorEmail", user.emailAddresses[0].emailAddress),
+      );
+    }
+
+    if (search && search.trim().length > 0) {
+      queries.push(Query.search("search_blob", search.trim()));
+    }
+
+    if (status !== "All") {
+      queries.push(Query.equal("status", status));
+    }
+
+    await listDatabaseDocuments("notary_requests", queries)
+      .then(({ documents, total }) => {
+        setNotaryRequests(
+          documents as unknown as AppwriteNotaryRequestDocument[],
+        );
+
+        setTotalCount(total);
+      })
+      .finally(() => setIsFetching(false));
+  };
 
   const handleDownloadFile = async (fileId: string) => {
     appNotifications.info({
@@ -195,7 +194,7 @@ export default function NotaryRequestsListing() {
 
     const disposition = res.headers["content-disposition"];
     const filenameMatch = disposition?.match(
-      /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/
+      /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/,
     );
 
     let filename = "download";
@@ -241,7 +240,7 @@ export default function NotaryRequestsListing() {
       | "review"
       | "for_pickup"
       | "completed",
-    notaryRequest: AppwriteNotaryRequestDocument
+    notaryRequest: AppwriteNotaryRequestDocument,
   ) => {
     const step =
       NOTARY_STEPS_ORDER[
@@ -382,6 +381,7 @@ export default function NotaryRequestsListing() {
                   )}
                   <Table.Th>Created At</Table.Th>
                   <Table.Th>Updated At</Table.Th>
+                  <Table.Th>Pickup</Table.Th>
                   <Table.Th>Status</Table.Th>
                   <Table.Th ta="center">Actions</Table.Th>
                 </Table.Tr>
@@ -390,7 +390,7 @@ export default function NotaryRequestsListing() {
               <Table.Tbody>
                 {!notaryRequests?.length && (
                   <EmptyTableComponent
-                    colspan={user?.unsafeMetadata?.role === "client" ? 6 : 7}
+                    colspan={user?.unsafeMetadata?.role === "client" ? 7 : 8}
                     message="No client requests found"
                   />
                 )}
@@ -434,8 +434,27 @@ export default function NotaryRequestsListing() {
                           {getDateFormatDisplay(notaryRequest.$updatedAt, true)}
                         </Table.Td>
                         <Table.Td>
+                          {notaryRequest?.pickupBranch ? (
+                            <Stack gap="2">
+                              <Text size="sm">
+                                {notaryRequest.pickupBranch}
+                              </Text>
+                              {notaryRequest?.pickupBranch !==
+                                "Soft copy only" && (
+                                <Text size="xs">
+                                  {getDateFormatDisplay(
+                                    notaryRequest.pickupDate!,
+                                  )}
+                                </Text>
+                              )}
+                            </Stack>
+                          ) : (
+                            "-"
+                          )}
+                        </Table.Td>
+                        <Table.Td>
                           {getNotaryStatus(
-                            notaryRequest.status as NotaryRequestStatus
+                            notaryRequest.status as NotaryRequestStatus,
                           )}
                         </Table.Td>
 
@@ -473,7 +492,7 @@ export default function NotaryRequestsListing() {
                                     }
                                     onClick={() =>
                                       handleDownloadFile(
-                                        notaryRequest.documentInitialFileId
+                                        notaryRequest.documentInitialFileId,
                                       )
                                     }
                                   >
@@ -485,7 +504,7 @@ export default function NotaryRequestsListing() {
                                     }
                                     onClick={() =>
                                       handleDownloadFile(
-                                        notaryRequest.documentFinishedFileId
+                                        notaryRequest.documentFinishedFileId,
                                       )
                                     }
                                   >
@@ -494,6 +513,7 @@ export default function NotaryRequestsListing() {
                                 </Menu.Sub.Dropdown>
                               </Menu.Sub>
 
+                              {/* VIEW */}
                               <Menu.Item
                                 leftSection={<IconEye size={16} />}
                                 onClick={() => {
@@ -504,6 +524,7 @@ export default function NotaryRequestsListing() {
                                 View
                               </Menu.Item>
 
+                              {/* CLIENT ONLY - EDIT */}
                               {user?.unsafeMetadata?.role === "client" &&
                                 !disableActions("edit", notaryRequest) && (
                                   <Menu.Item
@@ -517,11 +538,12 @@ export default function NotaryRequestsListing() {
                                   </Menu.Item>
                                 )}
 
+                              {/* NOT CLIENT -  */}
                               {user?.unsafeMetadata?.role !== "client" && (
                                 <>
                                   {!disableActions(
                                     "process",
-                                    notaryRequest
+                                    notaryRequest,
                                   ) && (
                                     <Menu.Item
                                       c="blue.5"
@@ -537,7 +559,7 @@ export default function NotaryRequestsListing() {
 
                                   {!disableActions(
                                     "notarize",
-                                    notaryRequest
+                                    notaryRequest,
                                   ) && (
                                     <Menu.Item
                                       c="green"
@@ -549,7 +571,7 @@ export default function NotaryRequestsListing() {
                                         <IconRubberStamp size={16} />
                                       }
                                     >
-                                      Notarize
+                                      Finish
                                     </Menu.Item>
                                   )}
 
@@ -568,7 +590,7 @@ export default function NotaryRequestsListing() {
 
                                   {!disableActions(
                                     "for_pickup",
-                                    notaryRequest
+                                    notaryRequest,
                                   ) && (
                                     <Menu.Item
                                       c="purple"
@@ -584,7 +606,7 @@ export default function NotaryRequestsListing() {
 
                                   {!disableActions(
                                     "completed",
-                                    notaryRequest
+                                    notaryRequest,
                                   ) && (
                                     <Menu.Item
                                       c="green"
@@ -687,6 +709,7 @@ export default function NotaryRequestsListing() {
         notaryRequestId={selectedNotaryRequest?.$id ?? ""}
       />
 
+      {/* Not for client - this is for processing of admin/attorney */}
       <ReviewNotaryRequestModal
         opened={isReviewNotaryRequestModalOpen}
         onClose={closeReviewNotaryRequestModal}
