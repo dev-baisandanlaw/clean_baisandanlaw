@@ -308,17 +308,18 @@ export default function ClientReviewModal({
                 mb="md"
               />
 
-              {pickupBranch !== "softcopy" && (
-                <DatePickerInput
-                  label="Date of Pickup"
-                  placeholder="Select pickup date"
-                  value={pickupDate}
-                  onChange={setPickupDate}
-                  withAsterisk
-                  mb="md"
-                  minDate={new Date()}
-                />
-              )}
+              {!pickupBranch ||
+                (pickupBranch !== "Soft copy only" && (
+                  <DatePickerInput
+                    label="Date of Pickup"
+                    placeholder="Select pickup date"
+                    value={pickupDate}
+                    onChange={setPickupDate}
+                    withAsterisk
+                    mb="md"
+                    minDate={new Date()}
+                  />
+                ))}
             </>
           )}
 
