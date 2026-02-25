@@ -1,13 +1,5 @@
-import {
-  ATTY_PRACTICE_AREAS,
-  CLERK_ORG_IDS,
-  COLLECTIONS,
-} from "@/constants/constants";
-import { db } from "@/firebase/config";
-import { Booking } from "@/types/booking";
-import { GlobalSched } from "@/types/global-sched";
-import { Attorney, Client } from "@/types/user";
-import { appNotifications } from "@/utils/notifications/notifications";
+import { useEffect, useState } from "react";
+
 import {
   Badge,
   Button,
@@ -15,7 +7,9 @@ import {
   em,
   Group,
   Modal,
+  NumberInput,
   Paper,
+  Radio,
   Select,
   SimpleGrid,
   Stack,
@@ -42,7 +36,17 @@ import {
   updateDoc,
   where,
 } from "firebase/firestore";
-import { useEffect, useState } from "react";
+
+import {
+  ATTY_PRACTICE_AREAS,
+  CLERK_ORG_IDS,
+  COLLECTIONS,
+} from "@/constants/constants";
+import { db } from "@/firebase/config";
+import { Booking } from "@/types/booking";
+import { GlobalSched } from "@/types/global-sched";
+import { Attorney, Client } from "@/types/user";
+import { appNotifications } from "@/utils/notifications/notifications";
 
 type AddAppointmentModalProps = {
   opened: boolean;
@@ -84,7 +88,7 @@ export default function AddAppointmentModal({
           organization_id: CLERK_ORG_IDS.attorney,
           limit: 9999,
         },
-      }
+      },
     );
     setAttorneyUsers(data);
     setHasFetchedAtty(true);
@@ -98,7 +102,7 @@ export default function AddAppointmentModal({
           organization_id: CLERK_ORG_IDS.client,
           limit: 9999,
         },
-      }
+      },
     );
     setClientUsers(data);
     setHasFetchedClient(true);
@@ -109,11 +113,11 @@ export default function AddAppointmentModal({
       query(
         collection(db, COLLECTIONS.BOOKINGS),
         where("attorney.id", "==", form.values.attorney),
-        where("date", "==", dayjs(form.values.date).format("YYYY-MM-DD"))
-      )
+        where("date", "==", dayjs(form.values.date).format("YYYY-MM-DD")),
+      ),
     );
     setAttyBookings(
-      docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Booking)
+      docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Booking),
     );
   };
 
@@ -127,6 +131,8 @@ export default function AddAppointmentModal({
       isPaid: true,
       via: "Walk-in",
       areas: [] as string[],
+      consultationMode: "in-person",
+      branch: "",
     },
   });
 
@@ -139,6 +145,19 @@ export default function AddAppointmentModal({
       fullAddress: "",
       birthday: null as Date | null,
     },
+    validate: {
+      firstName: (value) => (!value.length ? "First name is required" : null),
+      lastName: (value) => (!value.length ? "Last name is required" : null),
+      email: (value) =>
+        !value?.length
+          ? "Email is required"
+          : /^\S+@\S+$/.test(value)
+            ? null
+            : "Invalid Email",
+      phoneNumber: (value) =>
+        String(value).length < 10 ? "Invalid Phone Number" : null,
+    },
+    validateInputOnChange: true,
   });
 
   const handleSubmit = async (values: typeof form.values) => {
@@ -147,12 +166,12 @@ export default function AddAppointmentModal({
     let clientData;
 
     const attyDetails = attorneyUsers.find(
-      (attorney) => attorney.id === values.attorney
+      (attorney) => attorney.id === values.attorney,
     );
 
     if (selectedClientType === "Existing Client") {
       const clientDetails = clientUsers.find(
-        (client) => client.id === values.client
+        (client) => client.id === values.client,
       );
       clientData = {
         fullname: clientDetails?.first_name + " " + clientDetails?.last_name,
@@ -180,7 +199,7 @@ export default function AddAppointmentModal({
     }
 
     const startISO = dayjs(
-      `${dayjs(values.date).format("YYYY-MM-DD")} ${values.time}`
+      `${dayjs(values.date).format("YYYY-MM-DD")} ${values.time}`,
     );
     const endISO = startISO.add(1, "hour");
 
@@ -207,6 +226,8 @@ export default function AddAppointmentModal({
           eventId,
           htmlLink,
         },
+        consultationMode: values.consultationMode,
+        branch: values.consultationMode === "in-person" ? values.branch : "",
       })
         .then(() => {
           appNotifications.success({
@@ -220,7 +241,7 @@ export default function AddAppointmentModal({
           appNotifications.error({
             title: "Failed to add appointment",
             message: "The appointment could not be added. Please try again.",
-          })
+          }),
         )
         .finally(() => setIsLoading(false));
     };
@@ -246,6 +267,8 @@ export default function AddAppointmentModal({
           eventId,
           htmlLink,
         },
+        consultationMode: values.consultationMode,
+        branch: values.consultationMode === "in-person" ? values.branch : "",
       })
         .then(() => {
           appNotifications.success({
@@ -258,7 +281,7 @@ export default function AddAppointmentModal({
           appNotifications.error({
             title: "Failed to update appointment",
             message: "The appointment could not be updated. Please try again.",
-          })
+          }),
         )
         .finally(() => setIsLoading(false));
     };
@@ -349,6 +372,8 @@ export default function AddAppointmentModal({
         message: booking.message,
         via: booking.via,
         areas: booking.areas || [],
+        consultationMode: booking?.consultationMode || "in-person",
+        branch: booking?.branch || "",
       });
 
       if (booking.existingClient) {
@@ -396,7 +421,7 @@ export default function AddAppointmentModal({
             value: hhmm,
             label: d.format("h:mm A"),
           };
-        })
+        }),
       );
     }
   }, [opened, globalSched]);
@@ -426,7 +451,7 @@ export default function AddAppointmentModal({
               }))}
               renderOption={({ option }) => {
                 const selectedAttorney = attorneyUsers.find(
-                  (attorney) => attorney.id === option.value
+                  (attorney) => attorney.id === option.value,
                 );
                 const practiceAreas =
                   selectedAttorney?.unsafe_metadata.practiceAreas || [];
@@ -555,15 +580,18 @@ export default function AddAppointmentModal({
                   placeholder="Enter Email"
                   {...clientForm.getInputProps("email")}
                 />
-                <TextInput
+                <NumberInput
                   withAsterisk
+                  hideControls
                   label="Phone Number"
-                  placeholder="Enter Phone Number"
+                  maxLength={10}
+                  placeholder="912 345 6789"
                   leftSection={
-                    <Text size="sm" c="black">
+                    <Text size="sm" c="dimmed">
                       +63
                     </Text>
                   }
+                  allowNegative={false}
                   {...clientForm.getInputProps("phoneNumber")}
                 />
                 <TextInput
@@ -605,12 +633,37 @@ export default function AddAppointmentModal({
                   value: time.value,
                   label: time.label,
                   disabled: attyBookings.some(
-                    (b) => b.time === time.value && b.id !== booking?.id
+                    (b) => b.time === time.value && b.id !== booking?.id,
                   ),
                 }))}
                 {...form.getInputProps("time")}
               />
             </SimpleGrid>
+
+            <Radio.Group
+              name="consultationMode"
+              label="Consultation Type"
+              withAsterisk
+              {...form.getInputProps("consultationMode")}
+            >
+              <Group mt="xs">
+                <Radio value="in-person" label="In person consultation" />
+                <Radio value="online" label="Online consultation" />
+              </Group>
+            </Radio.Group>
+
+            {form.values.consultationMode === "in-person" && (
+              <Select
+                withAsterisk
+                label="Branch"
+                placeholder="Select Branch"
+                data={[
+                  { value: "Angeles branch", label: "Angeles branch" },
+                  { value: "Magalang branch", label: "Magalang branch" },
+                ]}
+                {...form.getInputProps("branch")}
+              />
+            )}
           </Stack>
 
           <Stack gap="xs">
@@ -678,13 +731,11 @@ export default function AddAppointmentModal({
                 !form.values.message ||
                 !form.values.via ||
                 !form.values.areas.length ||
+                (form.values.consultationMode === "in-person" &&
+                  !form.values.branch) ||
                 (selectedClientType === "Existing Client" &&
                   !form.values.client) ||
-                (selectedClientType === "New Client" &&
-                  (!clientForm.values.firstName ||
-                    !clientForm.values.lastName ||
-                    !clientForm.values.email ||
-                    !clientForm.values.phoneNumber))
+                (selectedClientType === "New Client" && !clientForm.isValid())
               }
             >
               {booking ? "Update Appointment" : "Add Appointment"}

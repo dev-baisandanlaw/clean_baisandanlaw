@@ -29,8 +29,6 @@ export default function ViewAppointmentModal({
 
   if (!booking) return null;
 
-  console.log(booking);
-
   return (
     <Modal
       opened={opened}
