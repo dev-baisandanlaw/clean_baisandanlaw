@@ -1,7 +1,7 @@
 "use client";
 
-import { Retainer } from "@/types/retainer";
-import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
+import { useEffect, useState } from "react";
+
 import {
   ActionIcon,
   Avatar,
@@ -9,42 +9,47 @@ import {
   Button,
   Card,
   Divider,
-  em,
   Flex,
   Group,
+  NumberInput,
   Paper,
+  Radio,
   ScrollArea,
   SimpleGrid,
   Spoiler,
   Stack,
   Table,
+  TagsInput,
   Text,
   Textarea,
+  TextInput,
   useMantineTheme,
 } from "@mantine/core";
-import { IconPencil, IconSend } from "@tabler/icons-react";
-import { useEffect, useState } from "react";
-import { arrayUnion, doc, setDoc } from "firebase/firestore";
-import { db } from "@/firebase/config";
-import { COLLECTIONS } from "@/constants/constants";
-import { useUser } from "@clerk/nextjs";
-import { nanoid } from "nanoid";
-import dayjs from "dayjs";
-import { Note } from "@/types/matter-notes";
-import { appNotifications } from "@/utils/notifications/notifications";
+import { DatePickerInput } from "@mantine/dates";
 import { useMediaQuery } from "@mantine/hooks";
+import {
+  IconBuilding,
+  IconPencil,
+  IconSend,
+  IconUser,
+} from "@tabler/icons-react";
+import { useUser } from "@clerk/nextjs";
+import { arrayUnion, doc, setDoc } from "firebase/firestore";
+import dayjs from "dayjs";
+import { nanoid } from "nanoid";
+
+import { ATTY_PRACTICE_AREAS, COLLECTIONS } from "@/constants/constants";
+import { db } from "@/firebase/config";
+import { syncToAppwrite } from "@/lib/syncToAppwrite";
+import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
+import { appNotifications } from "@/utils/notifications/notifications";
+
+import type { Retainer } from "@/types/retainer";
+import type { Note } from "@/types/matter-notes";
 
 interface RTabOverviewProps {
   retainerData: Retainer;
   setDataChanged: React.Dispatch<React.SetStateAction<boolean>>;
-}
-
-interface VerticalTableProps {
-  title: string;
-  data: {
-    th: string;
-    td: React.ReactNode;
-  }[];
 }
 
 export default function RTabOverview({
@@ -53,19 +58,94 @@ export default function RTabOverview({
 }: RTabOverviewProps) {
   const shrink = useMediaQuery("(max-width: 948px)");
   const theme = useMantineTheme();
+  const { user } = useUser();
+
+  const isAdmin = user?.unsafeMetadata?.role === "admin";
+
+  const [isEditingDetails, setIsEditingDetails] = useState(false);
+  const [isUpdatingDetails, setIsUpdatingDetails] = useState(false);
+  const [editedDetails, setEditedDetails] = useState({
+    clientName: retainerData.clientName,
+    clientType: retainerData.clientType,
+    practiceAreas: retainerData.practiceAreas,
+    retainerSince: new Date(retainerData.retainerSince),
+  });
+
+  const [isEditingContact, setIsEditingContact] = useState(false);
+  const [isUpdatingContact, setIsUpdatingContact] = useState(false);
+  const [editedContact, setEditedContact] = useState({
+    fullname: retainerData.contactPerson.fullname,
+    email: retainerData.contactPerson.email,
+    phoneNumber: retainerData.contactPerson.phoneNumber,
+    address: retainerData.contactPerson.address,
+  });
 
   const retainerDetailsCardData = [
     {
       th: "Client Name",
-      td: (
-        <Text c="green" fw={600} size="sm">
-          {retainerData.clientName}
-        </Text>
+      td: isEditingDetails ? (
+        <TextInput
+          size="xs"
+          value={editedDetails.clientName}
+          onChange={(e) =>
+            setEditedDetails({ ...editedDetails, clientName: e.target.value })
+          }
+        />
+      ) : (
+        <Group gap="xs">
+          {retainerData.clientType === "individual" ? (
+            <IconUser size={18} />
+          ) : (
+            <IconBuilding size={18} />
+          )}
+          <Text c="green" fw={600} size="sm">
+            {retainerData.clientName}
+          </Text>
+        </Group>
       ),
     },
     {
+      th: "Client Type",
+      td: isEditingDetails ? (
+        <Radio.Group
+          value={editedDetails.clientType}
+          onChange={(value) =>
+            setEditedDetails({
+              ...editedDetails,
+              clientType: value as "individual" | "company",
+            })
+          }
+        >
+          <Group gap="xs">
+            <Radio value="individual" label="Individual" size="xs" />
+            <Radio value="company" label="Company" size="xs" />
+          </Group>
+        </Radio.Group>
+      ) : null,
+    },
+    {
       th: "Practice Areas",
-      td: (
+      td: isEditingDetails ? (
+        <TagsInput
+          size="xs"
+          value={editedDetails.practiceAreas}
+          onChange={(value) =>
+            setEditedDetails({ ...editedDetails, practiceAreas: value })
+          }
+          data={ATTY_PRACTICE_AREAS}
+          clearable
+          maxDropdownHeight={200}
+          comboboxProps={{
+            transitionProps: { transition: "pop-top-left", duration: 200 },
+          }}
+          styles={{
+            pill: {
+              backgroundColor: theme.colors.green[0],
+              color: theme.colors.green[9],
+            },
+          }}
+        />
+      ) : (
         <Group gap={2}>
           {retainerData.practiceAreas.map((area) => (
             <Badge
@@ -83,7 +163,22 @@ export default function RTabOverview({
     },
     {
       th: "Retainer Since",
-      td: getDateFormatDisplay(retainerData.retainerSince),
+      td: isEditingDetails ? (
+        <DatePickerInput
+          size="xs"
+          value={editedDetails.retainerSince}
+          onChange={(value) =>
+            setEditedDetails({
+              ...editedDetails,
+              retainerSince: (value || new Date()) as Date,
+            })
+          }
+          clearable
+          hideOutsideDates
+        />
+      ) : (
+        getDateFormatDisplay(retainerData.retainerSince)
+      ),
     },
     {
       th: "Date Created",
@@ -94,7 +189,15 @@ export default function RTabOverview({
   const contactDetailsCardData = [
     {
       th: "Name",
-      td: (
+      td: isEditingContact ? (
+        <TextInput
+          size="xs"
+          value={editedContact.fullname}
+          onChange={(e) =>
+            setEditedContact({ ...editedContact, fullname: e.target.value })
+          }
+        />
+      ) : (
         <Text c="green" fw={600} size="sm">
           {retainerData.contactPerson.fullname}
         </Text>
@@ -102,7 +205,15 @@ export default function RTabOverview({
     },
     {
       th: "Email",
-      td: (
+      td: isEditingContact ? (
+        <TextInput
+          size="xs"
+          value={editedContact.email}
+          onChange={(e) =>
+            setEditedContact({ ...editedContact, email: e.target.value })
+          }
+        />
+      ) : (
         <Text c="green" fw={600} size="sm">
           {retainerData.contactPerson.email}
         </Text>
@@ -110,17 +221,140 @@ export default function RTabOverview({
     },
     {
       th: "Phone",
-      td: retainerData.contactPerson.phoneNumber || "-",
+      td: isEditingContact ? (
+        <NumberInput
+          size="xs"
+          hideControls
+          maxLength={10}
+          placeholder="912 345 6789"
+          leftSection={
+            <Text size="sm" c="dimmed">
+              +63
+            </Text>
+          }
+          allowNegative={false}
+          value={editedContact.phoneNumber}
+          onChange={(value) =>
+            setEditedContact({ ...editedContact, phoneNumber: String(value) })
+          }
+        />
+      ) : (
+        retainerData.contactPerson.phoneNumber || "-"
+      ),
     },
     {
       th: "Address",
-      td: retainerData.contactPerson.address || "-",
+      td: isEditingContact ? (
+        <TextInput
+          size="xs"
+          value={editedContact.address}
+          onChange={(e) =>
+            setEditedContact({ ...editedContact, address: e.target.value })
+          }
+        />
+      ) : (
+        retainerData.contactPerson.address || "-"
+      ),
     },
   ];
 
   const [isUpdatingDescription, setIsUpdatingDescription] = useState(false);
   const [isEditDescription, setIsEditDescription] = useState(false);
   const [description, setDescription] = useState("");
+
+  const handleUpdateContact = async () => {
+    setIsUpdatingContact(true);
+    try {
+      const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
+
+      // Update Firebase
+      await setDoc(
+        doc(db, COLLECTIONS.RETAINERS, retainerData.id),
+        {
+          contactPerson: editedContact,
+          updatedAt: now,
+        },
+        {
+          merge: true,
+        },
+      );
+
+      // Sync to Appwrite
+      await syncToAppwrite("RETAINERS", retainerData.id, {
+        client: retainerData.clientName,
+        clientType: retainerData.clientType,
+        contactPersonName: editedContact.fullname,
+        contactPersonEmail: editedContact.email,
+        matterType: retainerData.practiceAreas.join("&_&"),
+        retainerSince: retainerData.retainerSince,
+        search_blob: `${retainerData.clientName} ${retainerData.clientType} ${editedContact.fullname} ${editedContact.email} ${retainerData.practiceAreas.join(" ")} ${retainerData.retainerSince}`,
+      });
+
+      setDataChanged((prev) => !prev);
+      appNotifications.success({
+        title: "Contact details updated successfully",
+        message: "The contact details have been updated successfully",
+      });
+      setIsEditingContact(false);
+    } catch {
+      appNotifications.error({
+        title: "Failed to update contact details",
+        message: "The contact details could not be updated. Please try again.",
+      });
+    } finally {
+      setIsUpdatingContact(false);
+    }
+  };
+
+  const handleUpdateDetails = async () => {
+    setIsUpdatingDetails(true);
+    try {
+      const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
+      const formattedRetainerSince = dayjs(editedDetails.retainerSince).format(
+        "YYYY-MM-DD",
+      );
+
+      // Update Firebase
+      await setDoc(
+        doc(db, COLLECTIONS.RETAINERS, retainerData.id),
+        {
+          clientName: editedDetails.clientName,
+          clientType: editedDetails.clientType,
+          practiceAreas: editedDetails.practiceAreas,
+          retainerSince: formattedRetainerSince,
+          updatedAt: now,
+        },
+        {
+          merge: true,
+        },
+      );
+
+      // Sync to Appwrite
+      await syncToAppwrite("RETAINERS", retainerData.id, {
+        client: editedDetails.clientName,
+        clientType: editedDetails.clientType,
+        contactPersonName: retainerData.contactPerson.fullname,
+        contactPersonEmail: retainerData.contactPerson.email,
+        matterType: editedDetails.practiceAreas.join("&_&"),
+        retainerSince: formattedRetainerSince,
+        search_blob: `${editedDetails.clientName} ${editedDetails.clientType} ${retainerData.contactPerson.fullname} ${retainerData.contactPerson.email} ${editedDetails.practiceAreas.join(" ")} ${formattedRetainerSince}`,
+      });
+
+      setDataChanged((prev) => !prev);
+      appNotifications.success({
+        title: "Retainer details updated successfully",
+        message: "The retainer details have been updated successfully",
+      });
+      setIsEditingDetails(false);
+    } catch {
+      appNotifications.error({
+        title: "Failed to update retainer details",
+        message: "The retainer details could not be updated. Please try again.",
+      });
+    } finally {
+      setIsUpdatingDetails(false);
+    }
+  };
 
   const handleUpdateDescription = async () => {
     setIsUpdatingDescription(true);
@@ -132,7 +366,7 @@ export default function RTabOverview({
         },
         {
           merge: true,
-        }
+        },
       );
 
       setDataChanged((prev) => !prev);
@@ -153,16 +387,165 @@ export default function RTabOverview({
 
   useEffect(() => {
     setDescription(retainerData?.description || "");
+    setEditedDetails({
+      clientName: retainerData.clientName,
+      clientType: retainerData.clientType,
+      practiceAreas: retainerData.practiceAreas,
+      retainerSince: new Date(retainerData.retainerSince),
+    });
+    setEditedContact({
+      fullname: retainerData.contactPerson.fullname,
+      email: retainerData.contactPerson.email,
+      phoneNumber: retainerData.contactPerson.phoneNumber,
+      address: retainerData.contactPerson.address,
+    });
   }, [retainerData]);
 
   return (
     <Flex direction="column" gap="md">
       <SimpleGrid cols={shrink ? 1 : 2}>
-        <VerticalTable
-          title="Retainer Details"
-          data={retainerDetailsCardData}
-        />
-        <VerticalTable title="Contact Details" data={contactDetailsCardData} />
+        <Card withBorder radius="md" p="md">
+          <Card.Section inheritPadding py="xs">
+            <Group justify="space-between" align="center">
+              <Text size="lg" fw={600} c="green">
+                Retainer Details
+              </Text>
+
+              {isAdmin && !isEditingDetails ? (
+                <ActionIcon
+                  variant="white"
+                  size="sm"
+                  color={theme.other.customPumpkin}
+                  onClick={() => setIsEditingDetails(true)}
+                >
+                  <IconPencil size={20} />
+                </ActionIcon>
+              ) : isAdmin && isEditingDetails ? (
+                <Group gap={4}>
+                  <Button
+                    size="xs"
+                    variant="default"
+                    onClick={() => {
+                      setIsEditingDetails(false);
+                      setEditedDetails({
+                        clientName: retainerData.clientName,
+                        clientType: retainerData.clientType,
+                        practiceAreas: retainerData.practiceAreas,
+                        retainerSince: new Date(retainerData.retainerSince),
+                      });
+                    }}
+                    disabled={isUpdatingDetails}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="xs"
+                    loading={isUpdatingDetails}
+                    onClick={handleUpdateDetails}
+                    disabled={
+                      !editedDetails.clientName.trim().length ||
+                      !editedDetails.practiceAreas.length ||
+                      (editedDetails.clientName === retainerData.clientName &&
+                        editedDetails.clientType === retainerData.clientType &&
+                        JSON.stringify(editedDetails.practiceAreas) ===
+                          JSON.stringify(retainerData.practiceAreas) &&
+                        dayjs(editedDetails.retainerSince).format(
+                          "YYYY-MM-DD",
+                        ) === retainerData.retainerSince)
+                    }
+                  >
+                    Save
+                  </Button>
+                </Group>
+              ) : null}
+            </Group>
+          </Card.Section>
+
+          <Table variant="vertical" layout="fixed">
+            <Table.Tbody>
+              {retainerDetailsCardData
+                .filter((item) => item.td !== null)
+                .map((item, index) => (
+                  <Table.Tr key={index}>
+                    <Table.Th w={120}>{item.th}</Table.Th>
+                    <Table.Td>{item.td}</Table.Td>
+                  </Table.Tr>
+                ))}
+            </Table.Tbody>
+          </Table>
+        </Card>
+        <Card withBorder radius="md" p="md">
+          <Card.Section inheritPadding py="xs">
+            <Group justify="space-between" align="center">
+              <Text size="lg" fw={600} c="green">
+                Contact Details
+              </Text>
+
+              {isAdmin && !isEditingContact ? (
+                <ActionIcon
+                  variant="white"
+                  size="sm"
+                  color={theme.other.customPumpkin}
+                  onClick={() => setIsEditingContact(true)}
+                >
+                  <IconPencil size={20} />
+                </ActionIcon>
+              ) : isAdmin && isEditingContact ? (
+                <Group gap={4}>
+                  <Button
+                    size="xs"
+                    variant="default"
+                    onClick={() => {
+                      setIsEditingContact(false);
+                      setEditedContact({
+                        fullname: retainerData.contactPerson.fullname,
+                        email: retainerData.contactPerson.email,
+                        phoneNumber: retainerData.contactPerson.phoneNumber,
+                        address: retainerData.contactPerson.address,
+                      });
+                    }}
+                    disabled={isUpdatingContact}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="xs"
+                    loading={isUpdatingContact}
+                    onClick={handleUpdateContact}
+                    disabled={
+                      !editedContact.fullname.trim().length ||
+                      !editedContact.email.trim().length ||
+                      !/^\S+@\S+$/.test(editedContact.email) ||
+                      String(editedContact.phoneNumber).length < 10 ||
+                      !editedContact.address.trim().length ||
+                      (editedContact.fullname ===
+                        retainerData.contactPerson.fullname &&
+                        editedContact.email ===
+                          retainerData.contactPerson.email &&
+                        editedContact.phoneNumber ===
+                          retainerData.contactPerson.phoneNumber &&
+                        editedContact.address ===
+                          retainerData.contactPerson.address)
+                    }
+                  >
+                    Save
+                  </Button>
+                </Group>
+              ) : null}
+            </Group>
+          </Card.Section>
+
+          <Table variant="vertical" layout="fixed">
+            <Table.Tbody>
+              {contactDetailsCardData.map((item, index) => (
+                <Table.Tr key={index}>
+                  <Table.Th w={120}>{item.th}</Table.Th>
+                  <Table.Td>{item.td}</Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        </Card>
       </SimpleGrid>
 
       <Paper withBorder radius="md" p="md">
@@ -171,16 +554,18 @@ export default function RTabOverview({
             Description
           </Text>
 
-          <ActionIcon
-            variant="white"
-            size="sm"
-            color={theme.other.customPumpkin}
-            onClick={() => setIsEditDescription(true)}
-          >
-            <IconPencil size={20} />
-          </ActionIcon>
+          {isAdmin && !isEditDescription && (
+            <ActionIcon
+              variant="white"
+              size="sm"
+              color={theme.other.customPumpkin}
+              onClick={() => setIsEditDescription(true)}
+            >
+              <IconPencil size={20} />
+            </ActionIcon>
+          )}
 
-          {isEditDescription && (
+          {isAdmin && isEditDescription && (
             <Group gap={4}>
               <Button
                 size="xs"
@@ -241,27 +626,6 @@ export default function RTabOverview({
   );
 }
 
-const VerticalTable = ({ title, data = [] }: VerticalTableProps) => (
-  <Card withBorder radius="md" p="md">
-    <Card.Section inheritPadding py="xs">
-      <Text size="lg" fw={600} c="green">
-        {title}
-      </Text>
-    </Card.Section>
-
-    <Table variant="vertical" layout="fixed">
-      <Table.Tbody>
-        {data.map((item, index) => (
-          <Table.Tr key={index}>
-            <Table.Th w={120}>{item.th}</Table.Th>
-            <Table.Td>{item.td}</Table.Td>
-          </Table.Tr>
-        ))}
-      </Table.Tbody>
-    </Table>
-  </Card>
-);
-
 interface RetainerNotesProps {
   notes: Note[] | null;
   retainerId: string;
@@ -277,6 +641,8 @@ function RetainerNotes({
   const [addingNote, setAddingNote] = useState(false);
 
   const [note, setNote] = useState("");
+
+  const isAdmin = user?.unsafeMetadata?.role === "admin";
 
   const handleAddNote = async () => {
     setAddingNote(true);
@@ -300,7 +666,7 @@ function RetainerNotes({
             updatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
           }),
         },
-        { merge: true }
+        { merge: true },
       );
 
       appNotifications.success({
@@ -326,27 +692,29 @@ function RetainerNotes({
           Notes
         </Text>
 
-        <Group align="start" gap="xs" my="md">
-          <Avatar src={user?.imageUrl}>{user?.firstName?.charAt(0)}</Avatar>
-          <Stack flex={1}>
-            <Textarea
-              rows={4}
-              maxRows={4}
-              placeholder="Add a note"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
-            <Button
-              rightSection={<IconSend />}
-              ml="auto"
-              loading={addingNote}
-              onClick={handleAddNote}
-              disabled={!note.trim().length}
-            >
-              Add Note
-            </Button>
-          </Stack>
-        </Group>
+        {isAdmin && (
+          <Group align="start" gap="xs" my="md">
+            <Avatar src={user?.imageUrl}>{user?.firstName?.charAt(0)}</Avatar>
+            <Stack flex={1}>
+              <Textarea
+                rows={4}
+                maxRows={4}
+                placeholder="Add a note"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
+              <Button
+                rightSection={<IconSend />}
+                ml="auto"
+                loading={addingNote}
+                onClick={handleAddNote}
+                disabled={!note.trim().length}
+              >
+                Add Note
+              </Button>
+            </Stack>
+          </Group>
+        )}
       </Card.Section>
 
       <ScrollArea mah={500} offsetScrollbars>

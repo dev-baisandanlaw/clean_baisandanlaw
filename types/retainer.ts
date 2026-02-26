@@ -1,9 +1,10 @@
-import { Document } from "./case";
-import { Note } from "./matter-notes";
+import type { Document } from "./case";
+import type { Note } from "./matter-notes";
 
 export interface Retainer {
   id: string;
   clientName: string;
+  clientType: "individual" | "company";
   contactPerson: {
     fullname: string;
     email: string;

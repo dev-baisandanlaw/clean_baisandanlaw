@@ -1,4 +1,9 @@
 "use client";
+
+import { useEffect, useState } from "react";
+
+import { useRouter } from "next/navigation";
+
 import {
   ActionIcon,
   Badge,
@@ -11,27 +16,34 @@ import {
   Stack,
   Table,
   TableScrollContainer,
+  Tabs,
   Text,
   TextInput,
   useMantineTheme,
 } from "@mantine/core";
-import { IconCirclePlus, IconEye, IconSearch } from "@tabler/icons-react";
-import { useEffect, useState } from "react";
-import EmptyTableComponent from "@/components/EmptyTableComponent";
 import {
   useDebouncedValue,
   useDisclosure,
   useMediaQuery,
 } from "@mantine/hooks";
+import {
+  IconBuilding,
+  IconCirclePlus,
+  IconEye,
+  IconSearch,
+  IconUser,
+} from "@tabler/icons-react";
+import { useUser } from "@clerk/nextjs";
+import { Query } from "appwrite";
+import dayjs from "dayjs";
+
+import { listDatabaseDocuments } from "@/app/api/appwrite";
+import EmptyTableComponent from "@/components/EmptyTableComponent";
 import AddRetainerModal from "@/components/retainers/modals/AddRetainerModal";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { appNotifications } from "@/utils/notifications/notifications";
-import { useUser } from "@clerk/nextjs";
-import { AppwriteRetainersDocument } from "@/types/appwriteResponses";
-import { Query } from "appwrite";
-import { useRouter } from "next/navigation";
-import { listDatabaseDocuments } from "@/app/api/appwrite";
-import dayjs from "dayjs";
+
+import type { AppwriteRetainersDocument } from "@/types/appwriteResponses";
 
 export default function RetainerListing() {
   const shrink = useMediaQuery("(max-width: 768px)");
@@ -47,6 +59,10 @@ export default function RetainerListing() {
   const [search, setSearch] = useState("");
   const [debouncedSearch] = useDebouncedValue(search, 500);
 
+  const [clientTypeFilter, setClientTypeFilter] = useState<string | null>(
+    "all",
+  );
+
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
@@ -55,7 +71,11 @@ export default function RetainerListing() {
     { open: openRetainerModal, close: closeRetainerModal },
   ] = useDisclosure(false);
 
-  const fetchRetainers = async (search: string, page: number = 1) => {
+  const fetchRetainers = async (
+    search: string,
+    page: number = 1,
+    clientType: string | null = "all",
+  ) => {
     if (!user) return;
 
     setIsFetching(true);
@@ -71,8 +91,8 @@ export default function RetainerListing() {
         dayjs().isAfter(
           // @ts-expect-error - user is a client
           dayjs(user?.unsafeMetadata?.subscription?.subscribedEndDate).endOf(
-            "day"
-          )
+            "day",
+          ),
         ))
     ) {
       appNotifications.clean();
@@ -92,8 +112,12 @@ export default function RetainerListing() {
 
     if (userRole === "client") {
       queries.push(
-        Query.equal("contactPersonEmail", user.emailAddresses[0].emailAddress)
+        Query.equal("contactPersonEmail", user.emailAddresses[0].emailAddress),
       );
+    }
+
+    if (clientType && clientType !== "all") {
+      queries.push(Query.equal("clientType", clientType));
     }
 
     if (search && search.trim().length > 0) {
@@ -116,11 +140,22 @@ export default function RetainerListing() {
   }, [debouncedSearch]);
 
   useEffect(() => {
+    setCurrentPage(1);
+  }, [clientTypeFilter]);
+
+  useEffect(() => {
     if (!isLoaded) return;
 
-    fetchRetainers(debouncedSearch, currentPage);
+    fetchRetainers(debouncedSearch, currentPage, clientTypeFilter);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, debouncedSearch, currentPage, dataChanged, isLoaded]);
+  }, [
+    user?.id,
+    debouncedSearch,
+    currentPage,
+    clientTypeFilter,
+    dataChanged,
+    isLoaded,
+  ]);
 
   return (
     <>
@@ -156,6 +191,14 @@ export default function RetainerListing() {
             </Button>
           )}
         </Flex>
+
+        <Tabs value={clientTypeFilter} onChange={setClientTypeFilter}>
+          <Tabs.List>
+            <Tabs.Tab value="all">All</Tabs.Tab>
+            <Tabs.Tab value="individual">Individual</Tabs.Tab>
+            <Tabs.Tab value="company">Company</Tabs.Tab>
+          </Tabs.List>
+        </Tabs>
 
         <Paper withBorder shadow="sm" p={16} pos="relative">
           {isFetching && (
@@ -200,7 +243,16 @@ export default function RetainerListing() {
                   retainers.length > 0 &&
                   retainers.map((retainer) => (
                     <Table.Tr key={retainer.$id}>
-                      <Table.Td>{retainer.client}</Table.Td>
+                      <Table.Td>
+                        <Group gap="sm">
+                          {retainer?.clientType === "individual" ? (
+                            <IconUser />
+                          ) : (
+                            <IconBuilding />
+                          )}
+                          <Text size="sm">{retainer.client}</Text>
+                        </Group>
+                      </Table.Td>
                       <Table.Td>
                         <Stack gap={2}>
                           <Text size="sm">{retainer.contactPersonName}</Text>

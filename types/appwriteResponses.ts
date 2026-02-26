@@ -49,6 +49,7 @@ export interface AppwriteRetainersDocument {
   $updatedAt: string;
 
   client: string;
+  clientType: "individual" | "company";
 
   contactPersonName: string;
   contactPersonEmail: string;

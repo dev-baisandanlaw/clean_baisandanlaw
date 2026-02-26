@@ -1,26 +1,31 @@
-import { ATTY_PRACTICE_AREAS, COLLECTIONS } from "@/constants/constants";
+import { useEffect, useState } from "react";
+
 import {
   Button,
   Divider,
   Group,
   Modal,
+  NumberInput,
+  Radio,
   SimpleGrid,
   Stack,
   TagsInput,
+  Text,
   Textarea,
   TextInput,
   useMantineTheme,
 } from "@mantine/core";
-import { useForm } from "@mantine/form";
-import { useEffect, useState } from "react";
 import { DatePickerInput } from "@mantine/dates";
+import { useForm } from "@mantine/form";
+import { useMediaQuery } from "@mantine/hooks";
+import { addDoc, collection, getDocs, query, where } from "firebase/firestore";
 import dayjs from "dayjs";
 import axios from "axios";
-import { addDoc, collection, getDocs, query, where } from "firebase/firestore";
+
+import { ATTY_PRACTICE_AREAS, COLLECTIONS } from "@/constants/constants";
 import { db } from "@/firebase/config";
-import { appNotifications } from "@/utils/notifications/notifications";
 import { syncToAppwrite } from "@/lib/syncToAppwrite";
-import { useMediaQuery } from "@mantine/hooks";
+import { appNotifications } from "@/utils/notifications/notifications";
 
 interface AddRetainerModalProps {
   opened: boolean;
@@ -41,6 +46,7 @@ export default function AddRetainerModal({
   const form = useForm({
     initialValues: {
       clientName: "",
+      clientType: "individual",
       contactPerson: {
         fullname: "",
         email: "",
@@ -51,6 +57,29 @@ export default function AddRetainerModal({
       retainerSince: new Date(),
       description: "",
     },
+
+    validate: {
+      clientName: (value) => (!value.length ? "Client name is required" : null),
+      contactPerson: {
+        fullname: (value) => (!value.length ? "Full name is required" : null),
+        email: (value) =>
+          !value?.length
+            ? "Email is required"
+            : /^\S+@\S+$/.test(value)
+              ? null
+              : "Invalid Email",
+        phoneNumber: (value) =>
+          String(value).length < 10 ? "Invalid Phone Number" : null,
+        address: (value) =>
+          !value || !String(value).length ? "Address is required" : null,
+      },
+      practiceAreas: (value) =>
+        !value.length ? "Please select at least one matter type" : null,
+      description: (value) =>
+        !value.length ? "Description is required" : null,
+    },
+
+    validateInputOnChange: true,
   });
 
   const handleSubmit = async (values: typeof form.values) => {
@@ -60,8 +89,8 @@ export default function AddRetainerModal({
       const snap = await getDocs(
         query(
           collection(db, COLLECTIONS.RETAINERS),
-          where("clientName", "==", values.clientName)
-        )
+          where("clientName", "==", values.clientName),
+        ),
       );
 
       if (snap.docs.length > 0) {
@@ -81,12 +110,13 @@ export default function AddRetainerModal({
           name: values.clientName,
           parentId:
             process.env.NEXT_PUBLIC_GOOGLE_DOCUMENTS_RETAINERS_FOLDER_ID,
-        }
+        },
       );
 
       // 2. Add retainer to database
       await addDoc(collection(db, COLLECTIONS.RETAINERS), {
         ...values,
+        clientType: values.clientType,
         retainerSince: dayjs(values.retainerSince).format("YYYY-MM-DD"),
         createdAt: now,
         updatedAt: now,
@@ -96,6 +126,7 @@ export default function AddRetainerModal({
           // 3. Sync retainer to Appwrite
           await syncToAppwrite("RETAINERS", res.id, {
             client: values.clientName,
+            clientType: values.clientType,
             contactPersonName: values.contactPerson.fullname,
             contactPersonEmail: values.contactPerson.email,
             matterType: values.practiceAreas.join("&_&"),
@@ -115,7 +146,7 @@ export default function AddRetainerModal({
           appNotifications.error({
             title: "Failed to add retainer",
             message: "The retainer could not be added. Please try again.",
-          })
+          }),
         )
         .finally(() => setIsLoading(false));
     } catch {
@@ -153,6 +184,17 @@ export default function AddRetainerModal({
               placeholder="Enter client name"
               {...form.getInputProps("clientName")}
             />
+
+            <Radio.Group
+              withAsterisk
+              label="Client Type"
+              {...form.getInputProps("clientType")}
+            >
+              <Group mt="xs">
+                <Radio value="individual" label="Individual" />
+                <Radio value="company" label="Company" />
+              </Group>
+            </Radio.Group>
           </Stack>
 
           <Stack gap="xs" mb="xs">
@@ -175,16 +217,24 @@ export default function AddRetainerModal({
                 {...form.getInputProps("contactPerson.email")}
               />
 
-              <TextInput
+              <NumberInput
                 withAsterisk
+                hideControls
                 label="Phone Number"
-                placeholder="Enter phone number"
+                maxLength={10}
+                placeholder="912 345 6789"
+                leftSection={
+                  <Text size="sm" c="dimmed">
+                    +63
+                  </Text>
+                }
+                allowNegative={false}
                 {...form.getInputProps("contactPerson.phoneNumber")}
               />
 
               <TextInput
                 withAsterisk
-                label="Address"
+                label="Full Address"
                 placeholder="Enter address"
                 {...form.getInputProps("contactPerson.address")}
               />
@@ -239,16 +289,7 @@ export default function AddRetainerModal({
             <Button
               type="submit"
               loading={isLoading}
-              disabled={
-                !form.values.clientName ||
-                !form.values.contactPerson.fullname ||
-                !form.values.contactPerson.email ||
-                !form.values.contactPerson.phoneNumber ||
-                !form.values.contactPerson.address ||
-                !form.values.retainerSince ||
-                !form.values.practiceAreas.length ||
-                !form.values.description.length
-              }
+              disabled={!form.isValid()}
             >
               Add Retainer
             </Button>
