@@ -1,11 +1,6 @@
 "use client";
 
-import { listDatabaseDocuments } from "@/app/api/appwrite";
-import EmptyTableComponent from "@/components/EmptyTableComponent";
-import AddMatterModal from "@/components/matter/modals/AddMatterModal";
-import { AppwriteMatterDocument } from "@/types/appwriteResponses";
-import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
-import { useUser } from "@clerk/nextjs";
+import { useEffect, useState } from "react";
 
 import {
   ActionIcon,
@@ -28,8 +23,15 @@ import {
   useMediaQuery,
 } from "@mantine/hooks";
 import { IconCirclePlus, IconEye, IconSearch } from "@tabler/icons-react";
+import { useUser } from "@clerk/nextjs";
 import { Query } from "appwrite";
-import { useEffect, useState } from "react";
+
+import { listDatabaseDocuments } from "@/app/api/appwrite";
+import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
+import EmptyTableComponent from "@/components/EmptyTableComponent";
+import AddMatterModal from "@/components/matter/modals/AddMatterModal";
+
+import { AppwriteMatterDocument } from "@/types/appwriteResponses";
 
 export default function MattersListing() {
   const shrink = useMediaQuery("(max-width: 768px)");
@@ -158,7 +160,7 @@ export default function MattersListing() {
           )}
         </Flex>
 
-        <Paper withBorder shadow="sm" p={16} pos="relative">
+        <Paper withBorder shadow="sm" px={16} py={8} pos="relative">
           {isFetching && (
             <Progress
               value={100}

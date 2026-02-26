@@ -1,17 +1,19 @@
+import { doc, setDoc, arrayUnion } from "firebase/firestore";
+import dayjs from "dayjs";
+import { nanoid } from "nanoid";
+
 import { COLLECTIONS } from "@/constants/constants";
 import { db } from "@/firebase/config";
+
 import { MatterUpdateType } from "@/types/matter-updates";
 import { UserResource } from "@clerk/types";
-import dayjs from "dayjs";
-import { arrayUnion, doc, setDoc } from "firebase/firestore";
-import { nanoid } from "nanoid";
 
 export const addMatterUpdate = async (
   user: UserResource,
   matterId: string,
   division: string,
   type: MatterUpdateType,
-  description: string
+  description: string,
 ) => {
   const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
   const userDetails = {
@@ -34,7 +36,7 @@ export const addMatterUpdate = async (
         description,
       }),
     },
-    { merge: true }
+    { merge: true },
   ).catch((error) => {
     console.error(error);
   });

@@ -1,10 +1,7 @@
-import {
-  ATTY_PRACTICE_AREAS,
-  CLERK_ORG_IDS,
-  COLLECTIONS,
-} from "@/constants/constants";
-import { db } from "@/firebase/config";
-import { Attorney, Client } from "@/types/user";
+import { useEffect, useState } from "react";
+
+import { useRouter } from "next/navigation";
+
 import {
   Button,
   Group,
@@ -16,17 +13,25 @@ import {
   useMantineTheme,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import axios from "axios";
-import { addDoc, collection, doc, setDoc } from "firebase/firestore";
-import { useEffect, useState } from "react";
-import { nanoid } from "nanoid";
-import { useRouter } from "next/navigation";
-import dayjs from "dayjs";
 import { useUser } from "@clerk/nextjs";
-import { MatterUpdateType } from "@/types/matter-updates";
-import { addMatterUpdate } from "../utils/addMatterUpdate";
-import { appNotifications } from "@/utils/notifications/notifications";
+import { addDoc, collection, doc, setDoc } from "firebase/firestore";
+import { customAlphabet } from "nanoid";
+import dayjs from "dayjs";
+import axios from "axios";
+
+import {
+  ATTY_PRACTICE_AREAS,
+  CLERK_ORG_IDS,
+  COLLECTIONS,
+} from "@/constants/constants";
+import { db } from "@/firebase/config";
 import { syncToAppwrite } from "@/lib/syncToAppwrite";
+import { appNotifications } from "@/utils/notifications/notifications";
+
+import { addMatterUpdate } from "../utils/addMatterUpdate";
+
+import { Attorney, Client } from "@/types/user";
+import { MatterUpdateType } from "@/types/matter-updates";
 
 interface AddMatterModalProps {
   opened: boolean;
@@ -70,17 +75,18 @@ export default function AddMatterModal({
     const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
     setIsLoading(true);
 
-    const caseNumber = `JA-${nanoid(8).toUpperCase()}`;
+    const nanoid = customAlphabet("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", 8);
+    const caseNumber = `JA-${nanoid()}`;
 
     try {
       const leadAttorneyDetails = attorneyUsers.find(
-        (user) => user.id === values.leadAttorney.id
+        (user) => user.id === values.leadAttorney.id,
       );
       const attyCasesCount =
         leadAttorneyDetails?.unsafe_metadata?.involvedCases || 0;
 
       const clientDetails = clientUsers.find(
-        (user) => user.id === values.clientData.id
+        (user) => user.id === values.clientData.id,
       );
 
       const data = {
@@ -127,7 +133,7 @@ export default function AddMatterModal({
         {
           name: caseNumber,
           parentId: process.env.NEXT_PUBLIC_GOOGLE_DOCUMENTS_MATTERS_FOLDER_ID,
-        }
+        },
       );
 
       // 3. Add matter to database
@@ -172,7 +178,7 @@ export default function AddMatterModal({
         res.id,
         "system",
         MatterUpdateType.SYSTEM,
-        "Matter Initiated"
+        "Matter Initiated",
       );
 
       appNotifications.success({
@@ -243,10 +249,12 @@ export default function AddMatterModal({
             withAsterisk
             label="Lead Attorney"
             placeholder="Select Lead Attorney"
-            data={attorneyUsers.map((user) => ({
-              value: user.id,
-              label: `${user.first_name} ${user.last_name} (${user.email_addresses[0].email_address})`,
-            }))}
+            data={attorneyUsers
+              .filter((user) => !user.banned)
+              .map((user) => ({
+                value: user.id,
+                label: `${user.first_name} ${user.last_name} (${user.email_addresses[0].email_address})`,
+              }))}
             searchable
             clearable
             nothingFoundMessage="No attorneys found"
