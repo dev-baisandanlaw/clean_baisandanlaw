@@ -1,15 +1,9 @@
 "use client";
 
-import EmptyTableComponent from "@/components/EmptyTableComponent";
-// import DeleteNotaryRequestModal from "@/components/notary-requests/modals/DeleteNotaryRequestModal";
-import { NOTARY_STEPS_ORDER } from "@/constants/constants";
-import {
-  NotaryRequestLabel,
-  NotaryRequestStatus,
-} from "@/types/notary-requests";
-import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
-import { getNotaryStatus } from "@/utils/getNotaryStatus";
-import { useUser } from "@clerk/nextjs";
+import { useEffect, useState } from "react";
+
+import { useRouter, useSearchParams } from "next/navigation";
+
 import {
   Flex,
   TextInput,
@@ -44,21 +38,32 @@ import {
   IconTools,
   IconX,
 } from "@tabler/icons-react";
-import { useEffect, useState } from "react";
+import { useUser } from "@clerk/nextjs";
+import { Query } from "appwrite";
+import axios from "axios";
+
+import { listDatabaseDocuments } from "@/app/api/appwrite";
+import { NOTARY_STEPS_ORDER } from "@/constants/constants";
+import { appNotifications } from "@/utils/notifications/notifications";
+import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
+import { getNotaryStatus } from "@/utils/getNotaryStatus";
+import EmptyTableComponent from "@/components/EmptyTableComponent";
 import RejectNotaryRequestModal from "@/components/notary-requests/modals/RejectNotaryRequestModal";
-import { UpsertNotaryRequestModal } from "@/components/notary-requests/modals/UpsertNotaryRequest";
-import { ViewNotaryRequestDrawer } from "@/components/notary-requests/drawer/ViewNotaryRequestDrawer";
 import ReviewNotaryRequestModal from "@/components/notary-requests/modals/ReviewNotaryRequestModal";
 import ApproveNotaryRequestModal from "@/components/notary-requests/modals/ApproveNotaryRequestModal";
 import ClientReviewModal from "@/components/notary-requests/modals/ClientReviewModal";
 import ConfirmationModal from "@/components/notary-requests/modals/ConfirmationModal";
-import axios from "axios";
-import { appNotifications } from "@/utils/notifications/notifications";
-import { Query } from "appwrite";
-import { listDatabaseDocuments } from "@/app/api/appwrite";
-import { AppwriteNotaryRequestDocument } from "@/types/appwriteResponses";
-import { useRouter, useSearchParams } from "next/navigation";
+
+import { UpsertNotaryRequestModal } from "@/components/notary-requests/modals/UpsertNotaryRequest";
+import { ViewNotaryRequestDrawer } from "@/components/notary-requests/drawer/ViewNotaryRequestDrawer";
+
 import classes from "@/app/custom-css/TabsCustomCss.module.css";
+
+import {
+  NotaryRequestLabel,
+  NotaryRequestStatus,
+} from "@/types/notary-requests";
+import { AppwriteNotaryRequestDocument } from "@/types/appwriteResponses";
 
 export default function NotaryRequestsListing() {
   const shrink = useMediaQuery("(max-width: 768px)");
@@ -352,7 +357,7 @@ export default function NotaryRequestsListing() {
           </Tabs.List>
         </Tabs>
 
-        <Paper withBorder shadow="sm" p={16} pos="relative">
+        <Paper withBorder shadow="sm" px={16} py={8} pos="relative">
           {isFetching && (
             <Progress
               value={100}
@@ -400,14 +405,8 @@ export default function NotaryRequestsListing() {
                     .sort((a, b) => b.$createdAt.localeCompare(a.$createdAt))
                     .map((notaryRequest) => (
                       <Table.Tr key={notaryRequest.$id}>
-                        <Table.Td w={shrink ? 50 : "auto"}>
-                          <Text
-                            truncate
-                            maw={shrink ? 50 : "auto"}
-                            size="sm"
-                            fw={600}
-                            c="green"
-                          >
+                        <Table.Td w={100}>
+                          <Text truncate maw={100} size="sm" fw={600} c="green">
                             {notaryRequest.$id}
                           </Text>
                         </Table.Td>

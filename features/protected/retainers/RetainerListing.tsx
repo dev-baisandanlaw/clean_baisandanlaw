@@ -38,12 +38,12 @@ import { Query } from "appwrite";
 import dayjs from "dayjs";
 
 import { listDatabaseDocuments } from "@/app/api/appwrite";
-import EmptyTableComponent from "@/components/EmptyTableComponent";
-import AddRetainerModal from "@/components/retainers/modals/AddRetainerModal";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { appNotifications } from "@/utils/notifications/notifications";
+import EmptyTableComponent from "@/components/EmptyTableComponent";
+import AddRetainerModal from "@/components/retainers/modals/AddRetainerModal";
 
-import type { AppwriteRetainersDocument } from "@/types/appwriteResponses";
+import { AppwriteRetainersDocument } from "@/types/appwriteResponses";
 
 export default function RetainerListing() {
   const shrink = useMediaQuery("(max-width: 768px)");
@@ -200,7 +200,7 @@ export default function RetainerListing() {
           </Tabs.List>
         </Tabs>
 
-        <Paper withBorder shadow="sm" p={16} pos="relative">
+        <Paper withBorder shadow="sm" px={16} py={8} pos="relative">
           {isFetching && (
             <Progress
               value={100}
@@ -215,7 +215,7 @@ export default function RetainerListing() {
 
           <TableScrollContainer
             minWidth={800}
-            h="calc(100vh - 220px)"
+            h="calc(100vh - 275px)"
             pos="relative"
           >
             <Table stickyHeader stickyHeaderOffset={0} verticalSpacing="sm">
@@ -244,7 +244,7 @@ export default function RetainerListing() {
                   retainers.map((retainer) => (
                     <Table.Tr key={retainer.$id}>
                       <Table.Td>
-                        <Group gap="sm">
+                        <Group gap="sm" wrap="nowrap">
                           {retainer?.clientType === "individual" ? (
                             <IconUser />
                           ) : (
@@ -276,7 +276,9 @@ export default function RetainerListing() {
                           ))}
                         </Group>
                       </Table.Td>
-                      <Table.Td>{retainer.retainerSince}</Table.Td>
+                      <Table.Td>
+                        {getDateFormatDisplay(retainer.retainerSince)}
+                      </Table.Td>
                       <Table.Td>
                         {getDateFormatDisplay(retainer.$updatedAt, true)}
                       </Table.Td>
