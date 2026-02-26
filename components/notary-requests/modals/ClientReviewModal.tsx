@@ -1,6 +1,5 @@
-import { COLLECTIONS } from "@/constants/constants";
-import { db } from "@/firebase/config";
-import { NotaryRequest, NotaryRequestStatus } from "@/types/notary-requests";
+import { SetStateAction, Dispatch, useEffect, useState } from "react";
+
 import {
   Anchor,
   Button,
@@ -14,13 +13,17 @@ import {
   Textarea,
 } from "@mantine/core";
 import { DatePickerInput } from "@mantine/dates";
-import dayjs from "dayjs";
-import { doc, getDoc, setDoc } from "firebase/firestore";
-import { SetStateAction, Dispatch, useEffect, useState } from "react";
-import { nanoid } from "nanoid";
 import { useUser } from "@clerk/nextjs";
-import { appNotifications } from "@/utils/notifications/notifications";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import dayjs from "dayjs";
+import { nanoid } from "nanoid";
+
+import { COLLECTIONS } from "@/constants/constants";
+import { db } from "@/firebase/config";
 import { syncToAppwrite } from "@/lib/syncToAppwrite";
+import { appNotifications } from "@/utils/notifications/notifications";
+
+import { NotaryRequest, NotaryRequestStatus } from "@/types/notary-requests";
 
 interface ClientReviewModalProps {
   opened: boolean;
@@ -346,7 +349,7 @@ export default function ClientReviewModal({
                 isReviewing ||
                 (reviewAction === "approve" &&
                   (!pickupBranch ||
-                    (pickupBranch !== "softcopy" && !pickupDate)))
+                    (pickupBranch !== "Soft copy only" && !pickupDate)))
               }
               loading={isReviewing}
               color={
