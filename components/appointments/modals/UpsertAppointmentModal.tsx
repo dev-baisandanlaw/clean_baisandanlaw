@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import {
   Badge,
   Button,
+  Checkbox,
   Divider,
   em,
   Group,
@@ -133,6 +134,7 @@ export default function AddAppointmentModal({
       areas: [] as string[],
       consultationMode: "in-person",
       branch: "",
+      representedByPreviousLawyer: false,
     },
   });
 
@@ -374,6 +376,8 @@ export default function AddAppointmentModal({
         areas: booking.areas || [],
         consultationMode: booking?.consultationMode || "in-person",
         branch: booking?.branch || "",
+        representedByPreviousLawyer:
+          booking?.representedByPreviousLawyer || false,
       });
 
       if (booking.existingClient) {
@@ -714,6 +718,13 @@ export default function AddAppointmentModal({
               minRows={6}
               autosize
               {...form.getInputProps("message")}
+            />
+
+            <Checkbox
+              label="Represented by previous lawyer"
+              {...form.getInputProps("representedByPreviousLawyer", {
+                type: "checkbox",
+              })}
             />
           </Stack>
 
