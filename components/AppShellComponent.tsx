@@ -1,5 +1,11 @@
 "use client";
 
+import React, { useEffect, useState } from "react";
+
+import Image from "next/image";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
 import {
   AppShell,
   Avatar,
@@ -15,18 +21,16 @@ import {
   Text,
   useMantineTheme,
 } from "@mantine/core";
-import styles from "./Appshell.module.css";
 import { useDisclosure, useMediaQuery } from "@mantine/hooks";
-import Image from "next/image";
-import logo from "@/public/images/logo.png";
-import { useClerk, useUser } from "@clerk/nextjs";
-import { NAV_LINKS } from "@/constants/constants";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import React, { useEffect, useState } from "react";
-import dayjs from "dayjs";
 import { IconLogout } from "@tabler/icons-react";
+import { useClerk, useUser } from "@clerk/nextjs";
+import dayjs from "dayjs";
+
+import { NAV_LINKS } from "@/constants/constants";
 import { appNotifications } from "@/utils/notifications/notifications";
+import logo from "@/public/images/logo.png";
+
+import styles from "./Appshell.module.css";
 
 export default function AppShellComponent({
   children,
@@ -54,8 +58,6 @@ export default function AppShellComponent({
   }, [pathname]);
 
   if (!mounted) return null;
-
-  console.log(user?.fullName);
 
   return (
     <AppShell
@@ -142,7 +144,7 @@ export default function AppShellComponent({
                         appNotifications.success({
                           title: "Logged out successfully",
                           message: "Redirecting to the login page...",
-                        })
+                        }),
                       )
                     }
                   >
@@ -164,7 +166,7 @@ export default function AppShellComponent({
 
         <AppShell.Section component={ScrollArea}>
           {NAV_LINKS.filter((n) =>
-            n.roles.includes(user?.unsafeMetadata?.role as string)
+            n.roles.includes(user?.unsafeMetadata?.role as string),
           ).map((link, i) => {
             if (
               link.label === "Retainers" &&
@@ -175,8 +177,8 @@ export default function AppShellComponent({
                 dayjs().isAfter(
                   dayjs(
                     // @ts-expect-error - user is a client
-                    user?.unsafeMetadata?.subscription?.subscribedEndDate
-                  ).endOf("day")
+                    user?.unsafeMetadata?.subscription?.subscribedEndDate,
+                  ).endOf("day"),
                 ))
             ) {
               return null;
