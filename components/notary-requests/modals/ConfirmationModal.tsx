@@ -1,10 +1,5 @@
-import { COLLECTIONS } from "@/constants/constants";
-import { sendEmail } from "@/emails/triggers/sendEmail";
-import { db } from "@/firebase/config";
-import { attachToResend } from "@/lib/attachToResend";
-import { NotaryRequest, NotaryRequestStatus } from "@/types/notary-requests";
-import { appNotifications } from "@/utils/notifications/notifications";
-import { useUser } from "@clerk/nextjs";
+import { Dispatch, SetStateAction, useEffect, useState } from "react";
+
 import {
   Button,
   Center,
@@ -14,11 +9,19 @@ import {
   Stack,
   Text,
 } from "@mantine/core";
-import dayjs from "dayjs";
+import { useUser } from "@clerk/nextjs";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import dayjs from "dayjs";
 import { nanoid } from "nanoid";
+
+import { COLLECTIONS } from "@/constants/constants";
+import { sendEmail } from "@/emails/triggers/sendEmail";
+import { db } from "@/firebase/config";
+import { attachToResend } from "@/lib/attachToResend";
 import { syncToAppwrite } from "@/lib/syncToAppwrite";
+import { appNotifications } from "@/utils/notifications/notifications";
+
+import { NotaryRequest, NotaryRequestStatus } from "@/types/notary-requests";
 interface ConfirmationModalProps {
   opened: boolean;
   onClose: () => void;
@@ -44,7 +47,7 @@ export default function ConfirmationModal({
 
     try {
       const snap = await getDoc(
-        doc(db, COLLECTIONS.NOTARY_REQUESTS, notaryRequestId)
+        doc(db, COLLECTIONS.NOTARY_REQUESTS, notaryRequestId),
       );
       if (snap.exists()) {
         setNotaryRequestData({
@@ -79,7 +82,8 @@ export default function ConfirmationModal({
   }, [opened, notaryRequestId]);
 
   const isForPickup =
-    notaryRequestData?.status === NotaryRequestStatus.CLIENT_APPROVED;
+    notaryRequestData?.status === NotaryRequestStatus.CLIENT_APPROVED &&
+    notaryRequestData?.pickupBranch === "Soft copy only";
 
   const handleReadyForPickup = async () => {
     setIsLoading(true);
@@ -109,7 +113,7 @@ export default function ConfirmationModal({
             ],
             reason: `If claiming the document in the office, please present this reference number ${referenceNumber}`,
           },
-          { merge: true }
+          { merge: true },
         );
 
         await syncToAppwrite("NOTARY_REQUESTS", notaryRequestId, {
@@ -138,7 +142,7 @@ export default function ConfirmationModal({
         const downloadedAttachments = [];
         if (notaryRequestData?.documents?.finishedFile?.id) {
           const att = await attachToResend(
-            notaryRequestData.documents.finishedFile!.id
+            notaryRequestData.documents.finishedFile!.id,
           );
           downloadedAttachments.push(att);
         }
@@ -178,7 +182,7 @@ export default function ConfirmationModal({
               },
             ],
           },
-          { merge: true }
+          { merge: true },
         );
 
         await syncToAppwrite("NOTARY_REQUESTS", notaryRequestId, {
@@ -227,6 +231,18 @@ export default function ConfirmationModal({
                 Are you sure you want to notify the client that this
                 notarization is ready for pickup? This will send the finished
                 document to their email (
+                <Text span style={{ fontWeight: "bold" }}>
+                  {notaryRequestData.requestor.email}
+                </Text>
+                ). Modifications are no longer allowed.
+              </>
+            ) : notaryRequestData?.status ===
+                NotaryRequestStatus.CLIENT_APPROVED &&
+              notaryRequestData?.pickupBranch === "Soft copy only" ? (
+              <>
+                Are you sure you want to complete this notarization request?
+                This will send the finished document to the client&apos;s email
+                (
                 <Text span style={{ fontWeight: "bold" }}>
                   {notaryRequestData.requestor.email}
                 </Text>

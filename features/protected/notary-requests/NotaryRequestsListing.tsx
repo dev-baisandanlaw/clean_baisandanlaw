@@ -587,26 +587,38 @@ export default function NotaryRequestsListing() {
                                     </Menu.Item>
                                   )}
 
+                                  {/* Show "Ready for Pickup" only if NOT soft copy only */}
                                   {!disableActions(
                                     "for_pickup",
                                     notaryRequest,
-                                  ) && (
-                                    <Menu.Item
-                                      c="purple"
-                                      onClick={() => {
-                                        setSelectedNotaryRequest(notaryRequest);
-                                        openConfirmationModal();
-                                      }}
-                                      leftSection={<IconPackage size={16} />}
-                                    >
-                                      Ready for Pickup
-                                    </Menu.Item>
-                                  )}
+                                  ) &&
+                                    notaryRequest.pickupBranch !==
+                                      "Soft copy only" && (
+                                      <Menu.Item
+                                        c="purple"
+                                        onClick={() => {
+                                          setSelectedNotaryRequest(
+                                            notaryRequest,
+                                          );
+                                          openConfirmationModal();
+                                        }}
+                                        leftSection={<IconPackage size={16} />}
+                                      >
+                                        Ready for Pickup
+                                      </Menu.Item>
+                                    )}
 
-                                  {!disableActions(
+                                  {/* Show "Complete" for soft copy only OR for ready for pickup status */}
+                                  {(!disableActions(
                                     "completed",
                                     notaryRequest,
-                                  ) && (
+                                  ) ||
+                                    (!disableActions(
+                                      "for_pickup",
+                                      notaryRequest,
+                                    ) &&
+                                      notaryRequest.pickupBranch ===
+                                        "Soft copy only")) && (
                                     <Menu.Item
                                       c="green"
                                       onClick={() => {
