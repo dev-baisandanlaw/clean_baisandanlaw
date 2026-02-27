@@ -82,7 +82,7 @@ export default function AttorneyListing() {
   const fetchAttorneys = async (
     searchTerm: string,
     page: number,
-    bannedFilter: StatusTab
+    bannedFilter: StatusTab,
   ) => {
     if (!user || !isLoaded) return;
 
@@ -111,7 +111,7 @@ export default function AttorneyListing() {
     try {
       const { data } = await axios.get<Attorney[]>(
         "/api/clerk/organization/fetch",
-        { params }
+        { params },
       );
 
       setAttorneys(data);
@@ -143,7 +143,7 @@ export default function AttorneyListing() {
 
       setTotalCount(data?.total_count);
     },
-    []
+    [],
   );
 
   useEffect(() => {
@@ -220,7 +220,7 @@ export default function AttorneyListing() {
 
           <TableScrollContainer
             minWidth={800}
-            h="calc(100vh - 220px)"
+            h="calc(100vh - 268px)"
             pos="relative"
           >
             <Table stickyHeader stickyHeaderOffset={0} verticalSpacing="sm">
@@ -276,7 +276,7 @@ export default function AttorneyListing() {
                               >
                                 {area}
                               </Badge>
-                            )
+                            ),
                           )}
                         </Group>
                       </Table.Td>

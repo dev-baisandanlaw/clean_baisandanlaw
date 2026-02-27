@@ -175,7 +175,7 @@ export default function MattersListing() {
 
           <TableScrollContainer
             minWidth={800}
-            h="calc(100vh - 220px)"
+            h="calc(100vh - 200px)"
             pos="relative"
           >
             <Table stickyHeader stickyHeaderOffset={0} verticalSpacing="sm">

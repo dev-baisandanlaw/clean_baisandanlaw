@@ -1,17 +1,10 @@
 "use client";
 
-import DeleteClientModal from "@/components/clients/modals/DeleteClientModal";
-import DowngradeSubscriptionModal from "@/components/clients/modals/DowngradeSubscriptionModal";
-import UpgradeSubscriptionModal from "@/components/clients/modals/UpgradeSubscriptionModal";
-import SubscriptionBadge from "@/components/Common/SubscriptionBadge";
-import EmptyTableComponent from "@/components/EmptyTableComponent";
-import { CLERK_ORG_IDS } from "@/constants/constants";
-import { Client } from "@/types/user";
-import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
-import { appNotifications } from "@/utils/notifications/notifications";
+import { useCallback, useEffect, useState } from "react";
+
+import { useRouter } from "nextjs-toploader/app";
 
 import {
-  ActionIcon,
   Button,
   Flex,
   Group,
@@ -33,13 +26,21 @@ import {
   IconArrowBadgeDown,
   IconArrowBadgeUp,
   IconSearch,
-  IconTrash,
 } from "@tabler/icons-react";
+import { useUser } from "@clerk/nextjs";
 import axios from "axios";
 import dayjs from "dayjs";
-import { useCallback, useEffect, useState } from "react";
-import { useUser } from "@clerk/nextjs";
-import { useRouter } from "nextjs-toploader/app";
+
+import { CLERK_ORG_IDS } from "@/constants/constants";
+import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
+import { appNotifications } from "@/utils/notifications/notifications";
+import EmptyTableComponent from "@/components/EmptyTableComponent";
+import SubscriptionBadge from "@/components/Common/SubscriptionBadge";
+import DeleteClientModal from "@/components/clients/modals/DeleteClientModal";
+import DowngradeSubscriptionModal from "@/components/clients/modals/DowngradeSubscriptionModal";
+import UpgradeSubscriptionModal from "@/components/clients/modals/UpgradeSubscriptionModal";
+
+import { Client } from "@/types/user";
 
 export default function ClientListing() {
   const shrink = useMediaQuery("(max-width: 768px)");
@@ -65,10 +66,8 @@ export default function ClientListing() {
     downgradeModal,
     { open: openDowngradeModal, close: closeDowngradeModal },
   ] = useDisclosure(false);
-  const [
-    deleteClientModal,
-    { open: openDeleteClientModal, close: closeDeleteClientModal },
-  ] = useDisclosure(false);
+  const [deleteClientModal, { close: closeDeleteClientModal }] =
+    useDisclosure(false);
 
   const fetchClients = async (searchTerm: string, page: number) => {
     if (!user || !isLoaded) return;
@@ -96,7 +95,7 @@ export default function ClientListing() {
             offset: (page - 1) * 25,
             search: searchTerm.trim(),
           },
-        }
+        },
       );
 
       setClients(data);
@@ -173,7 +172,7 @@ export default function ClientListing() {
           )}
           <TableScrollContainer
             minWidth={800}
-            h="calc(100vh - 220px)"
+            h="calc(100vh - 210px)"
             pos="relative"
           >
             <Table stickyHeader stickyHeaderOffset={0} verticalSpacing="sm">
@@ -232,7 +231,7 @@ export default function ClientListing() {
                             ? getDateFormatDisplay(
                                 client.unsafe_metadata.subscription
                                   ?.subscribedEndDate,
-                                true
+                                true,
                               )
                             : "-"}
                         </Table.Td>

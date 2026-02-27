@@ -372,7 +372,7 @@ export default function NotaryRequestsListing() {
 
           <TableScrollContainer
             minWidth={800}
-            h="calc(100vh - 273px)"
+            h="calc(100vh - 252px)"
             pos="relative"
           >
             <Table stickyHeader stickyHeaderOffset={0} verticalSpacing="sm">
