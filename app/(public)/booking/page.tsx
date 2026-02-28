@@ -59,13 +59,13 @@ export default function BookingPage() {
   const [validHolidays, setValidHolidays] = useState<string[]>([]);
   const [workDays, setWorkDays] = useState<number[]>([]);
   const [blockedDates, setBlockedDates] = useState<Record<string, string[]>>(
-    {},
+    {}
   );
 
   const [isSuccess, setIsSuccess] = useState(false);
 
   const [currentDate, setCurrentDate] = useState<string>(
-    dayjs().format("YYYY-MM-DD"),
+    dayjs().format("YYYY-MM-DD")
   );
 
   const [debounced] = useDebouncedValue(currentDate, 500);
@@ -82,8 +82,8 @@ export default function BookingPage() {
         doc(
           db,
           COLLECTIONS.GLOBAL_SCHED,
-          process.env.NEXT_PUBLIC_FIREBASE_HOLIDAYS_BLOCKED_SCHED_ID!,
-        ),
+          process.env.NEXT_PUBLIC_FIREBASE_HOLIDAYS_BLOCKED_SCHED_ID!
+        )
       );
       if (!snap.exists()) return;
 
@@ -115,7 +115,7 @@ export default function BookingPage() {
       const blockedDatesMap = d?.blockedDates;
 
       setValidHolidays(
-        validHolidayIds.map((id) => holidayMap[id]).filter(Boolean),
+        validHolidayIds.map((id) => holidayMap[id]).filter(Boolean)
       );
       setWorkDays(workDays as number[]);
       setTimeSlots(timeHours);
@@ -168,7 +168,7 @@ export default function BookingPage() {
     const q = query(
       ref,
       where("date", ">=", startOfMonth),
-      where("date", "<=", endOfMonth),
+      where("date", "<=", endOfMonth)
     );
 
     const unsub = onSnapshot(
@@ -187,7 +187,7 @@ export default function BookingPage() {
           message: "The bookings could not be fetched. Please try again.",
           autoClose: false,
         });
-      },
+      }
     );
 
     return () => unsub();
@@ -255,9 +255,9 @@ export default function BookingPage() {
               },
             })}
           >
-            Thank you for scheduling with us — we&apos;re excited to talk to
-            you! Your appointment is submitted, you will receive an email
-            confirmation once it&apos;s confirmed.
+            Thank you for scheduling with us — we’re excited to speak with you!
+            Your appointment has been submitted, and our staff may call you if
+            they need any additional information regarding your request.
             <br />
             <br />
             You can view all your bookings and their details anytime through
@@ -399,7 +399,7 @@ export default function BookingPage() {
                     const timeSlot = dayjs(`${selectedDate} ${time}`);
                     const selectedDateBookings = bookings.filter(
                       (booking) =>
-                        booking.date === selectedDate && booking.time === time,
+                        booking.date === selectedDate && booking.time === time
                     );
 
                     // 1 day before is before 5PM, return true
