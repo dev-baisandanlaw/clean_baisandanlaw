@@ -1,12 +1,17 @@
-import { COLLECTIONS } from "@/constants/constants";
-import { db } from "@/firebase/config";
-import { Booking } from "@/types/booking";
-import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
-import { appNotifications } from "@/utils/notifications/notifications";
+import { useState } from "react";
+
+import axios from "axios";
+
 import { Button, Modal, Table, Text } from "@mantine/core";
 import { IconTrash } from "@tabler/icons-react";
 import { deleteDoc, doc } from "firebase/firestore";
-import { useState } from "react";
+
+import { COLLECTIONS } from "@/constants/constants";
+import { db } from "@/firebase/config";
+import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
+import { appNotifications } from "@/utils/notifications/notifications";
+
+import { Booking } from "@/types/booking";
 
 type DeleteDuplicateModalProps = {
   opened: boolean;
@@ -24,7 +29,20 @@ export default function DeleteDuplicateModal({
   const handleDeleteDuplicate = async () => {
     setIsLoading(true);
     try {
+      // Cancel Google Calendar event if it exists
+      if (booking?.googleCalendar?.eventId) {
+        try {
+          await axios.post("/api/google/calendar/cancel", {
+            eventId: booking.googleCalendar.eventId,
+          });
+        } catch {
+          // Continue with deletion even if calendar cancellation fails
+        }
+      }
+
+      // Delete the appointment from Firebase
       await deleteDoc(doc(db, COLLECTIONS.BOOKINGS, booking!.id));
+
       appNotifications.success({
         title: "Appointment deleted successfully",
         message: "The appointment has been deleted successfully",
