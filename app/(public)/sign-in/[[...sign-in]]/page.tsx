@@ -184,6 +184,13 @@ export default function Page() {
                 Create an account
               </Anchor>
             </Text>
+
+            <Text size="xs" mt={8}>
+              Want to book an appointment?{" "}
+              <Anchor underline="always" href="/booking" size="sm">
+                Book now
+              </Anchor>
+            </Text>
           </Box>
 
           <Flex

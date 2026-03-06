@@ -348,6 +348,13 @@ export default function Page() {
                       Sign in
                     </Anchor>
                   </Text>
+
+                  <Text size="xs" mt={8}>
+                    Want to book an appointment?{" "}
+                    <Anchor underline="always" href="/booking" size="sm">
+                      Book now
+                    </Anchor>
+                  </Text>
                 </Box>
               ) : (
                 <Flex justify="center" direction="column" p={32} align="center">
@@ -387,7 +394,7 @@ export default function Page() {
                     value={code}
                     onChange={(value) => setCode(value)}
                     disabled={errors.some(({ longMessage }) =>
-                      longMessage?.includes("Too many failed attempts.")
+                      longMessage?.includes("Too many failed attempts."),
                     )}
                   />
 
@@ -399,7 +406,7 @@ export default function Page() {
                     disabled={
                       code.length !== 6 ||
                       errors.some(({ longMessage }) =>
-                        longMessage?.includes("Too many failed attempts.")
+                        longMessage?.includes("Too many failed attempts."),
                       )
                     }
                   >
