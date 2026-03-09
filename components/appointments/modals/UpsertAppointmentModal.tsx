@@ -196,7 +196,7 @@ export default function AddAppointmentModal({
         fullAddress: clientForm.values.fullAddress || "",
         birthday: clientForm.values.birthday
           ? dayjs(clientForm.values.birthday).format("YYYY-MM-DD")
-          : undefined,
+          : "",
       };
     }
 
@@ -239,12 +239,12 @@ export default function AddAppointmentModal({
 
           onClose();
         })
-        .catch(() =>
+        .catch(() => {
           appNotifications.error({
             title: "Failed to add appointment",
             message: "The appointment could not be added. Please try again.",
-          }),
-        )
+          });
+        })
         .finally(() => setIsLoading(false));
     };
 
