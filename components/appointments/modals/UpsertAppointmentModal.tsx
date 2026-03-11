@@ -88,6 +88,7 @@ export default function AddAppointmentModal({
         params: {
           organization_id: CLERK_ORG_IDS.attorney,
           limit: 9999,
+          banned: false,
         },
       },
     );
