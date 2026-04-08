@@ -13,11 +13,10 @@ import {
   LoadingOverlay,
   NavLink,
   Text,
-  Tooltip,
 } from "@mantine/core";
 import { DatePicker, getTimeRange, TimeGrid } from "@mantine/dates";
 import { useDebouncedValue, useDisclosure } from "@mantine/hooks";
-import { IconHome, IconInfoCircle, IconRocket } from "@tabler/icons-react";
+import { IconHome, IconRocket } from "@tabler/icons-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -34,6 +33,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { Booking } from "@/types/booking";
+import { GlobalSched } from "@/types/global-sched";
 import { CLERK_ORG_IDS, COLLECTIONS } from "@/constants/constants";
 import dayjs from "dayjs";
 import { SPECIAL_HOLIDAYS } from "@/constants/constants";
@@ -59,13 +59,14 @@ export default function BookingPage() {
   const [validHolidays, setValidHolidays] = useState<string[]>([]);
   const [workDays, setWorkDays] = useState<number[]>([]);
   const [blockedDates, setBlockedDates] = useState<Record<string, string[]>>(
-    {}
+    {},
   );
+  const [globalSched, setGlobalSched] = useState<GlobalSched | null>(null);
 
   const [isSuccess, setIsSuccess] = useState(false);
 
   const [currentDate, setCurrentDate] = useState<string>(
-    dayjs().format("YYYY-MM-DD")
+    dayjs().format("YYYY-MM-DD"),
   );
 
   const [debounced] = useDebouncedValue(currentDate, 500);
@@ -82,8 +83,8 @@ export default function BookingPage() {
         doc(
           db,
           COLLECTIONS.GLOBAL_SCHED,
-          process.env.NEXT_PUBLIC_FIREBASE_HOLIDAYS_BLOCKED_SCHED_ID!
-        )
+          process.env.NEXT_PUBLIC_FIREBASE_HOLIDAYS_BLOCKED_SCHED_ID!,
+        ),
       );
       if (!snap.exists()) return;
 
@@ -115,11 +116,12 @@ export default function BookingPage() {
       const blockedDatesMap = d?.blockedDates;
 
       setValidHolidays(
-        validHolidayIds.map((id) => holidayMap[id]).filter(Boolean)
+        validHolidayIds.map((id) => holidayMap[id]).filter(Boolean),
       );
       setWorkDays(workDays as number[]);
       setTimeSlots(timeHours);
       setBlockedDates(blockedDatesMap);
+      setGlobalSched(d as GlobalSched);
     } finally {
       setIsFetchingGlobalSched(false);
     }
@@ -168,7 +170,7 @@ export default function BookingPage() {
     const q = query(
       ref,
       where("date", ">=", startOfMonth),
-      where("date", "<=", endOfMonth)
+      where("date", "<=", endOfMonth),
     );
 
     const unsub = onSnapshot(
@@ -187,7 +189,7 @@ export default function BookingPage() {
           message: "The bookings could not be fetched. Please try again.",
           autoClose: false,
         });
-      }
+      },
     );
 
     return () => unsub();
@@ -315,7 +317,7 @@ export default function BookingPage() {
               <Text ta="center" fw={700} fz={24} c="#2B4E45">
                 Book an appointment
               </Text>
-              <Tooltip
+              {/* <Tooltip
                 bg="transparent"
                 multiline
                 w={220}
@@ -337,15 +339,13 @@ export default function BookingPage() {
                     })}
                   >
                     <Text size="xs">
-                      Our office hours are Monday through Friday, from 8:00 AM
-                      to 5:00 PM. Appointments must be booked at least 24 hours
-                      in advance.
+                      There is a booking fee of ₱1,300. You need to settle this first 
                     </Text>
                   </Alert>
                 }
               >
                 <IconInfoCircle style={{ cursor: "pointer" }} color="#2B4E45" />
-              </Tooltip>
+              </Tooltip> */}
             </Flex>
 
             <Flex
@@ -399,7 +399,7 @@ export default function BookingPage() {
                     const timeSlot = dayjs(`${selectedDate} ${time}`);
                     const selectedDateBookings = bookings.filter(
                       (booking) =>
-                        booking.date === selectedDate && booking.time === time
+                        booking.date === selectedDate && booking.time === time,
                     );
 
                     // 1 day before is before 5PM, return true
@@ -446,6 +446,7 @@ export default function BookingPage() {
         user={user ?? null}
         successCallback={successCallback}
         attorneyCount={attorneyCount || 0}
+        globalSched={globalSched}
       />
     </Container>
   );

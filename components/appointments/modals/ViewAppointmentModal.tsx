@@ -93,20 +93,18 @@ export default function ViewAppointmentModal({
           <Table.Tr>
             <Table.Th w={160}>Attorney</Table.Th>
             <Table.Td>
-              <Stack gap="0">
-                <Text fw={600} mb="xs">
+              <Group gap="4" align="center">
+                <Text fw={600} size="sm">
                   {booking.attorney?.fullname || "-"}
                 </Text>
-
                 {booking.attorney?.email && (
-                  <Group gap="xs">
-                    <IconMail size={16} />
+                  <Group gap="sm">
                     <Text c="green" fw={600} size="sm">
                       ({booking.attorney?.email})
                     </Text>
                   </Group>
                 )}
-              </Stack>
+              </Group>
             </Table.Td>
           </Table.Tr>
 

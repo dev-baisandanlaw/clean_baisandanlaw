@@ -20,7 +20,7 @@ interface AppointmentsListProps {
   selectedDate: string | null;
   handleSelectBooking: (
     booking: Booking,
-    mode: "update" | "delete" | "view"
+    mode: "update" | "delete" | "view" | "add" | "receipt",
   ) => void;
 }
 
@@ -33,7 +33,7 @@ export default function AppointmentsList({
   const { user } = useUser();
 
   const todayAppointments = data.filter(
-    (booking) => booking.date === selectedDate
+    (booking) => booking.date === selectedDate,
   );
 
   return (
@@ -49,6 +49,7 @@ export default function AppointmentsList({
             <Table.Th>Time</Table.Th>
             <Table.Th>Client</Table.Th>
             <Table.Th>Attorney</Table.Th>
+            <Table.Th>Payment</Table.Th>
             <Table.Th>Via</Table.Th>
             <Table.Th>Consultation</Table.Th>
             {user?.unsafeMetadata?.role === "admin" && (
@@ -67,7 +68,7 @@ export default function AppointmentsList({
             data
               .filter(
                 (booking) =>
-                  booking.date === dayjs(selectedDate!).format("YYYY-MM-DD")
+                  booking.date === dayjs(selectedDate!).format("YYYY-MM-DD"),
               )
               .sort((a, b) => a.time.localeCompare(b.time))
               .map((booking) => (
@@ -75,8 +76,40 @@ export default function AppointmentsList({
                   <Table.Td>
                     {dayjs(`${booking.date} ${booking.time}`).format("h:mm A")}
                   </Table.Td>
-                  <Table.Td>{booking.client.fullname}</Table.Td>
+                  <Table.Td>
+                    <Stack gap="2">
+                      <Text size="sm" fw={600}>
+                        {booking.client.fullname}
+                      </Text>
+                      <Text size="xs" c="dimmed">
+                        {booking.client.email}
+                      </Text>
+                    </Stack>
+                  </Table.Td>
                   <Table.Td>{booking.attorney?.fullname || "-"}</Table.Td>
+                  <Table.Td>
+                    <Group gap="xs" align="center">
+                      <Badge
+                        size="xs"
+                        radius="xs"
+                        variant="outline"
+                        color={booking?.paymentFields?.isPaid ? "green" : "red"}
+                      >
+                        {booking?.paymentFields?.isPaid ? "Paid" : "Unpaid"}
+                      </Badge>
+                      {booking?.paymentFields?.receiptFileId && (
+                        <ActionIcon
+                          size="xs"
+                          variant="default"
+                          onClick={() =>
+                            handleSelectBooking(booking, "receipt")
+                          }
+                        >
+                          <IconEye size={12} />
+                        </ActionIcon>
+                      )}
+                    </Group>
+                  </Table.Td>
                   <Table.Td>
                     <Badge
                       size="xs"
@@ -112,7 +145,7 @@ export default function AppointmentsList({
                         </ActionIcon>
 
                         {!dayjs().isAfter(
-                          dayjs(`${booking.date} ${booking.time}`)
+                          dayjs(`${booking.date} ${booking.time}`),
                         ) && (
                           <ActionIcon
                             size="sm"

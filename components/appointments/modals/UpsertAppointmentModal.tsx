@@ -130,12 +130,12 @@ export default function AddAppointmentModal({
       date: new Date(),
       time: "",
       message: "",
-      isPaid: true,
       via: "Walk-in",
       areas: [] as string[],
       consultationMode: "in-person",
       branch: "",
       representedByPreviousLawyer: false,
+      // TODO: add here the payment fields
     },
   });
 
