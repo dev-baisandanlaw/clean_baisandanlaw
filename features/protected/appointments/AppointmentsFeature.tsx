@@ -6,7 +6,7 @@ import AppointmentsDatePicker from "@/components/appointments/DatePickerFilter";
 import UpsertAppointmentModal from "@/components/appointments/modals/UpsertAppointmentModal";
 import DeleteDuplicateModal from "@/components/appointments/modals/DeleteDuplicateModal";
 import ViewAppointmentModal from "@/components/appointments/modals/ViewAppointmentModal";
-import ReceiptPreviewModal from "@/components/appointments/modals/ReceiptPreviewModal";
+import ReceiptPreviewModal from "@/components/Common/ReceiptPreviewModal";
 import { COLLECTIONS } from "@/constants/constants";
 import { db } from "@/firebase/config";
 import { Booking } from "@/types/booking";
@@ -35,6 +35,7 @@ import {
   getDocs,
   onSnapshot,
   query,
+  updateDoc,
   where,
 } from "firebase/firestore";
 import { useEffect, useState } from "react";
@@ -343,8 +344,21 @@ export default function AppointmentsFeature() {
       <ReceiptPreviewModal
         opened={receiptModalOpened}
         onClose={closeReceiptModal}
-        booking={selectedBooking || null}
-        setDataChanged={setDataChanged}
+        receiptFileId={selectedBooking?.paymentFields?.receiptFileId ?? ""}
+        isPaid={selectedBooking?.paymentFields?.isPaid ?? false}
+        onApprove={async () => {
+          if (!selectedBooking) return;
+          const ref = doc(db, COLLECTIONS.BOOKINGS, selectedBooking.id);
+          await updateDoc(ref, {
+            "paymentFields.isPaid": true,
+          });
+          appNotifications.success({
+            title: "Payment approved",
+            message: "The payment has been approved successfully.",
+          });
+          setDataChanged((prev) => !prev);
+        }}
+        filenamePrefix="receipt-booking"
       />
     </>
   );
