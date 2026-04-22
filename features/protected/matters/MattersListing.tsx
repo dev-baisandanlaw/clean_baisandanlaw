@@ -61,6 +61,7 @@ export default function MattersListing() {
     const offset = (page - 1) * limit;
 
     const queries: string[] = [Query.limit(limit), Query.offset(offset)];
+    queries.push(Query.orderDesc("$updatedAt"));
 
     if (userRole === "attorney") {
       queries.push(Query.equal("leadAttorneyId", user.id));
@@ -98,12 +99,12 @@ export default function MattersListing() {
         <Table.Thead>
           <Table.Tr>
             <Table.Th>Matter #</Table.Th>
-            <Table.Th>Lead Attorney</Table.Th>
+            <Table.Th>Attorney</Table.Th>
             <Table.Th>Client</Table.Th>
-            <Table.Th>Status</Table.Th>
             <Table.Th>Matter Type</Table.Th>
             {/* <Table.Th>Involved Attorneys</Table.Th> */}
             <Table.Th>Date Created</Table.Th>
+            <Table.Th>Date Updated</Table.Th>
             <Table.Th ta="center">Actions</Table.Th>
           </Table.Tr>
         </Table.Thead>
@@ -115,7 +116,6 @@ export default function MattersListing() {
         <Table.Tr>
           <Table.Th>Matter #</Table.Th>
           <Table.Th>Lead Attorney</Table.Th>
-          <Table.Th>Status</Table.Th>
           <Table.Th>Case Type</Table.Th>
           {/* <Table.Th>Involved Attorneys</Table.Th> */}
           <Table.Th>Created At</Table.Th>
@@ -204,16 +204,7 @@ export default function MattersListing() {
                           {matter.clientFirstName} {matter.clientLastName}
                         </Table.Td>
                       )}
-                      <Table.Td>
-                        <Badge
-                          size="xs"
-                          radius="xs"
-                          color={matter.status === "active" ? "green" : "red"}
-                        >
-                          {matter.status}
-                        </Badge>
-                      </Table.Td>
-                      <Table.Td width={250}>
+                      <Table.Td width={200}>
                         <Group gap={2}>
                           {matter.matterType
                             ?.split("&_&")
@@ -244,6 +235,9 @@ export default function MattersListing() {
 
                       <Table.Td>
                         {getDateFormatDisplay(matter.$createdAt, true)}
+                      </Table.Td>
+                      <Table.Td>
+                        {getDateFormatDisplay(matter.$updatedAt, true)}
                       </Table.Td>
                       <Table.Td ta="center">
                         <ActionIcon
