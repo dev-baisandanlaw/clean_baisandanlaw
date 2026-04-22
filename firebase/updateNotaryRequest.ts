@@ -13,7 +13,8 @@ export const updateNotaryRequest = async (
   newFile?: {
     id: string;
     name: string;
-  }
+  },
+  timelineTitle: string = "UPDATED",
 ) => {
   const uploaderName = `${user.firstName} ${user.lastName}`;
 
@@ -45,7 +46,7 @@ export const updateNotaryRequest = async (
         ...(notaryRequest.timeline || []),
         {
           id: customAlphabet("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", 8)(),
-          title: "UPDATED",
+          title: timelineTitle,
           description,
           dateAndTime: dayjs().format("YYYY-MM-DD HH:mm:ss"),
           status: NotaryRequestStatus.SUBMITTED,
@@ -61,6 +62,6 @@ export const updateNotaryRequest = async (
         email: user?.emailAddresses[0].emailAddress,
       },
     },
-    { merge: true }
+    { merge: true },
   );
 };

@@ -1,7 +1,6 @@
 import { COLLECTIONS } from "@/constants/constants";
 import { approveNotaryRequest } from "@/firebase/approveNotaryRequest";
 import { db } from "@/firebase/config";
-import { syncToAppwrite } from "@/lib/syncToAppwrite";
 import { NotaryRequest, NotaryRequestStatus } from "@/types/notary-requests";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { getNotaryStatus } from "@/utils/getNotaryStatus";
@@ -35,7 +34,7 @@ interface ApproveNotaryRequestModalProps {
   setDataChanged: Dispatch<SetStateAction<boolean>>;
 }
 
-export default function ApproveNotaryRequestModal({
+export default function NS4AdminModal({
   opened,
   onClose,
   notaryRequestId,
@@ -55,7 +54,7 @@ export default function ApproveNotaryRequestModal({
 
     try {
       const snap = await getDoc(
-        doc(db, COLLECTIONS.NOTARY_REQUESTS, notaryRequestId)
+        doc(db, COLLECTIONS.NOTARY_REQUESTS, notaryRequestId),
       );
       if (snap.exists()) {
         setNotaryRequestData({
@@ -69,9 +68,8 @@ export default function ApproveNotaryRequestModal({
       }, 500);
     } catch {
       appNotifications.error({
-        title: "Failed to fetch notary request data",
-        message:
-          "The notary request data could not be fetched. Please try again.",
+        title: "Failed to fetch  request data",
+        message: "The  request data could not be fetched. Please try again.",
       });
       onClose();
     }
@@ -103,6 +101,9 @@ export default function ApproveNotaryRequestModal({
 
   if (!notaryRequestData) return null;
 
+  const isRevision =
+    notaryRequestData.status === NotaryRequestStatus.NEEDS_ATTORNEY_REVISION;
+
   const handleApproveNotaryRequest = async () => {
     setIsApproving(true);
     let fileId = null;
@@ -111,7 +112,7 @@ export default function ApproveNotaryRequestModal({
         // 1. Delete the existing file from Google Drive
         if (notaryRequestData?.documents?.finishedFile?.id) {
           await axios.delete(
-            `/api/google/drive/delete/${notaryRequestData.documents.finishedFile.id}`
+            `/api/google/drive/delete/${notaryRequestData.documents.finishedFile.id}`,
           );
         }
 
@@ -121,7 +122,7 @@ export default function ApproveNotaryRequestModal({
         fd.append("file", file);
         const { data: uploadedFile } = await axios.post(
           "/api/google/drive/upload",
-          fd
+          fd,
         );
 
         fileId = uploadedFile.uploadedFiles.id;
@@ -133,22 +134,18 @@ export default function ApproveNotaryRequestModal({
         name: file!.name,
       });
 
-      // 4. Update the notary request in Appwrite
-      await syncToAppwrite("NOTARY_REQUESTS", notaryRequestId, {
-        documentFinishedFileId: fileId,
-        status: NotaryRequestStatus.FOR_CLIENT_REVIEW,
-      });
-
       appNotifications.success({
-        title: "Notary request approved",
-        message: "The notary request has been approved successfully",
+        title: "Finished document uploaded",
+        message: isRevision
+          ? "The revised document has been uploaded for client review."
+          : "The finished document has been uploaded for client review.",
       });
       setDataChanged((prev) => !prev);
       onClose();
     } catch {
       appNotifications.error({
-        title: "Failed to approve notary request",
-        message: "The notary request could not be approved. Please try again.",
+        title: "Failed to approve  request",
+        message: "The  request could not be approved. Please try again.",
       });
     } finally {
       setIsApproving(false);
@@ -192,7 +189,11 @@ export default function ApproveNotaryRequestModal({
     <Modal
       opened={opened}
       onClose={onClose}
-      title="Approve Notary Request"
+      title={
+        isRevision
+          ? "Upload Revised Finished Document"
+          : "Upload Finished Document"
+      }
       centered
       transitionProps={{ transition: "pop" }}
       size="xl"
@@ -202,7 +203,7 @@ export default function ApproveNotaryRequestModal({
         <Center my="xl">
           <Stack gap="md" align="center" justify="center">
             <Loader size="lg" type="dots" />
-            <Text c="dimmed">Fetching notary request data...</Text>
+            <Text c="dimmed">Fetching request data...</Text>
           </Stack>
         </Center>
       ) : (
@@ -238,7 +239,7 @@ export default function ApproveNotaryRequestModal({
                   <Text c="green" fw={600} size="sm">
                     {getDateFormatDisplay(
                       notaryRequestData?.createdAt || "",
-                      true
+                      true,
                     )}
                   </Text>
                 </Table.Td>
@@ -255,7 +256,7 @@ export default function ApproveNotaryRequestModal({
             </Table.Tbody>
           </Table>
 
-          <Divider label="Upload approval document" />
+          <Divider label="Upload finished document" />
 
           {!file && (
             <Dropzone
@@ -309,7 +310,9 @@ export default function ApproveNotaryRequestModal({
               loading={isApproving}
               onClick={handleApproveNotaryRequest}
             >
-              Approve Request
+              {isRevision
+                ? "Upload Revised Document"
+                : "Upload Finished Document"}
             </Button>
           </Group>
         </Stack>

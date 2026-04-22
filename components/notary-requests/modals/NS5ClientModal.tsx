@@ -7,6 +7,7 @@ import {
   Group,
   Loader,
   Modal,
+  Radio,
   Select,
   Stack,
   Text,
@@ -20,7 +21,7 @@ import { nanoid } from "nanoid";
 
 import { COLLECTIONS } from "@/constants/constants";
 import { db } from "@/firebase/config";
-import { syncToAppwrite } from "@/lib/syncToAppwrite";
+
 import { appNotifications } from "@/utils/notifications/notifications";
 
 import { NotaryRequest, NotaryRequestStatus } from "@/types/notary-requests";
@@ -32,7 +33,7 @@ interface ClientReviewModalProps {
   setDataChanged: Dispatch<SetStateAction<boolean>>;
 }
 
-export default function ClientReviewModal({
+export default function NS5ClientModal({
   opened,
   onClose,
   notaryRequestId,
@@ -49,7 +50,7 @@ export default function ClientReviewModal({
 
   const [reviewAction, setReviewAction] = useState<string | null>(null);
   const [pickupBranch, setPickupBranch] = useState<string | null>(null);
-  const [pickupDate, setPickupDate] = useState<Date | string | null>(null);
+  const [pickupDate, setPickupDate] = useState<Date | null>(null);
 
   const fetchNotaryRequest = async () => {
     setIsFetching(true);
@@ -70,9 +71,8 @@ export default function ClientReviewModal({
       }, 500);
     } catch {
       appNotifications.error({
-        title: "Failed to fetch notary request data",
-        message:
-          "The notary request data could not be fetched. Please try again.",
+        title: "Failed to fetch request data",
+        message: "The request data could not be fetched. Please try again.",
       });
       onClose();
     }
@@ -88,16 +88,16 @@ export default function ClientReviewModal({
         await setDoc(
           doc(db, COLLECTIONS.NOTARY_REQUESTS, notaryRequestId),
           {
-            status: NotaryRequestStatus.CLIENT_REJECTED,
+            status: NotaryRequestStatus.NEEDS_ATTORNEY_REVISION,
             updatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
             timeline: [
               ...(notaryRequestData?.timeline || []),
               {
                 id: nanoid(8),
-                title: "CLIENT REJECTED",
-                description: "Notarized preview rejected by client",
+                title: "NEEDS_ATTORNEY_REVISION",
+                description: "Finished document rejected by client",
                 dateAndTime: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-                status: NotaryRequestStatus.CLIENT_REJECTED,
+                status: NotaryRequestStatus.NEEDS_ATTORNEY_REVISION,
                 user: {
                   id: user!.id,
                   fullname: user!.firstName + " " + user!.lastName,
@@ -110,30 +110,30 @@ export default function ClientReviewModal({
           { merge: true },
         );
 
-        await syncToAppwrite("NOTARY_REQUESTS", notaryRequestId, {
-          status: NotaryRequestStatus.CLIENT_REJECTED,
-        });
-
         appNotifications.success({
-          title: "Notary request marked as client rejected",
-          message: "The notary request has been marked as client rejected",
+          title: "Document sent back for revision",
+          message:
+            "The finished document has been sent back for attorney revision.",
         });
       } else if (reviewAction === "approve") {
+        const pickupDateFormatted =
+          pickupBranch !== "Soft copy only" && pickupDate
+            ? dayjs(pickupDate).format("YYYY-MM-DD")
+            : null;
+
         await setDoc(
           doc(db, COLLECTIONS.NOTARY_REQUESTS, notaryRequestId),
           {
             status: NotaryRequestStatus.CLIENT_APPROVED,
             updatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-            pickupBranch: pickupBranch || "",
-            pickupDate: pickupDate
-              ? dayjs(pickupDate).format("YYYY-MM-DD")
-              : "",
+            pickupBranch: pickupBranch,
+            pickupDate: pickupDateFormatted,
             timeline: [
               ...(notaryRequestData?.timeline || []),
               {
                 id: nanoid(8),
-                title: "CLIENT APPROVED",
-                description: "Notary request approved by client",
+                title: "CLIENT_APPROVED",
+                description: "Request approved by client",
                 dateAndTime: dayjs().format("YYYY-MM-DD HH:mm:ss"),
                 status: NotaryRequestStatus.CLIENT_APPROVED,
                 user: {
@@ -141,26 +141,15 @@ export default function ClientReviewModal({
                   fullname: user!.firstName + " " + user!.lastName,
                   email: user!.primaryEmailAddress!.emailAddress,
                 },
-                reason: remarks,
-                pickupBranch: pickupBranch || "",
-                pickupDate: pickupDate
-                  ? dayjs(pickupDate).format("YYYY-MM-DD")
-                  : "",
               },
             ],
           },
           { merge: true },
         );
 
-        await syncToAppwrite("NOTARY_REQUESTS", notaryRequestId, {
-          status: NotaryRequestStatus.CLIENT_APPROVED,
-          pickupBranch: pickupBranch || "",
-          pickupDate: pickupDate ? dayjs(pickupDate).format("YYYY-MM-DD") : "",
-        });
-
         appNotifications.success({
-          title: "Notary request marked as client approved",
-          message: "The notary request has been marked as client approved",
+          title: "Request approved",
+          message: "The request has been approved successfully.",
         });
       }
 
@@ -168,8 +157,8 @@ export default function ClientReviewModal({
       onClose();
     } catch {
       appNotifications.error({
-        title: `Failed to ${reviewAction} notary request`,
-        message: `The notary request could not be marked as client ${reviewAction}ed. Please try again.`,
+        title: `Failed to ${reviewAction} request`,
+        message: `The request could not be ${reviewAction}ed. Please try again.`,
       });
     } finally {
       setIsReviewing(false);
@@ -244,6 +233,18 @@ export default function ClientReviewModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened, notaryRequestId]);
 
+  const isPhysicalPickup =
+    pickupBranch === "Angeles branch" || pickupBranch === "Magalang branch";
+
+  const isApproveDisabled =
+    reviewAction === "approve" &&
+    (!pickupBranch || (isPhysicalPickup && !pickupDate));
+
+  const isRejectDisabled = reviewAction === "reject" && !remarks.trim();
+
+  const isSubmitDisabled =
+    !reviewAction || isApproveDisabled || isRejectDisabled || isReviewing;
+
   return (
     <Modal
       opened={opened}
@@ -258,7 +259,7 @@ export default function ClientReviewModal({
         <Center my="xl">
           <Stack gap="md" align="center" justify="center">
             <Loader size="lg" type="dots" />
-            <Text c="dimmed">Fetching notary request data...</Text>
+            <Text c="dimmed">Fetching request data...</Text>
           </Stack>
         </Center>
       ) : (
@@ -294,6 +295,9 @@ export default function ClientReviewModal({
                 setPickupBranch(null);
                 setPickupDate(null);
               }
+              if (value !== "reject") {
+                setRemarks("");
+              }
             }}
             withAsterisk
             mb="md"
@@ -301,41 +305,52 @@ export default function ClientReviewModal({
 
           {reviewAction === "approve" && (
             <>
-              <Select
-                label="Select Pickup Branch"
-                placeholder="Select branch"
-                data={["Angeles branch", "Magalang branch", "Soft copy only"]}
+              <Radio.Group
+                label="Pickup Method"
                 value={pickupBranch}
-                onChange={setPickupBranch}
+                onChange={(value) => {
+                  setPickupBranch(value);
+                  if (value === "Soft copy only") {
+                    setPickupDate(null);
+                  }
+                }}
                 withAsterisk
                 mb="md"
-              />
+              >
+                <Stack gap="xs" mt="xs">
+                  <Radio value="Angeles branch" label="Angeles branch" />
+                  <Radio value="Magalang branch" label="Magalang branch" />
+                  <Radio value="Soft copy only" label="Soft copy only" />
+                </Stack>
+              </Radio.Group>
 
-              {!pickupBranch ||
-                (pickupBranch !== "Soft copy only" && (
-                  <DatePickerInput
-                    label="Date of Pickup"
-                    placeholder="Select pickup date"
-                    value={pickupDate}
-                    onChange={setPickupDate}
-                    withAsterisk
-                    mb="md"
-                    minDate={new Date()}
-                  />
-                ))}
+              {isPhysicalPickup && (
+                <DatePickerInput
+                  label="Date of Pickup"
+                  placeholder="Select pickup date"
+                  value={pickupDate}
+                  onChange={setPickupDate}
+                  withAsterisk
+                  mb="md"
+                  minDate={new Date()}
+                />
+              )}
             </>
           )}
 
-          <Textarea
-            placeholder="Please provide your feedback or any additional comments..."
-            label="Remarks"
-            minRows={6}
-            autosize
-            withAsterisk
-            styles={{ input: { paddingBlock: 6 } }}
-            value={remarks}
-            onChange={(e) => setRemarks(e.target.value)}
-          />
+          {reviewAction === "reject" && (
+            <Textarea
+              placeholder="Please provide a reason for rejecting the document..."
+              label="Rejection Reason"
+              minRows={6}
+              autosize
+              withAsterisk
+              styles={{ input: { paddingBlock: 6 } }}
+              value={remarks}
+              onChange={(e) => setRemarks(e.target.value)}
+              mb="md"
+            />
+          )}
 
           <Group justify="end" gap="md" mt="md">
             <Button variant="default" onClick={onClose} disabled={isReviewing}>
@@ -343,14 +358,7 @@ export default function ClientReviewModal({
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={
-                !reviewAction ||
-                !remarks.trim() ||
-                isReviewing ||
-                (reviewAction === "approve" &&
-                  (!pickupBranch ||
-                    (pickupBranch !== "Soft copy only" && !pickupDate)))
-              }
+              disabled={isSubmitDisabled}
               loading={isReviewing}
               color={
                 !reviewAction

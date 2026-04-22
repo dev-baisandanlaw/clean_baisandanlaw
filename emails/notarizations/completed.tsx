@@ -21,7 +21,7 @@ export const NotarizationCompletedEmail = ({
     <Html>
       <Head />
       <Body style={main}>
-        <Preview>Your Notary Request is Completed!</Preview>
+        <Preview>Your Request is Completed!</Preview>
         <Container style={container}>
           <Section style={logo}>
             <Img

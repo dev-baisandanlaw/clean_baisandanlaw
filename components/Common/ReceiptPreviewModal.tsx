@@ -16,6 +16,7 @@ interface ReceiptPreviewModalProps {
   receiptFileId: string;
   isPaid: boolean;
   onApprove: () => Promise<void>;
+  isDownloadOnly?: boolean;
   filenamePrefix?: string;
 }
 
@@ -25,6 +26,7 @@ export default function ReceiptPreviewModal({
   receiptFileId,
   isPaid,
   onApprove,
+  isDownloadOnly = false,
   filenamePrefix = "receipt",
 }: ReceiptPreviewModalProps) {
   const [isApproving, setIsApproving] = useState(false);
@@ -139,13 +141,18 @@ export default function ReceiptPreviewModal({
       size="lg"
       withCloseButton={!isApproving}
     >
-      {isLoadingPreview && <Center h={200} />}
-      <LoadingOverlay
-        visible={isLoadingPreview}
-        loaderProps={{ type: "bars" }}
-      />
-      {previewUrl && (
+      {isLoadingPreview && (
+        <Center h={400}>
+          <LoadingOverlay
+            visible={isLoadingPreview}
+            loaderProps={{ type: "bars" }}
+          />
+        </Center>
+      )}
+
+      {previewUrl && !isLoadingPreview && (
         <Image
+          fallbackSrc="https://placehold.net/400x400.png"
           src={previewUrl}
           alt="Receipt"
           fit="contain"
@@ -157,7 +164,7 @@ export default function ReceiptPreviewModal({
         <Button onClick={handleDownload} variant="outline">
           Download
         </Button>
-        {!isPaid && (
+        {!isPaid && !isDownloadOnly && (
           <Button onClick={handleApprove} color="green" loading={isApproving}>
             Approve
           </Button>

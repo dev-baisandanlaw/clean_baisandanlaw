@@ -1,3 +1,4 @@
+import DetailField from "@/components/Common/DetailField";
 import { COLLECTIONS } from "@/constants/constants";
 import { db } from "@/firebase/config";
 import { NotaryRequest, NotaryRequestStatus } from "@/types/notary-requests";
@@ -7,13 +8,14 @@ import { getNotaryTimelineBullet } from "@/utils/getNotaryTimelineBullet";
 import { appNotifications } from "@/utils/notifications/notifications";
 import {
   Alert,
+  Badge,
   Center,
   Divider,
   Drawer,
   Group,
   Loader,
+  SimpleGrid,
   Stack,
-  Table,
   Text,
   Timeline,
   Title,
@@ -41,7 +43,7 @@ export const ViewNotaryRequestDrawer = ({
 
     try {
       const snap = await getDoc(
-        doc(db, COLLECTIONS.NOTARY_REQUESTS, notaryRequestId)
+        doc(db, COLLECTIONS.NOTARY_REQUESTS, notaryRequestId),
       );
       if (snap.exists()) {
         setNotaryRequestData({
@@ -55,9 +57,8 @@ export const ViewNotaryRequestDrawer = ({
       }, 500);
     } catch {
       appNotifications.error({
-        title: "Failed to fetch notary request data",
-        message:
-          "The notary request data could not be fetched. Please try again.",
+        title: "Failed to fetch data",
+        message: "The request data could not be fetched. Please try again.",
       });
       onClose();
     }
@@ -73,6 +74,10 @@ export const ViewNotaryRequestDrawer = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened, notaryRequestId]);
 
+  const formatFee = (fee: number) => {
+    return `₱${fee.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
   return (
     <Drawer
       opened={opened}
@@ -80,73 +85,90 @@ export const ViewNotaryRequestDrawer = ({
       title={
         <Group>
           <Text c="green" fw={600}>
-            Notary Request
+            Request
           </Text>
           {getNotaryStatus(
-            notaryRequestData?.status ?? NotaryRequestStatus.SUBMITTED
+            notaryRequestData?.status ?? NotaryRequestStatus.SUBMITTED,
           )}
         </Group>
       }
       styles={{ header: { width: "100%" } }}
       position="right"
-      size="lg"
+      size="xl"
     >
       {isFetching ? (
         <Center my="xl">
           <Stack gap="md" align="center" justify="center">
             <Loader size="lg" type="dots" />
-            <Text c="dimmed">Fetching notary request data...</Text>
+            <Text c="dimmed">Fetching request data...</Text>
           </Stack>
         </Center>
       ) : (
         <Stack>
-          <Table variant="vertical" layout="fixed">
-            <Table.Tbody>
-              <Table.Tr>
-                <Table.Th w={160}>Requestor</Table.Th>
-                <Table.Td>
-                  <Text c="green" fw={600} size="sm">
-                    {notaryRequestData?.requestor.fullname}
-                  </Text>
-                </Table.Td>
-              </Table.Tr>
+          <SimpleGrid cols={2}>
+            <DetailField
+              title="Created Date"
+              value={getDateFormatDisplay(
+                notaryRequestData?.createdAt || "",
+                true,
+              )}
+            />
+            <DetailField
+              title="Full Name"
+              value={notaryRequestData?.requestor.fullname}
+            />
+            <DetailField
+              title="Email"
+              value={notaryRequestData?.requestor.email}
+            />
+          </SimpleGrid>
+          <DetailField
+            title="Description"
+            value={notaryRequestData?.description}
+          />
 
-              <Table.Tr>
-                <Table.Th>Email</Table.Th>
-                <Table.Td>
-                  <Text c="green" fw={600} size="sm">
-                    {notaryRequestData?.requestor.email}
-                  </Text>
-                </Table.Td>
-              </Table.Tr>
+          <Divider my="lg" label="Additional Details" labelPosition="center" />
 
-              <Table.Tr>
-                <Table.Th>Uploaded At</Table.Th>
-                <Table.Td>
-                  <Text c="green" fw={600} size="sm">
-                    {getDateFormatDisplay(
-                      notaryRequestData?.createdAt || "",
-                      true
-                    )}
-                  </Text>
-                </Table.Td>
-              </Table.Tr>
-
-              <Table.Tr>
-                <Table.Th colSpan={2}>
-                  <Text c="green" fw={600} size="sm" ta="center">
-                    Description
-                  </Text>
-                </Table.Th>
-              </Table.Tr>
-
-              <Table.Tr>
-                <Table.Td colSpan={2}>
-                  {notaryRequestData?.description}
-                </Table.Td>
-              </Table.Tr>
-            </Table.Tbody>
-          </Table>
+          <SimpleGrid cols={2}>
+            <DetailField
+              title="Fee"
+              value={
+                notaryRequestData?.paymentFields?.fee
+                  ? formatFee(notaryRequestData?.paymentFields?.fee || 0)
+                  : "TBD"
+              }
+            />
+            <DetailField
+              title="Payment Status"
+              value={
+                <Badge
+                  color={
+                    notaryRequestData?.paymentFields?.isPaid ? "green" : "red"
+                  }
+                  variant="filled"
+                  size="xs"
+                >
+                  {notaryRequestData?.paymentFields?.isPaid ? "Paid" : "Unpaid"}
+                </Badge>
+              }
+            />
+            <DetailField
+              title="Pickup Type"
+              value={notaryRequestData?.pickupBranch}
+            />
+            <DetailField
+              title="Pickup Date"
+              value={
+                notaryRequestData?.pickupBranch === "Soft copy only"
+                  ? undefined
+                  : notaryRequestData?.pickupDate
+                    ? getDateFormatDisplay(
+                        notaryRequestData.pickupDate as string,
+                      )
+                    : undefined
+              }
+            />
+          </SimpleGrid>
 
           <Divider my="lg" />
 
