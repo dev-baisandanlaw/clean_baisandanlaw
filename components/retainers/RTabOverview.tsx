@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import {
   ActionIcon,
   Avatar,
-  Badge,
   Button,
   Card,
   Divider,
@@ -46,6 +45,7 @@ import { appNotifications } from "@/utils/notifications/notifications";
 
 import type { Retainer } from "@/types/retainer";
 import type { Note } from "@/types/matter-notes";
+import { AreaBadge } from "../Common/BadgeComp";
 
 interface RTabOverviewProps {
   retainerData: Retainer;
@@ -147,17 +147,12 @@ export default function RTabOverview({
         />
       ) : (
         <Group gap={2}>
-          {retainerData.practiceAreas.map((area) => (
-            <Badge
-              key={area}
-              color={theme.other.customPumpkin}
-              size="xs"
-              radius="xs"
-              variant="outline"
-            >
-              {area}
-            </Badge>
+          {retainerData.practiceAreas.slice(0, 3).map((area) => (
+            <AreaBadge key={area} area={area} />
           ))}
+          {retainerData.practiceAreas.length > 3 && (
+            <AreaBadge area={`+${retainerData.practiceAreas.length - 3}`} />
+          )}
         </Group>
       ),
     },

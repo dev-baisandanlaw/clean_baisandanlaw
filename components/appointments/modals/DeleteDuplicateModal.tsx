@@ -2,9 +2,12 @@ import { useState } from "react";
 
 import axios from "axios";
 
-import { Button, Modal, Table, Text } from "@mantine/core";
+import { Button, Modal, SimpleGrid, Text } from "@mantine/core";
 import { IconTrash } from "@tabler/icons-react";
 import { deleteDoc, doc } from "firebase/firestore";
+
+import BasicCard from "@/components/Common/BasicCard";
+import DetailField from "@/components/Common/DetailField";
 
 import { COLLECTIONS } from "@/constants/constants";
 import { db } from "@/firebase/config";
@@ -75,45 +78,20 @@ export default function DeleteDuplicateModal({
         confirmed, the appointment will be deleted and cannot be undone.
       </Text>
 
-      <Table variant="vertical" layout="fixed">
-        <Table.Tbody>
-          <Table.Tr>
-            <Table.Th w={160}>Client</Table.Th>
-            <Table.Td>
-              <Text c="green" fw={600} size="sm">
-                {booking.client.fullname}
-              </Text>
-            </Table.Td>
-          </Table.Tr>
-
-          <Table.Tr>
-            <Table.Th w={160}>Attorney</Table.Th>
-            <Table.Td>
-              <Text c="green" fw={600} size="sm">
-                {booking.attorney?.fullname}
-              </Text>
-            </Table.Td>
-          </Table.Tr>
-
-          <Table.Tr>
-            <Table.Th w={160}>Date & Time</Table.Th>
-            <Table.Td>
-              <Text c="green" fw={600} size="sm">
-                {getDateFormatDisplay(`${booking.date} ${booking.time}`, true)}
-              </Text>
-            </Table.Td>
-          </Table.Tr>
-
-          <Table.Tr>
-            <Table.Th w={160}>Via</Table.Th>
-            <Table.Td>
-              <Text c="green" fw={600} size="sm">
-                {booking.via}
-              </Text>
-            </Table.Td>
-          </Table.Tr>
-        </Table.Tbody>
-      </Table>
+      <BasicCard title="Appointment Details">
+        <SimpleGrid cols={2}>
+          <DetailField title="Client" value={booking.client.fullname} />
+          <DetailField title="Attorney" value={booking.attorney?.fullname} />
+          <DetailField
+            title="Date & Time"
+            value={getDateFormatDisplay(
+              `${booking.date} ${booking.time}`,
+              true,
+            )}
+          />
+          <DetailField title="Via" value={booking.via} />
+        </SimpleGrid>
+      </BasicCard>
 
       <Button
         onClick={handleDeleteDuplicate}

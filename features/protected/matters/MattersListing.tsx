@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 
 import {
   ActionIcon,
-  Badge,
   Button,
   Flex,
   Group,
@@ -15,7 +14,6 @@ import {
   TableScrollContainer,
   Text,
   TextInput,
-  useMantineTheme,
 } from "@mantine/core";
 import {
   useDebouncedValue,
@@ -32,10 +30,10 @@ import EmptyTableComponent from "@/components/EmptyTableComponent";
 import AddMatterModal from "@/components/matter/modals/AddMatterModal";
 
 import { AppwriteMatterDocument } from "@/types/appwriteResponses";
+import { AreaBadge } from "@/components/Common/BadgeComp";
 
 export default function MattersListing() {
   const shrink = useMediaQuery("(max-width: 768px)");
-  const theme = useMantineTheme();
   const { user } = useUser();
 
   const [matters, setMatters] = useState<AppwriteMatterDocument[]>([]);
@@ -57,7 +55,7 @@ export default function MattersListing() {
 
     setIsFetching(true);
     const userRole = user.unsafeMetadata?.role;
-    const limit = 10;
+    const limit = 25;
     const offset = (page - 1) * limit;
 
     const queries: string[] = [Query.limit(limit), Query.offset(offset)];
@@ -210,25 +208,12 @@ export default function MattersListing() {
                             ?.split("&_&")
                             ?.slice(0, 3)
                             .map((type) => (
-                              <Badge
-                                size="xs"
-                                radius="xs"
-                                variant="outline"
-                                key={type}
-                                color={theme.other.customPumpkin}
-                              >
-                                {type}
-                              </Badge>
+                              <AreaBadge key={type} area={type} />
                             ))}
                           {matter.matterType?.split("&_&")?.length > 3 && (
-                            <Badge
-                              color={theme.other.customPumpkin}
-                              size="xs"
-                              radius="xs"
-                              variant="outline"
-                            >
-                              +{matter.matterType?.split("&_&")?.length - 3}
-                            </Badge>
+                            <AreaBadge
+                              area={`+${matter.matterType?.split("&_&")?.length - 3}`}
+                            />
                           )}
                         </Group>
                       </Table.Td>
@@ -264,16 +249,17 @@ export default function MattersListing() {
           >
             {totalCount > 0 ? (
               <Text size="sm">
-                Showing {(currentPage - 1) * 10 + 1}-
-                {Math.min(currentPage * 10, totalCount)} of {totalCount} Matters
+                Showing {(currentPage - 1) * 25 + 1}-
+                {Math.min(currentPage * 25, totalCount)} of {totalCount} Matters
               </Text>
             ) : (
               <Text size="sm">No matters found</Text>
             )}
 
             <Pagination
+              size="sm"
               ml={shrink ? 0 : "auto"}
-              total={Math.ceil(totalCount / 10) || 1}
+              total={Math.ceil(totalCount / 25) || 1}
               value={currentPage}
               onChange={setCurrentPage}
             />

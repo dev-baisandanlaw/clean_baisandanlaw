@@ -18,7 +18,6 @@ import {
   Progress,
   Pagination,
   Tabs,
-  Badge,
   Group,
 } from "@mantine/core";
 import {
@@ -57,9 +56,9 @@ import { COLLECTIONS } from "@/constants/constants";
 import { db } from "@/firebase/config";
 import { appNotifications } from "@/utils/notifications/notifications";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
-import { getNotaryStatus } from "@/utils/getNotaryStatus";
 import dayjs from "dayjs";
 import { nanoid } from "nanoid";
+import { NotaryStatusBadge, PaymentBadge } from "@/components/Common/BadgeComp";
 import EmptyTableComponent from "@/components/EmptyTableComponent";
 import { NS1ClientModal } from "@/components/notary-requests/modals/NS1ClientModal";
 import NS2AdminModal from "@/components/notary-requests/modals/NS2AdminModal";
@@ -94,7 +93,11 @@ export function getVisibleActions(
 
   switch (status) {
     case NotaryRequestStatus.SUBMITTED:
-      return isAdmin ? ["confirm", "reject", "cancel"] : [];
+      return isAdmin
+        ? ["confirm", "reject", "cancel"]
+        : isClient
+          ? ["edit"]
+          : [];
 
     case NotaryRequestStatus.NEEDS_CLIENT_REVISION:
       return isClient ? ["edit"] : [];
@@ -128,7 +131,7 @@ export function getVisibleActions(
   }
 }
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 25;
 
 export default function NotaryRequestsListing() {
   const shrink = useMediaQuery("(max-width: 768px)");
@@ -548,29 +551,17 @@ export default function NotaryRequestsListing() {
                         )}
                       </Table.Td>
                       <Table.Td>
-                        {getNotaryStatus(notaryRequest.status)}
+                        <NotaryStatusBadge status={notaryRequest.status} />
                       </Table.Td>
 
                       <Table.Td>
-                        <Group gap="xs" align="center">
-                          <Badge
-                            size="xs"
-                            radius="xs"
-                            variant="outline"
-                            color={
-                              notaryRequest?.paymentFields?.isPaid
-                                ? "green"
-                                : notaryRequest?.paymentFields?.receiptFileId
-                                  ? "yellow"
-                                  : "red"
+                        <Group gap="xs" align="center" wrap="nowrap">
+                          <PaymentBadge
+                            hasReceiptUploaded={
+                              !!notaryRequest?.paymentFields?.receiptFileId
                             }
-                          >
-                            {notaryRequest?.paymentFields?.isPaid
-                              ? "Paid"
-                              : notaryRequest?.paymentFields?.receiptFileId
-                                ? "For Approval"
-                                : "Unpaid"}
-                          </Badge>
+                            isPaid={!!notaryRequest?.paymentFields?.isPaid}
+                          />
                           {notaryRequest?.paymentFields?.receiptFileId && (
                             <ActionIcon
                               size="xs"
@@ -786,6 +777,7 @@ export default function NotaryRequestsListing() {
             )}
 
             <Pagination
+              size="sm"
               ml={shrink ? 0 : "auto"}
               total={totalPages}
               value={currentPage}

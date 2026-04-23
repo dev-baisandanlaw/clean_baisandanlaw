@@ -50,7 +50,7 @@ export default function NS5ClientModal({
 
   const [reviewAction, setReviewAction] = useState<string | null>(null);
   const [pickupBranch, setPickupBranch] = useState<string | null>(null);
-  const [pickupDate, setPickupDate] = useState<Date | null>(null);
+  const [pickupDate, setPickupDate] = useState<string | null>(null);
 
   const fetchNotaryRequest = async () => {
     setIsFetching(true);
@@ -342,13 +342,15 @@ export default function NS5ClientModal({
             <Textarea
               placeholder="Please provide a reason for rejecting the document..."
               label="Rejection Reason"
-              minRows={6}
-              autosize
+              rows={6}
               withAsterisk
               styles={{ input: { paddingBlock: 6 } }}
               value={remarks}
               onChange={(e) => setRemarks(e.target.value)}
               mb="md"
+              maxLength={1000}
+              inputWrapperOrder={["label", "input", "description", "error"]}
+              description={`${remarks.length}/1000 characters`}
             />
           )}
 

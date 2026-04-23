@@ -1,17 +1,10 @@
+import { AreaBadge, BookingViaBadge } from "@/components/Common/BadgeComp";
+import BasicCard from "@/components/Common/BasicCard";
+import DetailField from "@/components/Common/DetailField";
+import SpoilerComp from "@/components/Common/SpoilerComp";
 import { Booking } from "@/types/booking";
-import { getBookingViaColor } from "@/utils/getBookingStatusColor";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
-import {
-  Badge,
-  Button,
-  Group,
-  Modal,
-  Stack,
-  Table,
-  Text,
-  useMantineTheme,
-} from "@mantine/core";
-import { IconCake, IconMail, IconMapPin, IconPhone } from "@tabler/icons-react";
+import { Button, Group, Modal, SimpleGrid, Stack, Text } from "@mantine/core";
 import dayjs from "dayjs";
 
 type ViewAppointmentModalProps = {
@@ -25,8 +18,6 @@ export default function ViewAppointmentModal({
   onClose,
   booking,
 }: ViewAppointmentModalProps) {
-  const theme = useMantineTheme();
-
   if (!booking) return null;
 
   return (
@@ -36,158 +27,93 @@ export default function ViewAppointmentModal({
       title={
         <Group gap="xs">
           <Text fw={600}>View Appointment</Text>
-          <Badge size="xs" radius="xs" color={getBookingViaColor(booking.via)}>
-            {booking.via}
-          </Badge>
+          <BookingViaBadge via={booking.via} />
         </Group>
       }
       centered
       size="xl"
       transitionProps={{ transition: "pop" }}
     >
-      <Table variant="vertical" layout="fixed">
-        <Table.Tbody>
-          <Table.Tr>
-            <Table.Th w={160}>Client</Table.Th>
-            <Table.Td>
-              <Stack gap="0">
-                <Text fw={600} mb="xs">
-                  {booking.client.fullname}
-                </Text>
+      <Stack>
+        <BasicCard title="Client's Information">
+          <SimpleGrid cols={{ base: 2, xs: 3 }}>
+            <DetailField title="Full Name" value={booking.client.fullname} />
+            <DetailField title="Email" value={booking.client.email} />
+            <DetailField
+              title="Phone Number"
+              value={booking.client.phoneNumber || "-"}
+            />
+            <DetailField
+              title="Birthday"
+              value={
+                booking.client.birthday
+                  ? dayjs(booking?.client?.birthday).format("MMM D, YYYY")
+                  : "-"
+              }
+            />
+            <DetailField
+              title="Address"
+              value={booking.client.fullAddress || "-"}
+            />
+          </SimpleGrid>
+        </BasicCard>
 
+        <BasicCard title="Booking Information">
+          <SimpleGrid cols={{ base: 2, xs: 3 }} mb="md">
+            <DetailField
+              title="Assigned Attorney"
+              value={booking.attorney?.fullname || "-"}
+            />
+            <DetailField
+              title="Date & Time"
+              value={getDateFormatDisplay(
+                `${booking.date} ${booking.time}`,
+                true,
+              )}
+            />
+            <DetailField
+              title="Consultation"
+              value={
+                booking?.consultationMode === "in-person"
+                  ? booking?.branch || "-"
+                  : booking?.consultationMode === "online"
+                    ? "Online"
+                    : "-"
+              }
+            />
+            <DetailField
+              title="Represented by Previous Lawyer"
+              value={booking?.representedByPreviousLawyer ? "Yes" : "No"}
+            />
+            <DetailField
+              title="Areas"
+              value={
                 <Group gap="xs">
-                  <IconMail size={16} />
-                  <Text c="green" fw={600} size="sm">
-                    {booking.client.email}
-                  </Text>
+                  {booking.areas?.map((area) => (
+                    <AreaBadge key={area} area={area} />
+                  ))}
                 </Group>
+              }
+            />
+          </SimpleGrid>
+        </BasicCard>
 
-                <Group gap="xs">
-                  <IconPhone size={16} />
-                  <Text c="green" fw={600} size="sm">
-                    {booking.client.phoneNumber || "-"}
-                  </Text>
-                </Group>
+        <BasicCard title="Description">
+          <SpoilerComp>
+            {booking?.message || "No description provided."}
+          </SpoilerComp>
+        </BasicCard>
 
-                <Group gap="xs">
-                  <IconCake size={16} />
-                  <Text c="green" fw={600} size="sm">
-                    {booking?.client?.birthday
-                      ? dayjs(booking?.client?.birthday).format("MMM D, YYYY")
-                      : "-"}
-                  </Text>
-                </Group>
-
-                <Group gap="xs">
-                  <IconMapPin size={16} />
-                  <Text c="green" fw={600} size="sm">
-                    {booking?.client?.fullAddress
-                      ? booking?.client?.fullAddress
-                      : "-"}
-                  </Text>
-                </Group>
-              </Stack>
-            </Table.Td>
-          </Table.Tr>
-
-          <Table.Tr>
-            <Table.Th w={160}>Attorney</Table.Th>
-            <Table.Td>
-              <Group gap="4" align="center">
-                <Text fw={600} size="sm">
-                  {booking.attorney?.fullname || "-"}
-                </Text>
-                {booking.attorney?.email && (
-                  <Group gap="sm">
-                    <Text c="green" fw={600} size="sm">
-                      ({booking.attorney?.email})
-                    </Text>
-                  </Group>
-                )}
-              </Group>
-            </Table.Td>
-          </Table.Tr>
-
-          <Table.Tr>
-            <Table.Th w={160}>Consultation Type</Table.Th>
-            <Table.Td>
-              <Stack gap="0">
-                <Text c="green" fw={600} size="sm" tt="capitalize">
-                  {booking?.consultationMode || "-"}
-                </Text>
-                {booking?.consultationMode && (
-                  <Text size="xs" c="dimmed">
-                    {booking?.consultationMode === "in-person"
-                      ? booking?.branch || "-"
-                      : ""}
-                  </Text>
-                )}
-              </Stack>
-            </Table.Td>
-          </Table.Tr>
-
-          <Table.Tr>
-            <Table.Th w={160}>Represented by Previous Lawyer</Table.Th>
-            <Table.Td>
-              <Text c="green" fw={600} size="sm" tt="capitalize">
-                {booking?.representedByPreviousLawyer ? "Yes" : "No"}
-              </Text>
-            </Table.Td>
-          </Table.Tr>
-
-          <Table.Tr>
-            <Table.Th w={160}>Date & Time</Table.Th>
-            <Table.Td>
-              <Text c="green" fw={600} size="sm">
-                {getDateFormatDisplay(`${booking.date} ${booking.time}`, true)}
-              </Text>
-            </Table.Td>
-          </Table.Tr>
-
-          <Table.Tr>
-            <Table.Th w={160}>Areas</Table.Th>
-            <Table.Td>
-              <Group gap="xs">
-                {booking.areas?.map((area) => (
-                  <Badge
-                    key={area}
-                    size="xs"
-                    radius="xs"
-                    variant="outline"
-                    color={theme.other.customPumpkin}
-                  >
-                    {area}
-                  </Badge>
-                ))}
-              </Group>
-            </Table.Td>
-          </Table.Tr>
-
-          <Table.Tr>
-            <Table.Th w={160}>Description</Table.Th>
-            <Table.Td>
-              <Text
-                c="green"
-                fw={600}
-                size="sm"
-                style={{ whiteSpace: "pre-wrap" }}
-              >
-                {booking.message}
-              </Text>
-            </Table.Td>
-          </Table.Tr>
-        </Table.Tbody>
-      </Table>
-
-      <Button
-        onClick={onClose}
-        variant="outline"
-        ml="auto"
-        display="block"
-        mt="md"
-      >
-        Close
-      </Button>
+        <Button
+          onClick={onClose}
+          variant="outline"
+          ml="auto"
+          display="block"
+          mt="md"
+        >
+          Close
+        </Button>
+      </Stack>
     </Modal>
   );
 }

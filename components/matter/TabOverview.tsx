@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 
 import {
   ActionIcon,
-  Badge,
   Button,
   Card,
   Flex,
@@ -37,6 +36,7 @@ import { db } from "@/firebase/config";
 import { syncToAppwrite } from "@/lib/syncToAppwrite";
 import { appNotifications } from "@/utils/notifications/notifications";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
+import { AreaBadge } from "../Common/BadgeComp";
 import SubscriptionBadge from "../Common/SubscriptionBadge";
 
 import MatterUpdates from "./TabOverview/MatterUpdates";
@@ -146,29 +146,17 @@ export default function TabOverview({
           label={matterData.caseType.join(", ")}
           withArrow
           multiline
-          maw={600}
+          maw={200}
         >
           <Group gap={2}>
             {matterData.caseType.slice(0, 3).map((type) => (
-              <Badge
-                key={type}
-                color={theme.other.customPumpkin}
-                size="xs"
-                radius="xs"
-                variant="outline"
-              >
-                {type}
-              </Badge>
+              <AreaBadge key={type} area={type} />
             ))}
             {matterData.caseType.length > 3 && (
-              <Badge
-                color={theme.other.customPumpkin}
-                size="xs"
-                radius="xs"
-                variant="outline"
-              >
-                +{matterData.caseType.length - 3}
-              </Badge>
+              <AreaBadge
+                key="more"
+                area={`+${matterData.caseType.length - 3}`}
+              />
             )}
           </Group>
         </Tooltip>
@@ -300,7 +288,7 @@ export default function TabOverview({
           const { data } = await axios.get("/api/clerk/organization/fetch", {
             params: {
               organization_id: CLERK_ORG_IDS.client,
-              limit: 9999,
+              limit: 500,
             },
           });
           setClientUsers(data);
@@ -319,7 +307,7 @@ export default function TabOverview({
           const { data } = await axios.get("/api/clerk/organization/fetch", {
             params: {
               organization_id: CLERK_ORG_IDS.attorney,
-              limit: 9999,
+              limit: 500,
             },
           });
           setAttorneyUsers(data);

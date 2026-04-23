@@ -19,7 +19,7 @@ import {
 } from "@mantine/core";
 import { Dropzone, PDF_MIME_TYPE } from "@mantine/dropzone";
 import { IconCloudUpload, IconFileTypePdf, IconX } from "@tabler/icons-react";
-import { nanoid } from "nanoid";
+import { customAlphabet } from "nanoid";
 import { SetStateAction, Dispatch, useEffect, useState } from "react";
 import { createNotaryRequest } from "@/firebase/createNotaryRequest";
 import axios from "axios";
@@ -125,10 +125,11 @@ export const NS1ClientModal = ({
 
   const handleSubmit = async () => {
     setIsUploading(true);
+
     const uuid =
       notaryRequestId ||
       notaryRequestData?.id ||
-      `${dayjs().format("YYYYMMDD")}-${nanoid(8)}`;
+      `${dayjs().format("YYYYMMDD")}${customAlphabet("126890", 8)()}`;
 
     try {
       if (notaryRequestId && notaryRequestData) {
@@ -310,12 +311,14 @@ export const NS1ClientModal = ({
           <Textarea
             placeholder="Tell us what you need"
             label="Description"
-            minRows={6}
-            autosize
+            rows={6}
             withAsterisk
             styles={{ input: { paddingBlock: 6 } }}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
+            maxLength={1000}
+            inputWrapperOrder={["label", "input", "description", "error"]}
+            description={`${description.length}/1000 characters`}
           />
 
           <Divider label="You can also upload your document" />

@@ -83,8 +83,8 @@ export default function NS3AdminModal({
       }, 500);
     } catch {
       appNotifications.error({
-        title: "Failed to fetch  request data",
-        message: "The  request data could not be fetched. Please try again.",
+        title: "Failed to fetch request data",
+        message: "The request data could not be fetched. Please try again.",
       });
       onClose();
     }

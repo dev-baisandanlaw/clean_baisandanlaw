@@ -146,12 +146,14 @@ export default function NS1_5AdminModal({
           <Textarea
             placeholder="Enter reason"
             label="Reason"
-            minRows={6}
-            autosize
+            rows={6}
             withAsterisk
             styles={{ input: { paddingBlock: 6 } }}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
+            maxLength={1000}
+            inputWrapperOrder={["label", "input", "description", "error"]}
+            description={`${reason.length}/1000 characters`}
           />
 
           <Group justify="end">
@@ -159,7 +161,7 @@ export default function NS1_5AdminModal({
               Cancel
             </Button>
             <Button
-              disabled={!reason}
+              disabled={!reason.trim().length}
               loading={isRejecting}
               color="red"
               onClick={handleRejectNotaryRequest}

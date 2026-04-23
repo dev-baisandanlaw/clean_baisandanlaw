@@ -1,13 +1,15 @@
+import BasicCard from "@/components/Common/BasicCard";
+import DetailField from "@/components/Common/DetailField";
 import { COLLECTIONS } from "@/constants/constants";
 import { approveNotaryRequest } from "@/firebase/approveNotaryRequest";
 import { db } from "@/firebase/config";
 import { NotaryRequest, NotaryRequestStatus } from "@/types/notary-requests";
-import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
-import { getNotaryStatus } from "@/utils/getNotaryStatus";
+import { formatFee } from "@/utils/formatFee";
 import { appNotifications } from "@/utils/notifications/notifications";
 import { useUser } from "@clerk/nextjs";
 import {
   ActionIcon,
+  Badge,
   Button,
   Center,
   Divider,
@@ -16,8 +18,8 @@ import {
   Loader,
   Modal,
   Paper,
+  SimpleGrid,
   Stack,
-  Table,
   Text,
   ThemeIcon,
 } from "@mantine/core";
@@ -208,53 +210,39 @@ export default function NS4AdminModal({
         </Center>
       ) : (
         <Stack gap="md">
-          <Table variant="vertical" layout="fixed">
-            <Table.Tbody>
-              <Table.Tr>
-                <Table.Th w={160}>Requestor</Table.Th>
-                <Table.Td>
-                  <Text c="green" fw={600} size="sm">
-                    {notaryRequestData?.requestor.fullname}
-                  </Text>
-                </Table.Td>
-              </Table.Tr>
+          <BasicCard title="Request Details">
+            <SimpleGrid cols={2}>
+              <DetailField
+                title="Requestor"
+                value={notaryRequestData?.requestor.fullname}
+              />
+              <DetailField
+                title="Email"
+                value={notaryRequestData?.requestor.email}
+              />
 
-              <Table.Tr>
-                <Table.Th>Email</Table.Th>
-                <Table.Td>
-                  <Text c="green" fw={600} size="sm">
-                    {notaryRequestData?.requestor.email}
-                  </Text>
-                </Table.Td>
-              </Table.Tr>
-
-              <Table.Tr>
-                <Table.Th>Status</Table.Th>
-                <Table.Td>{getNotaryStatus(notaryRequestData.status)}</Table.Td>
-              </Table.Tr>
-
-              <Table.Tr>
-                <Table.Th>Uploaded At</Table.Th>
-                <Table.Td>
-                  <Text c="green" fw={600} size="sm">
-                    {getDateFormatDisplay(
-                      notaryRequestData?.createdAt || "",
-                      true,
-                    )}
-                  </Text>
-                </Table.Td>
-              </Table.Tr>
-
-              <Table.Tr>
-                <Table.Th>
-                  <Text c="green" size="sm">
-                    Description
-                  </Text>
-                </Table.Th>
-                <Table.Td>{notaryRequestData?.description}</Table.Td>
-              </Table.Tr>
-            </Table.Tbody>
-          </Table>
+              <DetailField
+                title="Fee"
+                value={formatFee(notaryRequestData?.paymentFields?.fee || 0)}
+              />
+              <DetailField
+                title="Payment Status"
+                value={
+                  <Badge
+                    color={
+                      notaryRequestData?.paymentFields?.isPaid ? "green" : "red"
+                    }
+                    variant="filled"
+                    size="xs"
+                  >
+                    {notaryRequestData?.paymentFields?.isPaid
+                      ? "Paid"
+                      : "Unpaid"}
+                  </Badge>
+                }
+              />
+            </SimpleGrid>
+          </BasicCard>
 
           <Divider label="Upload finished document" />
 

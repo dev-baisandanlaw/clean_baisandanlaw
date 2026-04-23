@@ -1,14 +1,20 @@
+import {
+  getNotaryStatusColor,
+  NotaryStatusBadge,
+  PaymentBadge,
+} from "@/components/Common/BadgeComp";
+import BasicCard from "@/components/Common/BasicCard";
 import DetailField from "@/components/Common/DetailField";
+import SpoilerComp from "@/components/Common/SpoilerComp";
 import { COLLECTIONS } from "@/constants/constants";
 import { db } from "@/firebase/config";
 import { NotaryRequest, NotaryRequestStatus } from "@/types/notary-requests";
+import { formatFee } from "@/utils/formatFee";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
-import { getNotaryStatus, getNotaryStatusColor } from "@/utils/getNotaryStatus";
 import { getNotaryTimelineBullet } from "@/utils/getNotaryTimelineBullet";
 import { appNotifications } from "@/utils/notifications/notifications";
 import {
   Alert,
-  Badge,
   Center,
   Divider,
   Drawer,
@@ -74,23 +80,14 @@ export const ViewNotaryRequestDrawer = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened, notaryRequestId]);
 
-  const formatFee = (fee: number) => {
-    return `₱${fee.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
-
   return (
     <Drawer
       opened={opened}
       onClose={onClose}
       title={
-        <Group>
-          <Text c="green" fw={600}>
-            Request
-          </Text>
-          {getNotaryStatus(
-            notaryRequestData?.status ?? NotaryRequestStatus.SUBMITTED,
-          )}
-        </Group>
+        <Text c="green" fw={600}>
+          Request - {notaryRequestData?.id}
+        </Text>
       }
       styles={{ header: { width: "100%" } }}
       position="right"
@@ -105,72 +102,86 @@ export const ViewNotaryRequestDrawer = ({
         </Center>
       ) : (
         <Stack>
-          <SimpleGrid cols={2}>
-            <DetailField
-              title="Created Date"
-              value={getDateFormatDisplay(
-                notaryRequestData?.createdAt || "",
-                true,
-              )}
-            />
-            <DetailField
-              title="Full Name"
-              value={notaryRequestData?.requestor.fullname}
-            />
-            <DetailField
-              title="Email"
-              value={notaryRequestData?.requestor.email}
-            />
-          </SimpleGrid>
-          <DetailField
-            title="Description"
-            value={notaryRequestData?.description}
-          />
+          <BasicCard title="Request Details">
+            <SimpleGrid cols={2} mb="md">
+              <DetailField
+                title="Full Name"
+                value={notaryRequestData?.requestor.fullname}
+              />
+              <DetailField
+                title="Email"
+                value={notaryRequestData?.requestor.email}
+              />
 
-          <Divider my="lg" label="Additional Details" labelPosition="center" />
-
-          <SimpleGrid cols={2}>
+              <DetailField
+                title="Created Date"
+                value={getDateFormatDisplay(
+                  notaryRequestData?.createdAt || "",
+                  true,
+                )}
+              />
+              <DetailField
+                title="Status"
+                value={
+                  <NotaryStatusBadge
+                    status={notaryRequestData?.status as NotaryRequestStatus}
+                  />
+                }
+              />
+            </SimpleGrid>
             <DetailField
-              title="Fee"
+              title="Description"
+              // value={notaryRequestData?.description}
               value={
-                notaryRequestData?.paymentFields?.fee
-                  ? formatFee(notaryRequestData?.paymentFields?.fee || 0)
-                  : "TBD"
+                <SpoilerComp>
+                  {notaryRequestData?.description || "No description provided."}
+                </SpoilerComp>
               }
             />
-            <DetailField
-              title="Payment Status"
-              value={
-                <Badge
-                  color={
-                    notaryRequestData?.paymentFields?.isPaid ? "green" : "red"
-                  }
-                  variant="filled"
-                  size="xs"
-                >
-                  {notaryRequestData?.paymentFields?.isPaid ? "Paid" : "Unpaid"}
-                </Badge>
-              }
-            />
-            <DetailField
-              title="Pickup Type"
-              value={notaryRequestData?.pickupBranch}
-            />
-            <DetailField
-              title="Pickup Date"
-              value={
-                notaryRequestData?.pickupBranch === "Soft copy only"
-                  ? undefined
-                  : notaryRequestData?.pickupDate
-                    ? getDateFormatDisplay(
-                        notaryRequestData.pickupDate as string,
-                      )
-                    : undefined
-              }
-            />
-          </SimpleGrid>
+          </BasicCard>
 
-          <Divider my="lg" />
+          <BasicCard title="Additional Information">
+            <SimpleGrid cols={2} mb="md">
+              <DetailField
+                title="Fee"
+                value={
+                  notaryRequestData?.paymentFields?.fee
+                    ? formatFee(notaryRequestData?.paymentFields?.fee || 0)
+                    : "TBD"
+                }
+              />
+              <DetailField
+                title="Payment Status"
+                value={
+                  <PaymentBadge
+                    hasReceiptUploaded={
+                      !!notaryRequestData?.paymentFields?.receiptFileId
+                    }
+                    isPaid={!!notaryRequestData?.paymentFields?.isPaid}
+                  />
+                }
+              />
+
+              <DetailField
+                title="Pickup Type"
+                value={notaryRequestData?.pickupBranch}
+              />
+              <DetailField
+                title="Pickup Date"
+                value={
+                  notaryRequestData?.pickupBranch === "Soft copy only"
+                    ? undefined
+                    : notaryRequestData?.pickupDate
+                      ? getDateFormatDisplay(
+                          notaryRequestData.pickupDate as string,
+                        )
+                      : undefined
+                }
+              />
+            </SimpleGrid>
+          </BasicCard>
+
+          <Divider my="lg" label="Request Timeline" labelPosition="center" />
 
           {notaryRequestData?.timeline &&
             notaryRequestData?.timeline.length > 0 && (
@@ -210,7 +221,7 @@ export const ViewNotaryRequestDrawer = ({
 
                             <Text size="xs">
                               by:{" "}
-                              <Text span c="green" fw={700}>
+                              <Text span c="green" fw={600}>
                                 {item.user.fullname}
                               </Text>
                             </Text>

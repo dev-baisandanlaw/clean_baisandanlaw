@@ -1,16 +1,15 @@
 import { Booking } from "@/types/booking";
 import {
   ActionIcon,
-  Badge,
   Group,
   Stack,
   Table,
   TableScrollContainer,
   Text,
 } from "@mantine/core";
+import { BookingViaBadge, PaymentBadge } from "../Common/BadgeComp";
 import EmptyTableComponent from "../EmptyTableComponent";
 import dayjs from "dayjs";
-import { getBookingViaColor } from "@/utils/getBookingStatusColor";
 import { IconEye, IconPencil, IconPennant } from "@tabler/icons-react";
 import { useUser } from "@clerk/nextjs";
 
@@ -88,15 +87,13 @@ export default function AppointmentsList({
                   </Table.Td>
                   <Table.Td>{booking.attorney?.fullname || "-"}</Table.Td>
                   <Table.Td>
-                    <Group gap="xs" align="center">
-                      <Badge
-                        size="xs"
-                        radius="xs"
-                        variant="outline"
-                        color={booking?.paymentFields?.isPaid ? "green" : "red"}
-                      >
-                        {booking?.paymentFields?.isPaid ? "Paid" : "Unpaid"}
-                      </Badge>
+                    <Group gap="xs" align="center" wrap="nowrap">
+                      <PaymentBadge
+                        hasReceiptUploaded={
+                          !!booking?.paymentFields?.receiptFileId
+                        }
+                        isPaid={booking?.paymentFields?.isPaid}
+                      />
                       {booking?.paymentFields?.receiptFileId && (
                         <ActionIcon
                           size="xs"
@@ -111,27 +108,16 @@ export default function AppointmentsList({
                     </Group>
                   </Table.Td>
                   <Table.Td>
-                    <Badge
-                      size="xs"
-                      radius="xs"
-                      color={getBookingViaColor(booking.via)}
-                    >
-                      {booking.via}
-                    </Badge>
+                    <BookingViaBadge via={booking.via} />
                   </Table.Td>
                   <Table.Td>
-                    <Stack gap="2">
-                      <Text size="sm" fw={600} tt="capitalize">
-                        {booking?.consultationMode || "-"}
-                      </Text>
-                      {booking?.consultationMode && (
-                        <Text size="xs" c="dimmed">
-                          {booking?.consultationMode === "in-person"
-                            ? booking?.branch || "-"
-                            : ""}
-                        </Text>
-                      )}
-                    </Stack>
+                    <Text size="sm">
+                      {booking?.consultationMode === "in-person"
+                        ? booking?.branch || "-"
+                        : booking?.consultationMode === "online"
+                          ? "Online"
+                          : "-"}
+                    </Text>
                   </Table.Td>
                   {user?.unsafeMetadata?.role === "admin" && (
                     <Table.Td ta="center">
