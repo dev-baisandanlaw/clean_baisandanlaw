@@ -8,6 +8,7 @@ import { deleteDoc, doc } from "firebase/firestore";
 
 import BasicCard from "@/components/Common/BasicCard";
 import DetailField from "@/components/Common/DetailField";
+import { PaymentBadge } from "@/components/Common/BadgeComp";
 
 import { COLLECTIONS } from "@/constants/constants";
 import { db } from "@/firebase/config";
@@ -79,15 +80,34 @@ export default function DeleteDuplicateModal({
       </Text>
 
       <BasicCard title="Appointment Details">
-        <SimpleGrid cols={2}>
+        <SimpleGrid cols={{ base: 2, xs: 3 }}>
           <DetailField title="Client" value={booking.client.fullname} />
           <DetailField title="Attorney" value={booking.attorney?.fullname} />
+          <DetailField
+            title="Payment Status"
+            value={
+              <PaymentBadge
+                hasReceiptUploaded={!!booking?.paymentFields?.receiptFileId}
+                isPaid={booking?.paymentFields?.isPaid}
+              />
+            }
+          />
           <DetailField
             title="Date & Time"
             value={getDateFormatDisplay(
               `${booking.date} ${booking.time}`,
               true,
             )}
+          />
+          <DetailField
+            title="Consultation"
+            value={
+              booking?.consultationMode === "in-person"
+                ? booking?.branch || "-"
+                : booking?.consultationMode === "online"
+                  ? "Online"
+                  : "-"
+            }
           />
           <DetailField title="Via" value={booking.via} />
         </SimpleGrid>

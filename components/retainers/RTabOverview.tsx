@@ -134,10 +134,6 @@ export default function RTabOverview({
           }
           data={ATTY_PRACTICE_AREAS}
           clearable
-          maxDropdownHeight={200}
-          comboboxProps={{
-            transitionProps: { transition: "pop-top-left", duration: 200 },
-          }}
           styles={{
             pill: {
               backgroundColor: theme.colors.green[0],

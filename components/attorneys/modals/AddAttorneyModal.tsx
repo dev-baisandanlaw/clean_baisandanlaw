@@ -74,7 +74,7 @@ export const AddAttorneyModal = ({
     try {
       const { data: createdUserData } = await axios.post(
         "/api/clerk/user/create-user",
-        values
+        values,
       );
 
       await axios.post("/api/clerk/organization/post-user-to-org", {
@@ -95,7 +95,7 @@ export const AddAttorneyModal = ({
       if (errorMessage?.includes("online data breach")) {
         form.setFieldError(
           "password",
-          "Password is too weak. Please try again."
+          "Password is too weak. Please try again.",
         );
       }
 
@@ -182,10 +182,6 @@ export const AddAttorneyModal = ({
             placeholder="Select Practice Areas"
             data={ATTY_PRACTICE_AREAS}
             clearable
-            maxDropdownHeight={200}
-            comboboxProps={{
-              transitionProps: { transition: "pop-top-left", duration: 200 },
-            }}
             styles={{
               pill: {
                 backgroundColor: theme.colors.green[0],

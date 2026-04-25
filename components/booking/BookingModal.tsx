@@ -441,10 +441,6 @@ export default function BookingModal({
             placeholder="Select Areas"
             data={ATTY_PRACTICE_AREAS}
             clearable
-            maxDropdownHeight={200}
-            comboboxProps={{
-              transitionProps: { transition: "pop-top-left", duration: 200 },
-            }}
             styles={{
               pill: {
                 backgroundColor: theme.colors.green[0],
@@ -461,6 +457,9 @@ export default function BookingModal({
             {...form.getInputProps("message")}
             styles={{ input: { paddingBlock: 6 } }}
             rows={5}
+            maxLength={1000}
+            inputWrapperOrder={["label", "error", "input", "description"]}
+            description={`${form.values.message.length}/1000 characters`}
           />
 
           <Checkbox

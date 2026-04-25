@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -141,6 +141,22 @@ export default function NotaryRequestsListing() {
   const searchParams = useSearchParams();
 
   const idFromSearchParams = searchParams.get("id");
+
+  const tabsListRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = tabsListRef.current;
+    if (!el) return;
+
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY === 0) return;
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    };
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
 
   useEffect(() => {
     if (isLoaded && idFromSearchParams) {
@@ -455,7 +471,7 @@ export default function NotaryRequestsListing() {
             tab: classes.tabsTabCustom,
           }}
         >
-          <Tabs.List>
+          <Tabs.List ref={tabsListRef}>
             <Tabs.Tab value="All">All</Tabs.Tab>
             {Object.values(NotaryRequestStatus).map((status) => (
               <Tabs.Tab key={status} value={status}>

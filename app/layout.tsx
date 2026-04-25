@@ -62,6 +62,38 @@ const theme = createTheme({
   },
 
   components: {
+    TextInput: { defaultProps: { maxLength: 75 } },
+    Textarea: { defaultProps: { maxLength: 1000 } },
+    TagsInput: {
+      defaultProps: {
+        maxTags: 10,
+        maxDropdownHeight: 200,
+        comboboxProps: {
+          withinPortal: true,
+          zIndex: 999999,
+          position: "bottom-start",
+        },
+      },
+    },
+    Select: {
+      defaultProps: {
+        maxDropdownHeight: 200,
+        comboboxProps: {
+          withinPortal: true,
+          zIndex: 999999,
+          position: "bottom-start",
+        },
+      },
+    },
+    Badge: {
+      defaultProps: {
+        styles: {
+          root: { flexShrink: 0, whiteSpace: "nowrap" },
+          label: { flexShrink: 0, overflow: "visible", whiteSpace: "nowrap" },
+        },
+      },
+    },
+
     Modal: {
       defaultProps: {
         closeOnEscape: false,
