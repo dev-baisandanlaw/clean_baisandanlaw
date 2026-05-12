@@ -1,3 +1,5 @@
+import BasicCard from "@/components/Common/BasicCard";
+import DetailField from "@/components/Common/DetailField";
 import { Client } from "@/types/user";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { appNotifications } from "@/utils/notifications/notifications";
@@ -9,6 +11,7 @@ import {
   Group,
   Modal,
   Paper,
+  SimpleGrid,
   Stack,
   Table,
   Text,
@@ -47,7 +50,7 @@ export default function UpgradeSubscriptionModal({
 
   const [isLoading, setIsLoading] = useState(false);
   const [subscriptionEndDate, setSubscriptionEndDate] = useState<Date | null>(
-    null
+    null,
   );
 
   useEffect(() => {
@@ -108,40 +111,30 @@ export default function UpgradeSubscriptionModal({
           ?
         </Text>
 
-        <Table variant="vertical" layout="fixed">
-          <Table.Tbody>
-            <Table.Tr>
-              <Table.Th w={isMobile ? 120 : 160}>Client Name</Table.Th>
-              <Table.Td>
-                {clientDetails.first_name} {clientDetails.last_name}
-              </Table.Td>
-            </Table.Tr>
-            <Table.Tr>
-              <Table.Th w={isMobile ? 120 : 160}>Email</Table.Th>
-              <Table.Td>
-                {clientDetails.email_addresses[0].email_address}
-              </Table.Td>
-            </Table.Tr>
-            <Table.Tr>
-              <Table.Th w={isMobile ? 120 : 160}>Phone Number</Table.Th>
-              <Table.Td>
-                {clientDetails.unsafe_metadata?.phoneNumber || "-"}
-              </Table.Td>
-            </Table.Tr>
-            <Table.Tr>
-              <Table.Th w={isMobile ? 120 : 160}>Member Since</Table.Th>
-              <Table.Td>
-                {getDateFormatDisplay(clientDetails.created_at, true)}
-              </Table.Td>
-            </Table.Tr>
-            <Table.Tr>
-              <Table.Th w={isMobile ? 120 : 160}>Total Subscriptions</Table.Th>
-              <Table.Td>
-                {clientDetails.unsafe_metadata?.subscription?.count || 0}
-              </Table.Td>
-            </Table.Tr>
-          </Table.Tbody>
-        </Table>
+        <BasicCard title="Client's Information">
+          <SimpleGrid cols={{ base: 2, xs: 3 }}>
+            <DetailField
+              title="Client Name"
+              value={`${clientDetails.first_name} ${clientDetails.last_name}`}
+            />
+            <DetailField
+              title="Email"
+              value={clientDetails.email_addresses[0].email_address}
+            />
+            <DetailField
+              title="Phone Number"
+              value={clientDetails.unsafe_metadata?.phoneNumber || "-"}
+            />
+            <DetailField
+              title="Member Since"
+              value={getDateFormatDisplay(clientDetails.created_at, true)}
+            />
+            <DetailField
+              title="Total Subscriptions"
+              value={clientDetails.unsafe_metadata?.subscription?.count || "0"}
+            />
+          </SimpleGrid>
+        </BasicCard>
 
         <Flex
           mt="lg"
@@ -230,7 +223,7 @@ export default function UpgradeSubscriptionModal({
                             .set("hour", 23)
                             .set("minute", 59)
                             .toDate(),
-                          true
+                          true,
                         )
                       : "-"}
                   </Table.Td>

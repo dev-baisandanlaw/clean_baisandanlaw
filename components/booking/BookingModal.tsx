@@ -199,8 +199,7 @@ export default function BookingModal({
         successCallback();
         appNotifications.success({
           title: "Booking submitted!",
-          message:
-            "Your booking has been submitted. You will receive an email confirmation once your payment is verified.",
+          message: "Your booking has been submitted successfully.",
           autoClose: 7500,
         });
       })

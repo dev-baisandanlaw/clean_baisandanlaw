@@ -237,7 +237,7 @@ export default function BookingPage() {
       <Flex justify="center" align="center" mih="calc(100vh - 100px)">
         {isSuccess ? (
           <Alert
-            title="Your booking is secured"
+            title="Your booking is submitted"
             color="green"
             icon={<IconRocket />}
             mb="xl"

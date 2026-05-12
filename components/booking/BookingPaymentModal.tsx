@@ -282,18 +282,6 @@ export default function BookingPaymentModal({
           )}
         </Paper>
 
-        <Alert
-          color="blue"
-          variant="light"
-          styles={(theme) => ({
-            message: { color: theme.colors.blue[7], fontSize: 12 },
-          })}
-        >
-          After submitting your receipt, our staff will verify your payment.
-          You&apos;ll receive an email confirmation once your booking is
-          confirmed.
-        </Alert>
-
         <Group justify="flex-end" mt="sm">
           <Button
             variant="default"
