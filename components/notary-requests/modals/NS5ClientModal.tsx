@@ -13,14 +13,19 @@ import {
   Text,
   Textarea,
 } from "@mantine/core";
-import { DatePickerInput } from "@mantine/dates";
+import { DatePickerInput, TimeGrid, getTimeRange } from "@mantine/dates";
 import { useUser } from "@clerk/nextjs";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import dayjs from "dayjs";
 import { nanoid } from "nanoid";
 
-import { COLLECTIONS } from "@/constants/constants";
+import {
+  COLLECTIONS,
+  SPECIAL_HOLIDAYS,
+  REGULAR_HOLIDAYS,
+} from "@/constants/constants";
 import { db } from "@/firebase/config";
+import { WORK_SCHEDULE } from "@/constants/non-working-sched";
 
 import { appNotifications } from "@/utils/notifications/notifications";
 
@@ -51,6 +56,14 @@ export default function NS5ClientModal({
   const [reviewAction, setReviewAction] = useState<string | null>(null);
   const [pickupBranch, setPickupBranch] = useState<string | null>(null);
   const [pickupDate, setPickupDate] = useState<string | null>(null);
+  const [pickupTime, setPickupTime] = useState<string | null>(null);
+
+  const [validHolidays, setValidHolidays] = useState<string[]>([]);
+  const [workDays, setWorkDays] = useState<number[]>([]);
+  const [blockedDates, setBlockedDates] = useState<Record<string, string[]>>(
+    {},
+  );
+  const [timeSlots, setTimeSlots] = useState<string[]>([]);
 
   const fetchNotaryRequest = async () => {
     setIsFetching(true);
@@ -75,6 +88,59 @@ export default function NS5ClientModal({
         message: "The request data could not be fetched. Please try again.",
       });
       onClose();
+    }
+  };
+
+  const fetchGlobalSched = async () => {
+    try {
+      const snap = await getDoc(
+        doc(
+          db,
+          COLLECTIONS.GLOBAL_SCHED,
+          process.env.NEXT_PUBLIC_FIREBASE_HOLIDAYS_BLOCKED_SCHED_ID!,
+        ),
+      );
+      if (!snap.exists()) return;
+
+      const d = snap.data();
+
+      const getValidKeys = (o: Record<string, boolean>) =>
+        Object.keys(o).filter((key) => o[key]);
+
+      const validHolidayIds = [
+        ...getValidKeys(d.regularHolidays),
+        ...getValidKeys(d.specialHolidays),
+      ];
+
+      const holidayMap = Object.fromEntries([
+        ...REGULAR_HOLIDAYS.map((h) => [h.id, h.date]),
+        ...SPECIAL_HOLIDAYS.map((h) => [h.id, h.date]),
+      ]);
+
+      const timeHours = getTimeRange({
+        startTime: d.officeHours.officeStart,
+        endTime: d.officeHours.officeEnd,
+        interval: d.officeHours.bookingInterval,
+      });
+
+      const workDays = Object.keys(d.workSchedule)
+        .filter((key) => d.workSchedule[key])
+        .map((key) => WORK_SCHEDULE.find((w) => w.name === key)?.value);
+
+      const blockedDatesMap = d?.blockedDates;
+
+      setValidHolidays(
+        validHolidayIds.map((id) => holidayMap[id]).filter(Boolean),
+      );
+      setWorkDays(workDays as number[]);
+      setTimeSlots(timeHours);
+      setBlockedDates(blockedDatesMap);
+    } catch {
+      appNotifications.error({
+        title: "Failed to fetch schedule settings",
+        message:
+          "The schedule settings could not be fetched. Please try again.",
+      });
     }
   };
 
@@ -128,6 +194,7 @@ export default function NS5ClientModal({
             updatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
             pickupBranch: pickupBranch,
             pickupDate: pickupDateFormatted,
+            pickupTime: pickupBranch !== "Soft copy only" ? pickupTime : null,
             timeline: [
               ...(notaryRequestData?.timeline || []),
               {
@@ -223,22 +290,28 @@ export default function NS5ClientModal({
       setReviewAction(null);
       setPickupBranch(null);
       setPickupDate(null);
+      setPickupTime(null);
       setIsFetching(false);
       setNotaryRequestData(null);
     } else {
       if (notaryRequestId) {
         fetchNotaryRequest();
+        fetchGlobalSched();
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened, notaryRequestId]);
+
+  useEffect(() => {
+    setPickupTime(null);
+  }, [pickupDate]);
 
   const isPhysicalPickup =
     pickupBranch === "Angeles branch" || pickupBranch === "Magalang branch";
 
   const isApproveDisabled =
     reviewAction === "approve" &&
-    (!pickupBranch || (isPhysicalPickup && !pickupDate));
+    (!pickupBranch || (isPhysicalPickup && (!pickupDate || !pickupTime)));
 
   const isRejectDisabled = reviewAction === "reject" && !remarks.trim();
 
@@ -294,6 +367,7 @@ export default function NS5ClientModal({
               if (value !== "approve") {
                 setPickupBranch(null);
                 setPickupDate(null);
+                setPickupTime(null);
               }
               if (value !== "reject") {
                 setRemarks("");
@@ -312,6 +386,7 @@ export default function NS5ClientModal({
                   setPickupBranch(value);
                   if (value === "Soft copy only") {
                     setPickupDate(null);
+                    setPickupTime(null);
                   }
                 }}
                 withAsterisk
@@ -325,15 +400,59 @@ export default function NS5ClientModal({
               </Radio.Group>
 
               {isPhysicalPickup && (
-                <DatePickerInput
-                  label="Date of Pickup"
-                  placeholder="Select pickup date"
-                  value={pickupDate}
-                  onChange={setPickupDate}
-                  withAsterisk
-                  mb="md"
-                  minDate={new Date()}
-                />
+                <>
+                  <DatePickerInput
+                    label="Date of Pickup"
+                    placeholder="Select pickup date"
+                    value={pickupDate}
+                    onChange={setPickupDate}
+                    withAsterisk
+                    mb="md"
+                    minDate={new Date()}
+                    excludeDate={(date) => {
+                      const truncatedDate = dayjs(date).format("MM/DD");
+
+                      // if holiday, return true
+                      if (validHolidays.includes(truncatedDate)) return true;
+
+                      // if it's not a work day, return true
+                      if (!workDays.includes(dayjs(date).day())) return true;
+
+                      return false;
+                    }}
+                  />
+
+                  {pickupDate && (
+                    <Stack gap="xs" mb="md">
+                      <Group gap={4}>
+                        <Text fw={500} fz="sm">
+                          Time of Pickup
+                        </Text>
+                        <Text fw={700} c="red" fz="sm">
+                          *
+                        </Text>
+                      </Group>
+                      <TimeGrid
+                        value={pickupTime}
+                        onChange={setPickupTime}
+                        disabled={!pickupDate}
+                        data={timeSlots}
+                        disableTime={(time) => {
+                          // if time is in blocked dates
+                          if (
+                            pickupDate &&
+                            blockedDates?.[pickupDate]?.includes(time)
+                          )
+                            return true;
+
+                          return false;
+                        }}
+                        allowDeselect
+                        format="12h"
+                      />
+                    </Stack>
+                  )}
+                </>
               )}
             </>
           )}

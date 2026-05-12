@@ -557,7 +557,12 @@ export default function NotaryRequestsListing() {
                               notaryRequest?.pickupDate && (
                                 <Text size="xs">
                                   {getDateFormatDisplay(
-                                    notaryRequest.pickupDate as string,
+                                    notaryRequest?.pickupTime
+                                      ? dayjs(
+                                          `${notaryRequest.pickupDate} ${notaryRequest.pickupTime}`,
+                                        ).format("YYYY-MM-DD HH:mm")
+                                      : (notaryRequest.pickupDate as string),
+                                    notaryRequest?.pickupTime ? true : false,
                                   )}
                                 </Text>
                               )}
