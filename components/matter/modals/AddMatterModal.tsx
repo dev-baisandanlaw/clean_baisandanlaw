@@ -116,16 +116,7 @@ export default function AddMatterModal({
         status: "active",
       };
 
-      // 1. Update lead attorney's involved cases count
-      await axios.patch("/api/clerk/user/update-user-metadata", {
-        userId: leadAttorneyDetails?.id,
-        unsafe_metadata: {
-          ...leadAttorneyDetails?.unsafe_metadata,
-          involvedCases: attyCasesCount + 1,
-        },
-      });
-
-      // 2. Create Google Drive folder for the matter
+      // 1. Create Google Drive folder for the matter
       const { data: googleDriveFolder } = await axios.post(
         "/api/google/drive/gFolders/create",
         {
@@ -134,10 +125,19 @@ export default function AddMatterModal({
         },
       );
 
-      // 3. Add matter to database
+      // 2. Add matter to database
       const res = await addDoc(collection(db, COLLECTIONS.CASES), {
         ...data,
         googleDriveFolderId: googleDriveFolder.id,
+      });
+
+      // 3. Update lead attorney's involved cases count
+      await axios.patch("/api/clerk/user/update-user-metadata", {
+        userId: leadAttorneyDetails?.id,
+        unsafe_metadata: {
+          ...leadAttorneyDetails?.unsafe_metadata,
+          involvedCases: attyCasesCount + 1,
+        },
       });
 
       // 4. Sync matter to Appwrite
