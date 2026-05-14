@@ -77,8 +77,8 @@ export const PAYMONGO_CONFIG = {
 };
 
 export const CLERK_ORG_IDS = {
-  client: "org_31IqY6sWeNzuAE3mfzy70x17KeY",
-  attorney: "org_31IqTFWQIBZGQv3FaQTlBw91XK4",
+  client: process.env.NEXT_PUBLIC_CLERK_CLIENT_ORG_ID,
+  attorney: process.env.NEXT_PUBLIC_CLERK_ATTY_ORG_ID,
 };
 
 export const CLERK_API_CONFIG = {
