@@ -10,32 +10,28 @@ type NotaryRequestDocument = {
 
 export enum NotaryRequestStatus {
   SUBMITTED = "submitted",
+  NEEDS_CLIENT_REVISION = "needs_client_revision",
+  PAYMENT_PENDING = "payment_pending",
+  FOR_ADMIN_PAYMENT_VERIFICATION = "for_admin_payment_verification",
   PROCESSING = "processing",
-
   FOR_CLIENT_REVIEW = "for_client_review",
+  NEEDS_ATTORNEY_REVISION = "needs_attorney_revision",
   CLIENT_APPROVED = "client_approved",
-  CLIENT_REJECTED = "client_rejected",
-
-  REJECTED = "rejected",
-  FOR_PICKUP = "for_pickup",
   COMPLETED = "completed",
-
   CANCELLED = "cancelled",
 }
 
 export const NotaryRequestLabel: Record<NotaryRequestStatus, string> = {
   [NotaryRequestStatus.SUBMITTED]: "Submitted",
-
+  [NotaryRequestStatus.NEEDS_CLIENT_REVISION]: "Needs Client Revision",
+  [NotaryRequestStatus.PAYMENT_PENDING]: "Payment Pending",
+  [NotaryRequestStatus.FOR_ADMIN_PAYMENT_VERIFICATION]:
+    "For Payment Verification",
   [NotaryRequestStatus.PROCESSING]: "Processing",
-
   [NotaryRequestStatus.FOR_CLIENT_REVIEW]: "For Client Review",
+  [NotaryRequestStatus.NEEDS_ATTORNEY_REVISION]: "Needs Attorney Revision",
   [NotaryRequestStatus.CLIENT_APPROVED]: "Client Approved",
-  [NotaryRequestStatus.CLIENT_REJECTED]: "Client Rejected",
-
-  [NotaryRequestStatus.REJECTED]: "Rejected",
-
   [NotaryRequestStatus.COMPLETED]: "Completed",
-  [NotaryRequestStatus.FOR_PICKUP]: "For Pickup",
   [NotaryRequestStatus.CANCELLED]: "Cancelled",
 };
 
@@ -66,8 +62,14 @@ export interface NotaryRequest {
     initialFile: NotaryRequestDocument | null;
     finishedFile: NotaryRequestDocument | null;
   };
-  pickupBranch?: "Angeles branch" | "Magalang branch" | "Soft copy only";
+  paymentFields?: {
+    fee: number;
+    receiptFileId: string;
+    isPaid: boolean;
+  };
+  pickupBranch?: "Angeles branch" | "Magalang branch" | "Soft copy only" | null;
   pickupDate?: Date | string | null;
+  pickupTime?: string | null;
 }
 
 type NotaryRequestTimelineItem = {

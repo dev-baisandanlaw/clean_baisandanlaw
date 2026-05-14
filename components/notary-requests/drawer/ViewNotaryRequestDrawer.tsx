@@ -1,8 +1,16 @@
+import {
+  getNotaryStatusColor,
+  NotaryStatusBadge,
+  PaymentBadge,
+} from "@/components/Common/BadgeComp";
+import BasicCard from "@/components/Common/BasicCard";
+import DetailField from "@/components/Common/DetailField";
+import SpoilerComp from "@/components/Common/SpoilerComp";
 import { COLLECTIONS } from "@/constants/constants";
 import { db } from "@/firebase/config";
 import { NotaryRequest, NotaryRequestStatus } from "@/types/notary-requests";
+import { formatFee } from "@/utils/formatFee";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
-import { getNotaryStatus, getNotaryStatusColor } from "@/utils/getNotaryStatus";
 import { getNotaryTimelineBullet } from "@/utils/getNotaryTimelineBullet";
 import { appNotifications } from "@/utils/notifications/notifications";
 import {
@@ -12,8 +20,8 @@ import {
   Drawer,
   Group,
   Loader,
+  SimpleGrid,
   Stack,
-  Table,
   Text,
   Timeline,
   Title,
@@ -41,7 +49,7 @@ export const ViewNotaryRequestDrawer = ({
 
     try {
       const snap = await getDoc(
-        doc(db, COLLECTIONS.NOTARY_REQUESTS, notaryRequestId)
+        doc(db, COLLECTIONS.NOTARY_REQUESTS, notaryRequestId),
       );
       if (snap.exists()) {
         setNotaryRequestData({
@@ -55,9 +63,8 @@ export const ViewNotaryRequestDrawer = ({
       }, 500);
     } catch {
       appNotifications.error({
-        title: "Failed to fetch notary request data",
-        message:
-          "The notary request data could not be fetched. Please try again.",
+        title: "Failed to fetch data",
+        message: "The request data could not be fetched. Please try again.",
       });
       onClose();
     }
@@ -78,77 +85,103 @@ export const ViewNotaryRequestDrawer = ({
       opened={opened}
       onClose={onClose}
       title={
-        <Group>
-          <Text c="green" fw={600}>
-            Notary Request
-          </Text>
-          {getNotaryStatus(
-            notaryRequestData?.status ?? NotaryRequestStatus.SUBMITTED
-          )}
-        </Group>
+        <Text c="green" fw={600}>
+          Request - {notaryRequestData?.id}
+        </Text>
       }
       styles={{ header: { width: "100%" } }}
       position="right"
-      size="lg"
+      size="xl"
     >
       {isFetching ? (
         <Center my="xl">
           <Stack gap="md" align="center" justify="center">
             <Loader size="lg" type="dots" />
-            <Text c="dimmed">Fetching notary request data...</Text>
+            <Text c="dimmed">Fetching request data...</Text>
           </Stack>
         </Center>
       ) : (
         <Stack>
-          <Table variant="vertical" layout="fixed">
-            <Table.Tbody>
-              <Table.Tr>
-                <Table.Th w={160}>Requestor</Table.Th>
-                <Table.Td>
-                  <Text c="green" fw={600} size="sm">
-                    {notaryRequestData?.requestor.fullname}
-                  </Text>
-                </Table.Td>
-              </Table.Tr>
+          <BasicCard title="Request Details">
+            <SimpleGrid cols={2} mb="md">
+              <DetailField
+                title="Full Name"
+                value={notaryRequestData?.requestor.fullname}
+              />
+              <DetailField
+                title="Email"
+                value={notaryRequestData?.requestor.email}
+              />
 
-              <Table.Tr>
-                <Table.Th>Email</Table.Th>
-                <Table.Td>
-                  <Text c="green" fw={600} size="sm">
-                    {notaryRequestData?.requestor.email}
-                  </Text>
-                </Table.Td>
-              </Table.Tr>
+              <DetailField
+                title="Created Date"
+                value={getDateFormatDisplay(
+                  notaryRequestData?.createdAt || "",
+                  true,
+                )}
+              />
+              <DetailField
+                title="Status"
+                value={
+                  <NotaryStatusBadge
+                    status={notaryRequestData?.status as NotaryRequestStatus}
+                  />
+                }
+              />
+            </SimpleGrid>
+            <DetailField
+              title="Description"
+              // value={notaryRequestData?.description}
+              value={
+                <SpoilerComp>
+                  {notaryRequestData?.description || "No description provided."}
+                </SpoilerComp>
+              }
+            />
+          </BasicCard>
 
-              <Table.Tr>
-                <Table.Th>Uploaded At</Table.Th>
-                <Table.Td>
-                  <Text c="green" fw={600} size="sm">
-                    {getDateFormatDisplay(
-                      notaryRequestData?.createdAt || "",
-                      true
-                    )}
-                  </Text>
-                </Table.Td>
-              </Table.Tr>
+          <BasicCard title="Additional Information">
+            <SimpleGrid cols={2} mb="md">
+              <DetailField
+                title="Fee"
+                value={
+                  notaryRequestData?.paymentFields?.fee
+                    ? formatFee(notaryRequestData?.paymentFields?.fee || 0)
+                    : "TBD"
+                }
+              />
+              <DetailField
+                title="Payment Status"
+                value={
+                  <PaymentBadge
+                    hasReceiptUploaded={
+                      !!notaryRequestData?.paymentFields?.receiptFileId
+                    }
+                    isPaid={!!notaryRequestData?.paymentFields?.isPaid}
+                  />
+                }
+              />
 
-              <Table.Tr>
-                <Table.Th colSpan={2}>
-                  <Text c="green" fw={600} size="sm" ta="center">
-                    Description
-                  </Text>
-                </Table.Th>
-              </Table.Tr>
+              <DetailField
+                title="Pickup Type"
+                value={notaryRequestData?.pickupBranch}
+              />
+              <DetailField
+                title="Pickup Date"
+                value={
+                  notaryRequestData?.pickupBranch === "Soft copy only"
+                    ? undefined
+                    : notaryRequestData?.pickupDate
+                      ? getDateFormatDisplay(
+                          notaryRequestData.pickupDate as string,
+                        )
+                      : undefined
+                }
+              />
+            </SimpleGrid>
+          </BasicCard>
 
-              <Table.Tr>
-                <Table.Td colSpan={2}>
-                  {notaryRequestData?.description}
-                </Table.Td>
-              </Table.Tr>
-            </Table.Tbody>
-          </Table>
-
-          <Divider my="lg" />
+          <Divider my="lg" label="Request Timeline" labelPosition="center" />
 
           {notaryRequestData?.timeline &&
             notaryRequestData?.timeline.length > 0 && (
@@ -188,7 +221,7 @@ export const ViewNotaryRequestDrawer = ({
 
                             <Text size="xs">
                               by:{" "}
-                              <Text span c="green" fw={700}>
+                              <Text span c="green" fw={600}>
                                 {item.user.fullname}
                               </Text>
                             </Text>

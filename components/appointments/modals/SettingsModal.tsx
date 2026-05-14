@@ -4,12 +4,14 @@ import {
   SPECIAL_HOLIDAYS,
 } from "@/constants/non-working-sched";
 import {
+  ActionIcon,
   Alert,
   Button,
   em,
   Flex,
   Group,
   Modal,
+  NumberInput,
   Paper,
   Select,
   SimpleGrid,
@@ -17,6 +19,7 @@ import {
   Table,
   Tabs,
   Text,
+  TextInput,
 } from "@mantine/core";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import SettingsSection from "./SettingsSection";
@@ -28,7 +31,12 @@ import {
   TimeValue,
 } from "@mantine/dates";
 import { appNotifications } from "@/utils/notifications/notifications";
-import { IconInfoCircle } from "@tabler/icons-react";
+import {
+  IconCheck,
+  IconInfoCircle,
+  IconPlus,
+  IconTrash,
+} from "@tabler/icons-react";
 import { doc, setDoc } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { GlobalSched } from "@/types/global-sched";
@@ -66,6 +74,7 @@ export default function SettingsModal({
   const [isSavingHolidays, setIsSavingHolidays] = useState(false);
   const [isSavingBlockedSchedules, setIsSavingBlockedSchedules] =
     useState(false);
+  const [isSavingPayments, setIsSavingPayments] = useState(false);
 
   const handleAccordion = (key: string) => {
     setAcc((prev) =>
@@ -118,11 +127,23 @@ export default function SettingsModal({
     },
   });
 
+  const paymentsForm = useForm({
+    initialValues: {
+      appointmentPerHour: 0,
+      paymentChannels: [] as GlobalSched["fees"]["paymentChannels"],
+    },
+  });
+
   useEffect(() => {
     if (!globalSched || !opened) return;
 
-    const { regularHolidays, specialHolidays, workSchedule, officeHours } =
-      globalSched;
+    const {
+      regularHolidays,
+      specialHolidays,
+      workSchedule,
+      officeHours,
+      fees,
+    } = globalSched;
 
     if (regularHolidays && specialHolidays && workSchedule) {
       holidaysForm.setValues({
@@ -130,6 +151,13 @@ export default function SettingsModal({
         specialHolidays,
         workSchedule,
         officeHours,
+      });
+    }
+
+    if (fees) {
+      paymentsForm.setValues({
+        appointmentPerHour: fees.appointmentPerHour,
+        paymentChannels: fees.paymentChannels,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -233,6 +261,52 @@ export default function SettingsModal({
     }
   };
 
+  const handleSavePayments = async () => {
+    if (
+      (paymentsForm.values.paymentChannels.length > 0 &&
+        paymentsForm.values.paymentChannels.some(
+          (i) => !i.accountName || !i.accountNumber || !i.channelName,
+        )) ||
+      !paymentsForm.values.appointmentPerHour
+    ) {
+      appNotifications.error({
+        title: "Error saving payment settings",
+        message: !paymentsForm.values.appointmentPerHour
+          ? "Appointment fee must be at least 1"
+          : "There should be at least 1 payment channel",
+      });
+    }
+    setIsSavingPayments(true);
+
+    try {
+      const fees = { ...paymentsForm.values };
+      await setDoc(
+        doc(
+          db,
+          COLLECTIONS.GLOBAL_SCHED,
+          process.env.NEXT_PUBLIC_FIREBASE_HOLIDAYS_BLOCKED_SCHED_ID!,
+        ),
+        {
+          fees,
+        },
+        { merge: true },
+      );
+      appNotifications.success({
+        title: "Payment Settings saved successfully",
+        message: "The payment settings have been saved successfully",
+      });
+      setDataChanged((prev) => !prev);
+      onClose();
+    } catch {
+      appNotifications.error({
+        title: "Failed to save payment settings",
+        message: "The Payment settings can't be saved. Please try again.",
+      });
+    } finally {
+      setIsSavingPayments(false);
+    }
+  };
+
   return (
     <Modal
       opened={opened}
@@ -240,7 +314,9 @@ export default function SettingsModal({
       title="Calendar Settings"
       centered
       size="xl"
-      withCloseButton={!isSavingHolidays && !isSavingBlockedSchedules}
+      withCloseButton={
+        !isSavingHolidays && !isSavingBlockedSchedules && !isSavingPayments
+      }
     >
       <Tabs defaultValue="holidays-work-sched">
         <Tabs.List>
@@ -249,6 +325,9 @@ export default function SettingsModal({
           </Tabs.Tab>
           <Tabs.Tab value="block-schedules" flex={1}>
             Blocked schedules
+          </Tabs.Tab>
+          <Tabs.Tab value="payment-settings" flex={1}>
+            Payment Settings
           </Tabs.Tab>
         </Tabs.List>
 
@@ -447,6 +526,13 @@ export default function SettingsModal({
                         ? "filled"
                         : "outline"
                     }
+                    rightSection={
+                      blockedDatesForm.values.selectedTimeSlots?.includes(
+                        slot,
+                      ) ? (
+                        <IconCheck size={14} />
+                      ) : null
+                    }
                     onClick={() => {
                       if (
                         blockedDatesForm.values.selectedTimeSlots.includes(slot)
@@ -482,6 +568,9 @@ export default function SettingsModal({
                 body: [
                   ...Object.entries(globalSched?.blockedDates || {})
                     .sort((a, b) => a[0].localeCompare(b[0]))
+                    .filter(([date]) =>
+                      dayjs(date).isSameOrAfter(dayjs(), "day"),
+                    )
                     .map(([date, timeSlots]) => [
                       date,
                       <Group key={date} gap="2">
@@ -510,6 +599,130 @@ export default function SettingsModal({
               }}
             />
           </Paper>
+        </Tabs.Panel>
+
+        <Tabs.Panel value="payment-settings" pt="md">
+          <Stack>
+            <Paper withBorder radius="md" p="sm">
+              <NumberInput
+                label="Appointment Fee per hour"
+                min={1}
+                leftSection={
+                  <Text size="sm" c="black">
+                    ₱
+                  </Text>
+                }
+                hideControls
+                thousandSeparator=","
+                decimalScale={2}
+                placeholder="Enter appointment fee per hour"
+                {...paymentsForm.getInputProps("appointmentPerHour")}
+              />
+            </Paper>
+
+            <Paper withBorder radius="md" p="sm">
+              <Group justify="space-between">
+                <Text size="sm" fw={700}>
+                  Payment Channels
+                </Text>
+
+                <ActionIcon
+                  size="sm"
+                  onClick={() => {
+                    paymentsForm.insertListItem("paymentChannels", {
+                      accountName: "",
+                      accountNumber: "",
+                      channelName: "",
+                    });
+                  }}
+                  disabled={isSavingPayments}
+                >
+                  <IconPlus />
+                </ActionIcon>
+              </Group>
+
+              <Stack my="md">
+                {paymentsForm.values.paymentChannels.map((channel, idx) => {
+                  return (
+                    <Group align="end" key={idx}>
+                      <TextInput
+                        flex={1}
+                        withAsterisk
+                        size="xs"
+                        label="Payment Channel Name"
+                        placeholder="Gcash, Metrobank, etc."
+                        {...paymentsForm.getInputProps(
+                          `paymentChannels.${idx}.channelName`,
+                        )}
+                      />
+                      <TextInput
+                        flex={1}
+                        withAsterisk
+                        size="xs"
+                        label="Account Name"
+                        placeholder="Enter account name"
+                        {...paymentsForm.getInputProps(
+                          `paymentChannels.${idx}.accountName`,
+                        )}
+                      />
+                      <TextInput
+                        flex={1}
+                        withAsterisk
+                        size="xs"
+                        label="Account Number"
+                        placeholder="Enter account number"
+                        {...paymentsForm.getInputProps(
+                          `paymentChannels.${idx}.accountNumber`,
+                        )}
+                      />
+                      <ActionIcon
+                        disabled={
+                          paymentsForm.values.paymentChannels.length <= 1 ||
+                          isSavingPayments
+                        }
+                        color="red"
+                        size="sm"
+                        variant="light"
+                        mb="6"
+                        onClick={() => {
+                          paymentsForm.removeListItem("paymentChannels", idx);
+                        }}
+                      >
+                        <IconTrash size={16} />
+                      </ActionIcon>
+                    </Group>
+                  );
+                })}
+              </Stack>
+            </Paper>
+
+            <Group justify="flex-end">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={onClose}
+                disabled={isSavingPayments}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSavePayments}
+                loading={isSavingPayments}
+                disabled={
+                  !paymentsForm.values.appointmentPerHour ||
+                  (paymentsForm.values.paymentChannels &&
+                    paymentsForm.values.paymentChannels.length > 0 &&
+                    paymentsForm.values.paymentChannels.some(
+                      (i) =>
+                        !i.accountName || !i.accountNumber || !i.channelName,
+                    ))
+                }
+              >
+                Save Changes
+              </Button>
+            </Group>
+          </Stack>
         </Tabs.Panel>
       </Tabs>
     </Modal>

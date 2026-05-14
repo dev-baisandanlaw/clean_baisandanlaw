@@ -1,16 +1,15 @@
 import { Booking } from "@/types/booking";
 import {
   ActionIcon,
-  Badge,
   Group,
   Stack,
   Table,
   TableScrollContainer,
   Text,
 } from "@mantine/core";
+import { BookingViaBadge, PaymentBadge } from "../Common/BadgeComp";
 import EmptyTableComponent from "../EmptyTableComponent";
 import dayjs from "dayjs";
-import { getBookingViaColor } from "@/utils/getBookingStatusColor";
 import { IconEye, IconPencil, IconPennant } from "@tabler/icons-react";
 import { useUser } from "@clerk/nextjs";
 
@@ -20,7 +19,7 @@ interface AppointmentsListProps {
   selectedDate: string | null;
   handleSelectBooking: (
     booking: Booking,
-    mode: "update" | "delete" | "view"
+    mode: "update" | "delete" | "view" | "add" | "receipt",
   ) => void;
 }
 
@@ -33,7 +32,7 @@ export default function AppointmentsList({
   const { user } = useUser();
 
   const todayAppointments = data.filter(
-    (booking) => booking.date === selectedDate
+    (booking) => booking.date === selectedDate,
   );
 
   return (
@@ -49,6 +48,7 @@ export default function AppointmentsList({
             <Table.Th>Time</Table.Th>
             <Table.Th>Client</Table.Th>
             <Table.Th>Attorney</Table.Th>
+            <Table.Th>Payment</Table.Th>
             <Table.Th>Via</Table.Th>
             <Table.Th>Consultation</Table.Th>
             {user?.unsafeMetadata?.role === "admin" && (
@@ -67,7 +67,7 @@ export default function AppointmentsList({
             data
               .filter(
                 (booking) =>
-                  booking.date === dayjs(selectedDate!).format("YYYY-MM-DD")
+                  booking.date === dayjs(selectedDate!).format("YYYY-MM-DD"),
               )
               .sort((a, b) => a.time.localeCompare(b.time))
               .map((booking) => (
@@ -75,30 +75,49 @@ export default function AppointmentsList({
                   <Table.Td>
                     {dayjs(`${booking.date} ${booking.time}`).format("h:mm A")}
                   </Table.Td>
-                  <Table.Td>{booking.client.fullname}</Table.Td>
-                  <Table.Td>{booking.attorney?.fullname || "-"}</Table.Td>
-                  <Table.Td>
-                    <Badge
-                      size="xs"
-                      radius="xs"
-                      color={getBookingViaColor(booking.via)}
-                    >
-                      {booking.via}
-                    </Badge>
-                  </Table.Td>
                   <Table.Td>
                     <Stack gap="2">
-                      <Text size="sm" fw={600} tt="capitalize">
-                        {booking?.consultationMode || "-"}
+                      <Text size="sm" fw={600}>
+                        {booking.client.fullname}
                       </Text>
-                      {booking?.consultationMode && (
-                        <Text size="xs" c="dimmed">
-                          {booking?.consultationMode === "in-person"
-                            ? booking?.branch || "-"
-                            : ""}
-                        </Text>
-                      )}
+                      <Text size="xs" c="dimmed">
+                        {booking.client.email}
+                      </Text>
                     </Stack>
+                  </Table.Td>
+                  <Table.Td>{booking.attorney?.fullname || "-"}</Table.Td>
+                  <Table.Td>
+                    <Group gap="xs" align="center" wrap="nowrap">
+                      <PaymentBadge
+                        hasReceiptUploaded={
+                          !!booking?.paymentFields?.receiptFileId
+                        }
+                        isPaid={booking?.paymentFields?.isPaid}
+                      />
+                      {booking?.paymentFields?.receiptFileId && (
+                        <ActionIcon
+                          size="xs"
+                          variant="default"
+                          onClick={() =>
+                            handleSelectBooking(booking, "receipt")
+                          }
+                        >
+                          <IconEye size={12} />
+                        </ActionIcon>
+                      )}
+                    </Group>
+                  </Table.Td>
+                  <Table.Td>
+                    <BookingViaBadge via={booking.via} />
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="sm">
+                      {booking?.consultationMode === "in-person"
+                        ? booking?.branch || "-"
+                        : booking?.consultationMode === "online"
+                          ? "Online"
+                          : "-"}
+                    </Text>
                   </Table.Td>
                   {user?.unsafeMetadata?.role === "admin" && (
                     <Table.Td ta="center">
@@ -112,7 +131,7 @@ export default function AppointmentsList({
                         </ActionIcon>
 
                         {!dayjs().isAfter(
-                          dayjs(`${booking.date} ${booking.time}`)
+                          dayjs(`${booking.date} ${booking.time}`),
                         ) && (
                           <ActionIcon
                             size="sm"

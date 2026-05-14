@@ -12,10 +12,12 @@ export const approveNotaryRequest = async (
   newFile: {
     id: string;
     name: string;
-  }
+  },
 ) => {
   const uploaderName = `${user.firstName} ${user.lastName}`;
   const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
+  const isRevision =
+    notaryRequest.status === NotaryRequestStatus.NEEDS_ATTORNEY_REVISION;
   const documents = {
     ...notaryRequest.documents,
     ...(newFile?.id && {
@@ -39,7 +41,9 @@ export const approveNotaryRequest = async (
         {
           id: nanoid(8),
           title: "FOR CLIENT REVIEW",
-          description: "Notary request notarized and is now for client review.",
+          description: isRevision
+            ? "Revised finished document uploaded and is now for client review."
+            : "Finished document uploaded and is now for client review.",
           dateAndTime: now,
           status: NotaryRequestStatus.FOR_CLIENT_REVIEW,
           user: {
@@ -50,6 +54,6 @@ export const approveNotaryRequest = async (
         },
       ],
     },
-    { merge: true }
+    { merge: true },
   );
 };

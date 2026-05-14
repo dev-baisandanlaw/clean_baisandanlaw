@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 
 import {
   ActionIcon,
-  Badge,
   Button,
   Card,
   Flex,
@@ -17,6 +16,7 @@ import {
   TagsInput,
   Text,
   Textarea,
+  TextInput,
   Tooltip,
   useMantineTheme,
 } from "@mantine/core";
@@ -36,6 +36,7 @@ import { db } from "@/firebase/config";
 import { syncToAppwrite } from "@/lib/syncToAppwrite";
 import { appNotifications } from "@/utils/notifications/notifications";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
+import { AreaBadge } from "../Common/BadgeComp";
 import SubscriptionBadge from "../Common/SubscriptionBadge";
 
 import MatterUpdates from "./TabOverview/MatterUpdates";
@@ -81,6 +82,7 @@ export default function TabOverview({
   const [isEditingMatter, setIsEditingMatter] = useState(false);
   const [isUpdatingMatter, setIsUpdatingMatter] = useState(false);
   const [editedMatter, setEditedMatter] = useState({
+    caseNumber: matterData.caseNumber,
     caseType: matterData.caseType,
   });
 
@@ -102,15 +104,23 @@ export default function TabOverview({
 
   const caseDetailsCardData = [
     {
-      th: "Case Number",
-      td: (
+      th: "Matter #",
+      td: isEditingMatter ? (
+        <TextInput
+          value={editedMatter.caseNumber}
+          placeholder="Enter Matter Number"
+          onChange={(e) =>
+            setEditedMatter({ ...editedMatter, caseNumber: e.target.value })
+          }
+        />
+      ) : (
         <Text c="green" fw={600} size="sm">
           {matterData.caseNumber}
         </Text>
       ),
     },
     {
-      th: "Case Type",
+      th: "Matter Type",
       td: isEditingMatter ? (
         <TagsInput
           size="xs"
@@ -120,10 +130,6 @@ export default function TabOverview({
           }
           data={ATTY_PRACTICE_AREAS}
           clearable
-          maxDropdownHeight={200}
-          comboboxProps={{
-            transitionProps: { transition: "pop-top-left", duration: 200 },
-          }}
           styles={{
             pill: {
               backgroundColor: theme.colors.green[0],
@@ -136,29 +142,17 @@ export default function TabOverview({
           label={matterData.caseType.join(", ")}
           withArrow
           multiline
-          maw={600}
+          maw={200}
         >
           <Group gap={2}>
             {matterData.caseType.slice(0, 3).map((type) => (
-              <Badge
-                key={type}
-                color={theme.other.customPumpkin}
-                size="xs"
-                radius="xs"
-                variant="outline"
-              >
-                {type}
-              </Badge>
+              <AreaBadge key={type} area={type} />
             ))}
             {matterData.caseType.length > 3 && (
-              <Badge
-                color={theme.other.customPumpkin}
-                size="xs"
-                radius="xs"
-                variant="outline"
-              >
-                +{matterData.caseType.length - 3}
-              </Badge>
+              <AreaBadge
+                key="more"
+                area={`+${matterData.caseType.length - 3}`}
+              />
             )}
           </Group>
         </Tooltip>
@@ -166,19 +160,11 @@ export default function TabOverview({
     },
     {
       th: "Date Created",
-      td: getDateFormatDisplay(matterData.createdAt),
+      td: getDateFormatDisplay(matterData.createdAt, true),
     },
     {
-      th: "Status",
-      td: (
-        <Badge
-          color={matterData.status === "active" ? "green" : "red"}
-          size="xs"
-          radius="xs"
-        >
-          {matterData.status}
-        </Badge>
-      ),
+      th: "Last Update",
+      td: getDateFormatDisplay(matterData.updatedAt, true),
     },
   ];
 
@@ -298,7 +284,7 @@ export default function TabOverview({
           const { data } = await axios.get("/api/clerk/organization/fetch", {
             params: {
               organization_id: CLERK_ORG_IDS.client,
-              limit: 9999,
+              limit: 500,
             },
           });
           setClientUsers(data);
@@ -317,7 +303,7 @@ export default function TabOverview({
           const { data } = await axios.get("/api/clerk/organization/fetch", {
             params: {
               organization_id: CLERK_ORG_IDS.attorney,
-              limit: 9999,
+              limit: 500,
             },
           });
           setAttorneyUsers(data);
@@ -338,6 +324,7 @@ export default function TabOverview({
       await setDoc(
         doc(db, COLLECTIONS.CASES, matterData.id),
         {
+          caseNumber: editedMatter.caseNumber,
           caseType: editedMatter.caseType,
           updatedAt: now,
         },
@@ -346,7 +333,7 @@ export default function TabOverview({
 
       // Sync to Appwrite
       await syncToAppwrite("MATTERS", matterData.id, {
-        matterNumber: matterData.caseNumber,
+        matterNumber: editedMatter.caseNumber,
         leadAttorneyFirstName: attorneyData.first_name,
         leadAttorneyLastName: attorneyData.last_name,
         clientFirstName: matterData.clientData.fullname.split(" ")[0],
@@ -358,7 +345,7 @@ export default function TabOverview({
         matterType: editedMatter.caseType.join("&_&"),
         leadAttorneyId: matterData.leadAttorney.id,
         clientId: matterData.clientData.id,
-        search_blob: `${matterData.caseNumber} ${attorneyData.first_name} ${attorneyData.last_name} ${matterData.clientData.fullname} ${editedMatter.caseType.join(" ")}`,
+        search_blob: `${editedMatter.caseNumber} ${attorneyData.first_name} ${attorneyData.last_name} ${matterData.clientData.fullname} ${editedMatter.caseType.join(" ")}`,
       });
 
       await addMatterUpdate(
@@ -548,10 +535,13 @@ export default function TabOverview({
   const handleUpdateDescription = async () => {
     setIsUpdatingDescription(true);
     try {
+      const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
+
       await setDoc(
         doc(db, COLLECTIONS.CASES, matterData.id),
         {
           caseDescription: description,
+          updatedAt: now,
         },
         {
           merge: true,
@@ -584,6 +574,7 @@ export default function TabOverview({
   useEffect(() => {
     setDescription(matterData?.caseDescription || "");
     setEditedMatter({
+      caseNumber: matterData.caseNumber,
       caseType: matterData.caseType,
     });
     setEditedClientId(matterData.clientData.id);
@@ -613,7 +604,10 @@ export default function TabOverview({
                   variant="default"
                   onClick={() => {
                     setIsEditingMatter(false);
-                    setEditedMatter({ caseType: matterData.caseType });
+                    setEditedMatter({
+                      caseNumber: matterData.caseNumber,
+                      caseType: matterData.caseType,
+                    });
                   }}
                   disabled={isUpdatingMatter}
                 >
@@ -624,9 +618,8 @@ export default function TabOverview({
                   loading={isUpdatingMatter}
                   onClick={handleUpdateMatter}
                   disabled={
-                    !editedMatter.caseType.length ||
-                    JSON.stringify(editedMatter.caseType) ===
-                      JSON.stringify(matterData.caseType)
+                    !editedMatter.caseNumber.trim().length ||
+                    !editedMatter.caseType.length
                   }
                 >
                   Save

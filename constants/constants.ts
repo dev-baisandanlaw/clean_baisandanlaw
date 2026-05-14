@@ -77,8 +77,8 @@ export const PAYMONGO_CONFIG = {
 };
 
 export const CLERK_ORG_IDS = {
-  client: "org_31IqY6sWeNzuAE3mfzy70x17KeY",
-  attorney: "org_31IqTFWQIBZGQv3FaQTlBw91XK4",
+  client: process.env.NEXT_PUBLIC_CLERK_CLIENT_ORG_ID,
+  attorney: process.env.NEXT_PUBLIC_CLERK_ATTY_ORG_ID,
 };
 
 export const CLERK_API_CONFIG = {
@@ -193,13 +193,13 @@ export const NOTARY_STEPS = [
 
 export const NOTARY_STEPS_ORDER = {
   [NotaryRequestStatus.SUBMITTED]: 1,
-  [NotaryRequestStatus.PROCESSING]: 2,
-  [NotaryRequestStatus.FOR_CLIENT_REVIEW]: 3,
-  [NotaryRequestStatus.FOR_PICKUP]: 4,
-  [NotaryRequestStatus.COMPLETED]: 5,
-  [NotaryRequestStatus.CANCELLED]: 6,
-
-  [NotaryRequestStatus.CLIENT_APPROVED]: 33,
-  [NotaryRequestStatus.CLIENT_REJECTED]: -33,
-  [NotaryRequestStatus.REJECTED]: -4,
+  [NotaryRequestStatus.NEEDS_CLIENT_REVISION]: 1.5,
+  [NotaryRequestStatus.PAYMENT_PENDING]: 2,
+  [NotaryRequestStatus.FOR_ADMIN_PAYMENT_VERIFICATION]: 2.5,
+  [NotaryRequestStatus.PROCESSING]: 3,
+  [NotaryRequestStatus.NEEDS_ATTORNEY_REVISION]: 3.5,
+  [NotaryRequestStatus.FOR_CLIENT_REVIEW]: 4,
+  [NotaryRequestStatus.CLIENT_APPROVED]: 5,
+  [NotaryRequestStatus.COMPLETED]: 6,
+  [NotaryRequestStatus.CANCELLED]: -1,
 };

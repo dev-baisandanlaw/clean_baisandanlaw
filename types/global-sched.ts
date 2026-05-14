@@ -42,4 +42,13 @@ export interface GlobalSched {
   officeHours: OfficeHours;
 
   blockedDates: Record<string, string[]>;
+
+  fees: {
+    appointmentPerHour: number;
+    paymentChannels: {
+      accountNumber: string;
+      accountName: string;
+      channelName: string;
+    }[];
+  };
 }

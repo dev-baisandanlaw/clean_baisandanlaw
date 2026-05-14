@@ -1,7 +1,9 @@
+import BasicCard from "@/components/Common/BasicCard";
+import DetailField from "@/components/Common/DetailField";
 import { Attorney } from "@/types/user";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { appNotifications } from "@/utils/notifications/notifications";
-import { Alert, Button, Modal, Stack, Table } from "@mantine/core";
+import { Alert, Button, Modal, SimpleGrid, Stack } from "@mantine/core";
 import { IconAlertCircle, IconBan } from "@tabler/icons-react";
 import axios from "axios";
 import { useState } from "react";
@@ -50,7 +52,7 @@ export default function BanAttorneyModal({
     <Modal
       opened={opened}
       onClose={onClose}
-      title="Delete Client"
+      title="Restrict Attorney"
       centered
       transitionProps={{ transition: "pop" }}
       size="lg"
@@ -62,38 +64,34 @@ export default function BanAttorneyModal({
           title="Confirm Account Ban"
           icon={<IconAlertCircle />}
         >
-          Are you sure you want to ban this attorney? Once confirmed, all their
-          sessions are revoked and they are not allowed to sign in again.
+          Are you sure you want to restrict this attorney? Once confirmed, all
+          their sessions are revoked and they are not allowed to sign in again.
         </Alert>
 
-        <Table variant="vertical" layout="fixed">
-          <Table.Tbody>
-            <Table.Tr>
-              <Table.Th w={160}>Attorney Name</Table.Th>
-              <Table.Td>
-                {userDetails.first_name} {userDetails.last_name}
-              </Table.Td>
-            </Table.Tr>
-            <Table.Tr>
-              <Table.Th w={160}>Email</Table.Th>
-              <Table.Td>
-                {userDetails.email_addresses[0].email_address}
-              </Table.Td>
-            </Table.Tr>
-            <Table.Tr>
-              <Table.Th w={160}>Phone Number</Table.Th>
-              <Table.Td>
-                {userDetails.unsafe_metadata?.phoneNumber || "-"}
-              </Table.Td>
-            </Table.Tr>
-            <Table.Tr>
-              <Table.Th w={160}>Member Since</Table.Th>
-              <Table.Td>
-                {getDateFormatDisplay(userDetails.created_at, true)}
-              </Table.Td>
-            </Table.Tr>
-          </Table.Tbody>
-        </Table>
+        <BasicCard title="Attorney's Information">
+          <SimpleGrid cols={{ base: 2, sm: 3 }}>
+            <DetailField
+              title="Name"
+              value={userDetails.first_name + " " + userDetails.last_name}
+            />
+            <DetailField
+              title="Email"
+              value={userDetails.email_addresses[0].email_address}
+            />
+            <DetailField
+              title="Phone"
+              value={userDetails.unsafe_metadata?.phoneNumber || "-"}
+            />
+            <DetailField
+              title="Involved Cases"
+              value={userDetails.unsafe_metadata?.involvedCases || 0}
+            />
+            <DetailField
+              title="Member Since"
+              value={getDateFormatDisplay(userDetails.created_at, true)}
+            />
+          </SimpleGrid>
+        </BasicCard>
 
         <Button
           onClick={handleDeleteClient}

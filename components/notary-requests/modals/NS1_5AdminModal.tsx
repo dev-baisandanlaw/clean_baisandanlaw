@@ -1,41 +1,42 @@
-import { COLLECTIONS } from "@/constants/constants";
-import { db } from "@/firebase/config";
-import { NotaryRequest, NotaryRequestStatus } from "@/types/notary-requests";
-import { appNotifications } from "@/utils/notifications/notifications";
-import { useUser } from "@clerk/nextjs";
 import {
   Button,
   Center,
-  Loader,
   Group,
+  Loader,
   Modal,
   Stack,
-  Table,
   Text,
+  Textarea,
 } from "@mantine/core";
-import dayjs from "dayjs";
+import { NotaryRequest, NotaryRequestStatus } from "@/types/notary-requests";
+import { SetStateAction, Dispatch, useEffect, useState } from "react";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { SetStateAction, Dispatch, useState, useEffect } from "react";
+import { db } from "@/firebase/config";
+import { COLLECTIONS } from "@/constants/constants";
+import { useUser } from "@clerk/nextjs";
+import dayjs from "dayjs";
+import { nanoid } from "nanoid";
+import { appNotifications } from "@/utils/notifications/notifications";
 
-interface ReviewNotaryRequestModalProps {
+interface RejectNotaryRequestModalProps {
   opened: boolean;
   onClose: () => void;
   notaryRequestId: string;
   setDataChanged: Dispatch<SetStateAction<boolean>>;
 }
 
-export default function ReviewNotaryRequestModal({
+export default function NS1_5AdminModal({
   opened,
   onClose,
   notaryRequestId,
   setDataChanged,
-}: ReviewNotaryRequestModalProps) {
+}: RejectNotaryRequestModalProps) {
   const { user } = useUser();
+  const [isRejecting, setIsRejecting] = useState(false);
 
   const [isFetching, setIsFetching] = useState(false);
   const [notaryRequestData, setNotaryRequestData] =
     useState<NotaryRequest | null>(null);
-  const [isReviewing, setIsReviewing] = useState(false);
 
   const fetchNotaryRequest = async () => {
     setIsFetching(true);
@@ -56,16 +57,17 @@ export default function ReviewNotaryRequestModal({
       }, 500);
     } catch {
       appNotifications.error({
-        title: "Failed to fetch request data",
+        title: "Failed to fetch data",
         message: "The request data could not be fetched. Please try again.",
       });
       onClose();
     }
   };
+  const [reason, setReason] = useState("");
 
   useEffect(() => {
     if (!opened) {
-      setIsReviewing(false);
+      setReason("");
       setIsFetching(false);
       setNotaryRequestData(null);
     } else {
@@ -73,31 +75,31 @@ export default function ReviewNotaryRequestModal({
         fetchNotaryRequest();
       }
     }
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened, notaryRequestId]);
 
-  const handleReviewNotaryRequest = async () => {
-    setIsReviewing(true);
-
+  const handleRejectNotaryRequest = async () => {
+    setIsRejecting(true);
     try {
       await setDoc(
         doc(db, COLLECTIONS.NOTARY_REQUESTS, notaryRequestId),
         {
-          status: NotaryRequestStatus.PROCESSING,
+          status: NotaryRequestStatus.NEEDS_CLIENT_REVISION,
+          updatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
           timeline: [
             ...(notaryRequestData?.timeline || []),
             {
-              id: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-              title: "PROCESSING",
-              description: "Request marked as processing",
+              id: nanoid(8),
+              title: "NEEDS_CLIENT_REVISION",
+              description: "Request sent back for client revision",
               dateAndTime: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-              status: NotaryRequestStatus.PROCESSING,
+              status: NotaryRequestStatus.NEEDS_CLIENT_REVISION,
               user: {
                 id: user!.id,
                 fullname: user!.firstName + " " + user!.lastName,
                 email: user!.primaryEmailAddress!.emailAddress,
               },
+              reason,
             },
           ],
         },
@@ -105,19 +107,18 @@ export default function ReviewNotaryRequestModal({
       );
 
       appNotifications.success({
-        title: "Request marked as processing",
-        message: "The request has been marked as processing",
+        title: "Request rejected",
+        message: "The request has been rejected successfully",
       });
       setDataChanged((prev) => !prev);
       onClose();
     } catch {
       appNotifications.error({
-        title: "Failed to mark request as processing",
-        message:
-          "The request could not be marked as processing. Please try again.",
+        title: "Failed to reject request",
+        message: "The request could not be rejected. Please try again.",
       });
     } finally {
-      setIsReviewing(false);
+      setIsRejecting(false);
     }
   };
 
@@ -125,11 +126,11 @@ export default function ReviewNotaryRequestModal({
     <Modal
       opened={opened}
       onClose={onClose}
-      title="Review Request"
+      title="Reject Request"
       centered
       transitionProps={{ transition: "pop" }}
+      withCloseButton={!isRejecting}
       size="lg"
-      withCloseButton={!isReviewing}
     >
       {isFetching ? (
         <Center my="xl">
@@ -139,46 +140,33 @@ export default function ReviewNotaryRequestModal({
           </Stack>
         </Center>
       ) : (
-        <Stack>
-          <Text>Are you sure you want to mark this request as processing?</Text>
+        <Stack gap="md">
+          <Text>Please provide a reason for rejecting the request.</Text>
 
-          <Table variant="vertical" layout="fixed">
-            <Table.Tbody>
-              <Table.Tr>
-                <Table.Th w={160}>Requestor</Table.Th>
-                <Table.Td>
-                  <Text c="green" fw={600} size="sm">
-                    {notaryRequestData?.requestor.fullname}
-                  </Text>
-                </Table.Td>
-              </Table.Tr>
-
-              <Table.Tr>
-                <Table.Th>Email</Table.Th>
-                <Table.Td>
-                  <Text c="green" fw={600} size="sm">
-                    {notaryRequestData?.requestor.email}
-                  </Text>
-                </Table.Td>
-              </Table.Tr>
-
-              <Table.Tr>
-                <Table.Th>Description</Table.Th>
-                <Table.Td>{notaryRequestData?.description}</Table.Td>
-              </Table.Tr>
-            </Table.Tbody>
-          </Table>
+          <Textarea
+            placeholder="Enter reason"
+            label="Reason"
+            rows={6}
+            withAsterisk
+            styles={{ input: { paddingBlock: 6 } }}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            maxLength={1000}
+            inputWrapperOrder={["label", "input", "description", "error"]}
+            description={`${reason.length}/1000 characters`}
+          />
 
           <Group justify="end">
-            <Button variant="outline" onClick={onClose} disabled={isReviewing}>
+            <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
             <Button
-              color="blue"
-              onClick={handleReviewNotaryRequest}
-              loading={isReviewing}
+              disabled={!reason.trim().length}
+              loading={isRejecting}
+              color="red"
+              onClick={handleRejectNotaryRequest}
             >
-              Mark as Processing
+              Reject
             </Button>
           </Group>
         </Stack>

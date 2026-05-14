@@ -6,6 +6,7 @@ import AppointmentsDatePicker from "@/components/appointments/DatePickerFilter";
 import UpsertAppointmentModal from "@/components/appointments/modals/UpsertAppointmentModal";
 import DeleteDuplicateModal from "@/components/appointments/modals/DeleteDuplicateModal";
 import ViewAppointmentModal from "@/components/appointments/modals/ViewAppointmentModal";
+import ReceiptPreviewModal from "@/components/Common/ReceiptPreviewModal";
 import { COLLECTIONS } from "@/constants/constants";
 import { db } from "@/firebase/config";
 import { Booking } from "@/types/booking";
@@ -34,6 +35,7 @@ import {
   getDocs,
   onSnapshot,
   query,
+  updateDoc,
   where,
 } from "firebase/firestore";
 import { useEffect, useState } from "react";
@@ -65,8 +67,8 @@ export default function AppointmentsFeature() {
         doc(
           db,
           COLLECTIONS.GLOBAL_SCHED,
-          process.env.NEXT_PUBLIC_FIREBASE_HOLIDAYS_BLOCKED_SCHED_ID!
-        )
+          process.env.NEXT_PUBLIC_FIREBASE_HOLIDAYS_BLOCKED_SCHED_ID!,
+        ),
       );
       if (!snap.exists()) return;
 
@@ -106,10 +108,14 @@ export default function AppointmentsFeature() {
     settingsModalOpened,
     { open: openSettingsModal, close: closeSettingsModal },
   ] = useDisclosure(false);
+  const [
+    receiptModalOpened,
+    { open: openReceiptModal, close: closeReceiptModal },
+  ] = useDisclosure(false);
 
-  const handleSelectBooking = (
+  const handleSelectBooking = async (
     booking: Booking | null,
-    mode: "update" | "delete" | "view" | "add"
+    mode: "update" | "delete" | "view" | "add" | "receipt",
   ) => {
     setSelectedBooking(booking);
 
@@ -128,6 +134,10 @@ export default function AppointmentsFeature() {
     if (mode === "update") {
       openAppModal();
     }
+
+    if (mode === "receipt") {
+      openReceiptModal();
+    }
   };
 
   const fetchNoAttorneyBookings = async () => {
@@ -139,7 +149,7 @@ export default function AppointmentsFeature() {
     const q = query(ref, ...constraints);
     const snapshot = await getDocs(q);
     const bookings = snapshot.docs.map(
-      (doc) => ({ id: doc.id, ...doc.data() }) as Booking
+      (doc) => ({ id: doc.id, ...doc.data() }) as Booking,
     );
     setNoAttorneyBookings(bookings);
   };
@@ -183,7 +193,7 @@ export default function AppointmentsFeature() {
       (error) => {
         console.error("Firestore onSnapshot error:", error);
         setIsFetchingBookings(false);
-      }
+      },
     );
 
     return () => unsub();
@@ -230,7 +240,7 @@ export default function AppointmentsFeature() {
                   >
                     {getDateFormatDisplay(
                       `${booking.date} ${booking.time}`,
-                      true
+                      true,
                     )}
                   </Badge>
                 ))}
@@ -329,6 +339,26 @@ export default function AppointmentsFeature() {
         onClose={closeSettingsModal}
         globalSched={globalSched}
         setDataChanged={setDataChanged}
+      />
+
+      <ReceiptPreviewModal
+        opened={receiptModalOpened}
+        onClose={closeReceiptModal}
+        receiptFileId={selectedBooking?.paymentFields?.receiptFileId ?? ""}
+        isPaid={selectedBooking?.paymentFields?.isPaid ?? false}
+        onApprove={async () => {
+          if (!selectedBooking) return;
+          const ref = doc(db, COLLECTIONS.BOOKINGS, selectedBooking.id);
+          await updateDoc(ref, {
+            "paymentFields.isPaid": true,
+          });
+          appNotifications.success({
+            title: "Payment approved",
+            message: "The payment has been approved successfully.",
+          });
+          setDataChanged((prev) => !prev);
+        }}
+        filenamePrefix="receipt-booking"
       />
     </>
   );

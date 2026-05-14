@@ -10,12 +10,12 @@ import {
   Stack,
   TagsInput,
   Textarea,
+  TextInput,
   useMantineTheme,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useUser } from "@clerk/nextjs";
 import { addDoc, collection, doc, setDoc } from "firebase/firestore";
-import { customAlphabet } from "nanoid";
 import dayjs from "dayjs";
 import axios from "axios";
 
@@ -48,6 +48,7 @@ export default function AddMatterModal({
 
   const form = useForm({
     initialValues: {
+      caseNumber: "",
       leadAttorney: {
         fullname: "",
         id: "",
@@ -74,9 +75,6 @@ export default function AddMatterModal({
   const handleSubmit = async (values: typeof form.values) => {
     const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
     setIsLoading(true);
-
-    const nanoid = customAlphabet("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", 8);
-    const caseNumber = `JA-${nanoid()}`;
 
     try {
       const leadAttorneyDetails = attorneyUsers.find(
@@ -106,7 +104,7 @@ export default function AddMatterModal({
           imageUrl: clientDetails?.profile_image_url,
           email: clientDetails?.email_addresses[0].email_address,
         },
-        caseNumber,
+        caseNumber: form.values.caseNumber.trim(),
         createdBy: {
           id: user!.id,
           fullname: user!.firstName + " " + user!.lastName,
@@ -118,7 +116,22 @@ export default function AddMatterModal({
         status: "active",
       };
 
-      // 1. Update lead attorney's involved cases count
+      // 1. Create Google Drive folder for the matter
+      const { data: googleDriveFolder } = await axios.post(
+        "/api/google/drive/gFolders/create",
+        {
+          name: form.values.caseNumber.trim(),
+          parentId: process.env.NEXT_PUBLIC_GOOGLE_DOCUMENTS_MATTERS_FOLDER_ID,
+        },
+      );
+
+      // 2. Add matter to database
+      const res = await addDoc(collection(db, COLLECTIONS.CASES), {
+        ...data,
+        googleDriveFolderId: googleDriveFolder.id,
+      });
+
+      // 3. Update lead attorney's involved cases count
       await axios.patch("/api/clerk/user/update-user-metadata", {
         userId: leadAttorneyDetails?.id,
         unsafe_metadata: {
@@ -127,24 +140,9 @@ export default function AddMatterModal({
         },
       });
 
-      // 2. Create Google Drive folder for the matter
-      const { data: googleDriveFolder } = await axios.post(
-        "/api/google/drive/gFolders/create",
-        {
-          name: caseNumber,
-          parentId: process.env.NEXT_PUBLIC_GOOGLE_DOCUMENTS_MATTERS_FOLDER_ID,
-        },
-      );
-
-      // 3. Add matter to database
-      const res = await addDoc(collection(db, COLLECTIONS.CASES), {
-        ...data,
-        googleDriveFolderId: googleDriveFolder.id,
-      });
-
       // 4. Sync matter to Appwrite
       await syncToAppwrite("MATTERS", res.id, {
-        matterNumber: caseNumber,
+        matterNumber: form.values.caseNumber.trim(),
 
         leadAttorneyFirstName: leadAttorneyDetails?.first_name,
         leadAttorneyLastName: leadAttorneyDetails?.last_name,
@@ -158,7 +156,7 @@ export default function AddMatterModal({
         leadAttorneyId: leadAttorneyDetails?.id,
         clientId: clientDetails?.id,
 
-        search_blob: `${caseNumber} ${leadAttorneyDetails?.first_name} ${leadAttorneyDetails?.last_name} ${clientDetails?.first_name} ${clientDetails?.last_name} ${values.caseType.join(" ")}`,
+        search_blob: `${form.values.caseNumber.trim()} ${leadAttorneyDetails?.first_name} ${leadAttorneyDetails?.last_name} ${clientDetails?.first_name} ${clientDetails?.last_name} ${values.caseType.join(" ")}`,
       });
 
       // 5. Update tasks collection
@@ -207,7 +205,7 @@ export default function AddMatterModal({
       const { data } = await axios.get("/api/clerk/organization/fetch", {
         params: {
           organization_id: CLERK_ORG_IDS.client,
-          limit: 9999,
+          limit: 500,
         },
       });
 
@@ -219,7 +217,7 @@ export default function AddMatterModal({
       const { data } = await axios.get("/api/clerk/organization/fetch", {
         params: {
           organization_id: CLERK_ORG_IDS.attorney,
-          limit: 9999,
+          limit: 500,
         },
       });
 
@@ -245,6 +243,12 @@ export default function AddMatterModal({
     >
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack gap="md">
+          <TextInput
+            withAsterisk
+            label="Matter Number"
+            placeholder="Enter Matter Number"
+            {...form.getInputProps("caseNumber")}
+          />
           <Select
             withAsterisk
             label="Lead Attorney"
@@ -281,10 +285,6 @@ export default function AddMatterModal({
             placeholder="Select Matter Type"
             data={ATTY_PRACTICE_AREAS}
             clearable
-            maxDropdownHeight={200}
-            comboboxProps={{
-              transitionProps: { transition: "pop-top-left", duration: 200 },
-            }}
             styles={{
               pill: {
                 backgroundColor: theme.colors.green[0],
@@ -315,7 +315,8 @@ export default function AddMatterModal({
                 !form.values.leadAttorney.id ||
                 !form.values.clientData.id ||
                 !form.values.caseType.length ||
-                !form.values.caseDescription.length
+                !form.values.caseDescription.trim().length ||
+                !form.values.caseNumber.trim().length
               }
             >
               Add Matter

@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 
 import {
   ActionIcon,
-  Badge,
   Button,
   Flex,
   Group,
@@ -19,7 +18,6 @@ import {
   Tabs,
   Text,
   TextInput,
-  useMantineTheme,
 } from "@mantine/core";
 import {
   useDebouncedValue,
@@ -44,12 +42,12 @@ import EmptyTableComponent from "@/components/EmptyTableComponent";
 import AddRetainerModal from "@/components/retainers/modals/AddRetainerModal";
 
 import { AppwriteRetainersDocument } from "@/types/appwriteResponses";
+import { AreaBadge } from "@/components/Common/BadgeComp";
 
 export default function RetainerListing() {
   const shrink = useMediaQuery("(max-width: 768px)");
   const { user, isLoaded } = useUser();
   const router = useRouter();
-  const theme = useMantineTheme();
 
   const [dataChanged, setDataChanged] = useState(false);
 
@@ -105,7 +103,7 @@ export default function RetainerListing() {
       return;
     }
 
-    const limit = 10;
+    const limit = 25;
     const offset = (page - 1) * limit;
 
     const queries: string[] = [Query.limit(limit), Query.offset(offset)];
@@ -263,16 +261,8 @@ export default function RetainerListing() {
                       </Table.Td>
                       <Table.Td width={250}>
                         <Group gap={2}>
-                          {retainer.matterType?.split("&_&").map((area, i) => (
-                            <Badge
-                              size="xs"
-                              key={i}
-                              variant="outline"
-                              radius="xs"
-                              color={theme.other.customPumpkin}
-                            >
-                              {area}
-                            </Badge>
+                          {retainer.matterType?.split("&_&").map((area) => (
+                            <AreaBadge area={area} key={area} />
                           ))}
                         </Group>
                       </Table.Td>
@@ -306,8 +296,8 @@ export default function RetainerListing() {
           >
             {totalCount > 0 ? (
               <Text size="sm">
-                Showing {(currentPage - 1) * 10 + 1}-
-                {Math.min(currentPage * 10, totalCount)} of {totalCount}{" "}
+                Showing {(currentPage - 1) * 25 + 1}-
+                {Math.min(currentPage * 25, totalCount)} of {totalCount}{" "}
                 Retainers
               </Text>
             ) : (
@@ -315,8 +305,9 @@ export default function RetainerListing() {
             )}
 
             <Pagination
+              size="sm"
               ml={shrink ? 0 : "auto"}
-              total={Math.ceil(totalCount / 10) || 1}
+              total={Math.ceil(totalCount / 25) || 1}
               value={currentPage}
               onChange={setCurrentPage}
             />

@@ -1,41 +1,44 @@
-import { COLLECTIONS } from "@/constants/constants";
-import { db } from "@/firebase/config";
-import { NotaryRequest, NotaryRequestStatus } from "@/types/notary-requests";
-import { appNotifications } from "@/utils/notifications/notifications";
-import { useUser } from "@clerk/nextjs";
 import {
   Button,
   Center,
-  Loader,
   Group,
+  Loader,
   Modal,
+  NumberInput,
   Stack,
-  Table,
   Text,
 } from "@mantine/core";
-import dayjs from "dayjs";
+import { NotaryRequest, NotaryRequestStatus } from "@/types/notary-requests";
+import { SetStateAction, Dispatch, useEffect, useState } from "react";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { SetStateAction, Dispatch, useState, useEffect } from "react";
+import { db } from "@/firebase/config";
+import { COLLECTIONS } from "@/constants/constants";
+import { useUser } from "@clerk/nextjs";
+import dayjs from "dayjs";
+import { nanoid } from "nanoid";
+import { appNotifications } from "@/utils/notifications/notifications";
 
-interface ReviewNotaryRequestModalProps {
+interface AdminConfirmModalProps {
   opened: boolean;
   onClose: () => void;
   notaryRequestId: string;
   setDataChanged: Dispatch<SetStateAction<boolean>>;
 }
 
-export default function ReviewNotaryRequestModal({
+export default function NS2AdminModal({
   opened,
   onClose,
   notaryRequestId,
   setDataChanged,
-}: ReviewNotaryRequestModalProps) {
+}: AdminConfirmModalProps) {
   const { user } = useUser();
+  const [isConfirming, setIsConfirming] = useState(false);
 
   const [isFetching, setIsFetching] = useState(false);
   const [notaryRequestData, setNotaryRequestData] =
     useState<NotaryRequest | null>(null);
-  const [isReviewing, setIsReviewing] = useState(false);
+
+  const [fee, setFee] = useState<number | string>("");
 
   const fetchNotaryRequest = async () => {
     setIsFetching(true);
@@ -65,7 +68,7 @@ export default function ReviewNotaryRequestModal({
 
   useEffect(() => {
     if (!opened) {
-      setIsReviewing(false);
+      setFee("");
       setIsFetching(false);
       setNotaryRequestData(null);
     } else {
@@ -73,26 +76,34 @@ export default function ReviewNotaryRequestModal({
         fetchNotaryRequest();
       }
     }
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened, notaryRequestId]);
 
-  const handleReviewNotaryRequest = async () => {
-    setIsReviewing(true);
+  const isFeeValid = typeof fee === "number" && fee >= 0.01;
 
+  const handleConfirm = async () => {
+    if (!isFeeValid) return;
+
+    setIsConfirming(true);
     try {
       await setDoc(
         doc(db, COLLECTIONS.NOTARY_REQUESTS, notaryRequestId),
         {
-          status: NotaryRequestStatus.PROCESSING,
+          status: NotaryRequestStatus.PAYMENT_PENDING,
+          updatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
+          paymentFields: {
+            fee: fee as number,
+            receiptFileId: "",
+            isPaid: false,
+          },
           timeline: [
             ...(notaryRequestData?.timeline || []),
             {
-              id: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-              title: "PROCESSING",
-              description: "Request marked as processing",
+              id: nanoid(8),
+              title: "PAYMENT_PENDING",
+              description: `Request confirmed with payment fee of ₱${(fee as number).toFixed(2)}`,
               dateAndTime: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-              status: NotaryRequestStatus.PROCESSING,
+              status: NotaryRequestStatus.PAYMENT_PENDING,
               user: {
                 id: user!.id,
                 fullname: user!.firstName + " " + user!.lastName,
@@ -105,19 +116,18 @@ export default function ReviewNotaryRequestModal({
       );
 
       appNotifications.success({
-        title: "Request marked as processing",
-        message: "The request has been marked as processing",
+        title: "Request confirmed",
+        message: "The request has been confirmed with a payment fee.",
       });
       setDataChanged((prev) => !prev);
       onClose();
     } catch {
       appNotifications.error({
-        title: "Failed to mark request as processing",
-        message:
-          "The request could not be marked as processing. Please try again.",
+        title: "Failed to confirm request",
+        message: "The request could not be confirmed. Please try again.",
       });
     } finally {
-      setIsReviewing(false);
+      setIsConfirming(false);
     }
   };
 
@@ -125,11 +135,11 @@ export default function ReviewNotaryRequestModal({
     <Modal
       opened={opened}
       onClose={onClose}
-      title="Review Request"
+      title="Confirm Request"
       centered
       transitionProps={{ transition: "pop" }}
-      size="lg"
-      withCloseButton={!isReviewing}
+      withCloseButton={!isConfirming}
+      size="md"
     >
       {isFetching ? (
         <Center my="xl">
@@ -139,46 +149,36 @@ export default function ReviewNotaryRequestModal({
           </Stack>
         </Center>
       ) : (
-        <Stack>
-          <Text>Are you sure you want to mark this request as processing?</Text>
+        <Stack gap="md">
+          <Text>
+            Enter the payment fee to confirm this request. The client will be
+            asked to pay this amount before processing begins.
+          </Text>
 
-          <Table variant="vertical" layout="fixed">
-            <Table.Tbody>
-              <Table.Tr>
-                <Table.Th w={160}>Requestor</Table.Th>
-                <Table.Td>
-                  <Text c="green" fw={600} size="sm">
-                    {notaryRequestData?.requestor.fullname}
-                  </Text>
-                </Table.Td>
-              </Table.Tr>
-
-              <Table.Tr>
-                <Table.Th>Email</Table.Th>
-                <Table.Td>
-                  <Text c="green" fw={600} size="sm">
-                    {notaryRequestData?.requestor.email}
-                  </Text>
-                </Table.Td>
-              </Table.Tr>
-
-              <Table.Tr>
-                <Table.Th>Description</Table.Th>
-                <Table.Td>{notaryRequestData?.description}</Table.Td>
-              </Table.Tr>
-            </Table.Tbody>
-          </Table>
+          <NumberInput
+            label="Payment Fee"
+            placeholder="Enter payment fee"
+            min={1}
+            max={999999999}
+            decimalScale={2}
+            thousandSeparator=","
+            prefix="₱"
+            withAsterisk
+            value={fee}
+            onChange={setFee}
+            allowNegative={false}
+          />
 
           <Group justify="end">
-            <Button variant="outline" onClick={onClose} disabled={isReviewing}>
+            <Button variant="outline" onClick={onClose} disabled={isConfirming}>
               Cancel
             </Button>
             <Button
-              color="blue"
-              onClick={handleReviewNotaryRequest}
-              loading={isReviewing}
+              disabled={!isFeeValid}
+              loading={isConfirming}
+              onClick={handleConfirm}
             >
-              Mark as Processing
+              Confirm Request
             </Button>
           </Group>
         </Stack>

@@ -1,3 +1,5 @@
+import { Dispatch, SetStateAction, useEffect, useState } from "react";
+
 import {
   Button,
   Center,
@@ -6,45 +8,43 @@ import {
   Modal,
   Stack,
   Text,
-  Textarea,
 } from "@mantine/core";
-import { NotaryRequest, NotaryRequestStatus } from "@/types/notary-requests";
-import { SetStateAction, Dispatch, useEffect, useState } from "react";
-import { doc, getDoc, setDoc } from "firebase/firestore";
-import { db } from "@/firebase/config";
-import { COLLECTIONS } from "@/constants/constants";
 import { useUser } from "@clerk/nextjs";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import dayjs from "dayjs";
 import { nanoid } from "nanoid";
-import { appNotifications } from "@/utils/notifications/notifications";
-import { syncToAppwrite } from "@/lib/syncToAppwrite";
 
-interface RejectNotaryRequestModalProps {
+import { COLLECTIONS } from "@/constants/constants";
+import { db } from "@/firebase/config";
+
+import { appNotifications } from "@/utils/notifications/notifications";
+
+import { NotaryRequest, NotaryRequestStatus } from "@/types/notary-requests";
+
+interface CancelNotaryRequestModalProps {
   opened: boolean;
   onClose: () => void;
   notaryRequestId: string;
   setDataChanged: Dispatch<SetStateAction<boolean>>;
 }
 
-export default function RejectNotaryRequestModal({
+export default function NSCancelAdminModal({
   opened,
   onClose,
   notaryRequestId,
   setDataChanged,
-}: RejectNotaryRequestModalProps) {
+}: CancelNotaryRequestModalProps) {
   const { user } = useUser();
-  const [isRejecting, setIsRejecting] = useState(false);
-
+  const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
   const [notaryRequestData, setNotaryRequestData] =
     useState<NotaryRequest | null>(null);
 
   const fetchNotaryRequest = async () => {
     setIsFetching(true);
-
     try {
       const snap = await getDoc(
-        doc(db, COLLECTIONS.NOTARY_REQUESTS, notaryRequestId)
+        doc(db, COLLECTIONS.NOTARY_REQUESTS, notaryRequestId),
       );
       if (snap.exists()) {
         setNotaryRequestData({
@@ -52,79 +52,69 @@ export default function RejectNotaryRequestModal({
           id: snap.id,
         });
       }
-
       setTimeout(() => {
         setIsFetching(false);
       }, 500);
     } catch {
       appNotifications.error({
-        title: "Failed to fetch notary request data",
-        message:
-          "The notary request data could not be fetched. Please try again.",
+        title: "Failed to fetch request data",
+        message: "The request data could not be fetched. Please try again.",
       });
       onClose();
     }
   };
-  const [reason, setReason] = useState("");
 
   useEffect(() => {
     if (!opened) {
-      setReason("");
       setIsFetching(false);
       setNotaryRequestData(null);
-    } else {
-      if (notaryRequestId) {
-        fetchNotaryRequest();
-      }
+    }
+    if (opened && notaryRequestId) {
+      fetchNotaryRequest();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened, notaryRequestId]);
 
-  const handleRejectNotaryRequest = async () => {
-    setIsRejecting(true);
+  const handleCancel = async () => {
+    setIsLoading(true);
     try {
       await setDoc(
         doc(db, COLLECTIONS.NOTARY_REQUESTS, notaryRequestId),
         {
-          status: NotaryRequestStatus.REJECTED,
+          status: NotaryRequestStatus.CANCELLED,
           updatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
           timeline: [
             ...(notaryRequestData?.timeline || []),
             {
               id: nanoid(8),
-              title: "REJECTED",
-              description: "Notary request rejected",
+              title: "CANCELLED",
+              description: "Request has been cancelled.",
               dateAndTime: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-              status: NotaryRequestStatus.REJECTED,
+              status: NotaryRequestStatus.CANCELLED,
               user: {
                 id: user!.id,
                 fullname: user!.firstName + " " + user!.lastName,
                 email: user!.primaryEmailAddress!.emailAddress,
               },
-              reason,
             },
           ],
         },
-        { merge: true }
+        { merge: true },
       );
 
-      await syncToAppwrite("NOTARY_REQUESTS", notaryRequestId, {
-        status: NotaryRequestStatus.REJECTED,
-      });
-
       appNotifications.success({
-        title: "Notary request rejected",
-        message: "The notary request has been rejected successfully",
+        title: "Request cancelled",
+        message: "The request has been cancelled.",
       });
       setDataChanged((prev) => !prev);
       onClose();
     } catch {
       appNotifications.error({
-        title: "Failed to reject notary request",
-        message: "The notary request could not be rejected. Please try again.",
+        title: "Failed to cancel request",
+        message: "The request could not be cancelled. Please try again.",
       });
     } finally {
-      setIsRejecting(false);
+      setIsLoading(false);
     }
   };
 
@@ -132,45 +122,32 @@ export default function RejectNotaryRequestModal({
     <Modal
       opened={opened}
       onClose={onClose}
-      title="Reject Notary Request"
+      title="Cancel Request"
       centered
       transitionProps={{ transition: "pop" }}
-      withCloseButton={!isRejecting}
-      size="lg"
+      size="md"
+      withCloseButton={!isLoading}
     >
       {isFetching ? (
         <Center my="xl">
           <Stack gap="md" align="center" justify="center">
             <Loader size="lg" type="dots" />
-            <Text c="dimmed">Fetching notary request data...</Text>
+            <Text c="dimmed">Fetching request data...</Text>
           </Stack>
         </Center>
       ) : (
         <Stack gap="md">
-          <Text>Please provide a reason for rejecting the notary request.</Text>
+          <Text>
+            Are you sure you want to cancel this request? This action cannot be
+            undone.
+          </Text>
 
-          <Textarea
-            placeholder="Enter reason"
-            label="Reason"
-            minRows={6}
-            autosize
-            withAsterisk
-            styles={{ input: { paddingBlock: 6 } }}
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-          />
-
-          <Group justify="end">
-            <Button variant="outline" onClick={onClose}>
-              Cancel
+          <Group justify="flex-end" mt="md">
+            <Button variant="default" onClick={onClose} disabled={isLoading}>
+              Go Back
             </Button>
-            <Button
-              disabled={!reason}
-              loading={isRejecting}
-              color="red"
-              onClick={handleRejectNotaryRequest}
-            >
-              Reject
+            <Button color="red" loading={isLoading} onClick={handleCancel}>
+              Cancel Request
             </Button>
           </Group>
         </Stack>

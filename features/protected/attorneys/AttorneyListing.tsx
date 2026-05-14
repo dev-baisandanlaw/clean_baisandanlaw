@@ -101,8 +101,8 @@ export default function AttorneyListing() {
 
     const params: Record<string, string | number> = {
       organization_id: CLERK_ORG_IDS.attorney,
-      limit: 10,
-      offset: (page - 1) * 10,
+      limit: 25,
+      offset: (page - 1) * 25,
       search: searchTerm.trim(),
     };
     if (bannedFilter === "Active") params.banned = "false";
@@ -328,8 +328,8 @@ export default function AttorneyListing() {
           >
             {totalCount > 0 ? (
               <Text size="sm">
-                Showing {(currentPage - 1) * 10 + 1}-
-                {Math.min(currentPage * 10, totalCount)} of {totalCount}{" "}
+                Showing {(currentPage - 1) * 25 + 1}-
+                {Math.min(currentPage * 25, totalCount)} of {totalCount}{" "}
                 Attorneys
               </Text>
             ) : (
@@ -337,8 +337,9 @@ export default function AttorneyListing() {
             )}
 
             <Pagination
+              size="sm"
               ml={shrink ? 0 : "auto"}
-              total={Math.ceil(totalCount / 10) || 1}
+              total={Math.ceil(totalCount / 25) || 1}
               value={currentPage}
               onChange={setCurrentPage}
             />

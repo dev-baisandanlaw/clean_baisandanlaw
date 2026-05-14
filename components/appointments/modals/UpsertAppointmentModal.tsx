@@ -87,7 +87,7 @@ export default function AddAppointmentModal({
       {
         params: {
           organization_id: CLERK_ORG_IDS.attorney,
-          limit: 9999,
+          limit: 500,
           banned: false,
         },
       },
@@ -102,7 +102,7 @@ export default function AddAppointmentModal({
       {
         params: {
           organization_id: CLERK_ORG_IDS.client,
-          limit: 9999,
+          limit: 500,
         },
       },
     );
@@ -130,12 +130,12 @@ export default function AddAppointmentModal({
       date: new Date(),
       time: "",
       message: "",
-      isPaid: true,
       via: "Walk-in",
       areas: [] as string[],
       consultationMode: "in-person",
       branch: "",
       representedByPreviousLawyer: false,
+      // TODO: add here the payment fields
     },
   });
 
@@ -697,13 +697,6 @@ export default function AddAppointmentModal({
               placeholder="Select Areas"
               data={ATTY_PRACTICE_AREAS}
               clearable
-              maxDropdownHeight={200}
-              comboboxProps={{
-                transitionProps: {
-                  transition: "pop-top-left",
-                  duration: 200,
-                },
-              }}
               styles={{
                 pill: {
                   backgroundColor: theme.colors.green[0],

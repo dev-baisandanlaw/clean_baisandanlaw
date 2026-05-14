@@ -31,15 +31,13 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "@/firebase/config";
-// import axios from "axios";
-import {
-  ATTY_PRACTICE_AREAS,
-  COLLECTIONS,
-  // PAYMONGO_CONFIG,
-} from "@/constants/constants";
+import { ATTY_PRACTICE_AREAS, COLLECTIONS } from "@/constants/constants";
 import { appNotifications } from "@/utils/notifications/notifications";
 import { IconInfoCircle } from "@tabler/icons-react";
-// import { IconInfoCircle } from "@tabler/icons-react";
+import { GlobalSched } from "@/types/global-sched";
+import BookingPaymentModal from "./BookingPaymentModal";
+import { useDisclosure } from "@mantine/hooks";
+import axios from "axios";
 
 export default function BookingModal({
   opened,
@@ -49,6 +47,7 @@ export default function BookingModal({
   user,
   successCallback,
   attorneyCount,
+  globalSched,
 }: {
   opened: boolean;
   onClose: () => void;
@@ -57,10 +56,16 @@ export default function BookingModal({
   user: UserResource | null;
   successCallback: () => void;
   attorneyCount: number;
+  globalSched: GlobalSched | null;
 }) {
   const theme = useMantineTheme();
 
   const [isBooking, setIsBooking] = useState(false);
+  const [isUploadingReceipt, setIsUploadingReceipt] = useState(false);
+  const [
+    isPaymentModalOpen,
+    { open: openPaymentModal, close: closePaymentModal },
+  ] = useDisclosure();
 
   const form = useForm({
     initialValues: {
@@ -118,11 +123,10 @@ export default function BookingModal({
     const q = query(
       collection(db, COLLECTIONS.BOOKINGS),
       where("date", "==", values.date),
-      where("time", "==", values.time)
+      where("time", "==", values.time),
     );
 
     await getDocs(q).then(({ docs }) => {
-      // if the number of bookings that day and time is greater than or equal to the attorney count, return an error
       if (docs.length >= attorneyCount) {
         appNotifications.error({
           title: "Failed to book appointment",
@@ -135,57 +139,20 @@ export default function BookingModal({
         return;
       }
 
-      handleAddBooking(values);
-
-      // axios({
-      //   method: "POST",
-      //   url: PAYMONGO_CONFIG.CHECKOUT_SESSION,
-      //   headers: PAYMONGO_CONFIG.HEADERS,
-      //   data: {
-      //     data: {
-      //       attributes: {
-      //         // success_url: `${window.location.origin}/booking/`,
-      //         cancel_url: `${window.location.origin}/booking`,
-      //         send_email_receipt: true,
-      //         show_description: true,
-      //         show_line_items: true,
-      //         description: "BaisAndan Law Office Booking Fee",
-      //         line_items: [
-      //           {
-      //             currency: "PHP",
-      //             amount: 20000,
-      //             description: "Booking Fee",
-      //             name: dayjs(form.values.date + " " + form.values.time).format(
-      //               "dddd, MMMM D, YYYY - h:mm A"
-      //             ),
-      //             quantity: 1,
-      //           },
-      //         ],
-      //         payment_method_types: ["gcash", "paymaya", "card"],
-      //       },
-      //     },
-      //   },
-      // })
-      //   .then(({ data }) => {
-      //     if (data?.data?.attributes?.checkout_url && data?.data?.id) {
-      //       handleCheckoutUrl(data.data.attributes.checkout_url, data.data.id);
-      //     }
-      //   })
-      //   .catch(() => {
-      //     toast.error("Something went wrong. Please try again later.", {
-      //       autoClose: 3000,
-      //     });
-      //     setIsBooking(false);
-      //   });
+      setIsBooking(false);
+      openPaymentModal();
     });
   };
 
-  const handleAddBooking = async (values: typeof form.values) => {
-    let clientDetails = {};
-
+  const handleAddBooking = async (
+    values: typeof form.values,
+    receiptFileId?: string,
+  ) => {
     const birthday = values.client.birthday
       ? dayjs(values.client.birthday).format("YYYY-MM-DD")
       : null;
+
+    let clientDetails = {};
 
     if (user) {
       clientDetails = {
@@ -217,11 +184,14 @@ export default function BookingModal({
       ...values,
       existingClient: !!user,
       client: clientDetails,
-      attorney: null, // Always null since the flow is: staff will assign the attorney
+      attorney: null,
       via: "Website",
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-      isPaid: true,
+      paymentFields: {
+        receiptFileId: receiptFileId || "",
+        isPaid: false,
+      },
     })
       .then(() => {
         onClose();
@@ -229,8 +199,7 @@ export default function BookingModal({
         successCallback();
         appNotifications.success({
           title: "Booking submitted!",
-          message:
-            "Your booking has been submitted. You will receive an email confirmation once it's confirmed.",
+          message: "Your booking has been submitted successfully.",
           autoClose: 7500,
         });
       })
@@ -239,67 +208,48 @@ export default function BookingModal({
           title: "Failed to book appointment",
           message: "The booking could not be submitted. Please try again.",
           autoClose: 3000,
-        })
-      )
-      .finally(() => setIsBooking(false));
+        }),
+      );
   };
 
-  // const handleCheckoutUrl = (url: string, checkoutSessionId: string) => {
-  //   const paymongoWindow = window.open(
-  //     url,
-  //     "_blank",
-  //     "height=600 width=500 top=" +
-  //       (window.outerHeight / 2 + window.screenY - 600 / 2) +
-  //       ",left=" +
-  //       (window.outerWidth / 2 + window.screenX - 500 / 2)
-  //   );
+  const handlePaymentSubmit = async (receiptFile: File) => {
+    setIsUploadingReceipt(true);
 
-  //   const checkPaymongoWindow = setInterval(() => {
-  //     const handleExpireCheckoutSession = () => {
-  //       axios({
-  //         method: "POST",
-  //         url: `${PAYMONGO_CONFIG.CHECKOUT_SESSION}/${checkoutSessionId}/expire`,
-  //         headers: PAYMONGO_CONFIG.HEADERS,
-  //       }).finally(() => {
-  //         setIsBooking(false);
-  //         toast.error("Payment failed. ", {
-  //           autoClose: 3000,
-  //         });
-  //         form.reset();
-  //         onClose();
-  //       });
-  //     };
+    try {
+      // Upload receipt to Google Drive
+      const dateTime = dayjs(`${form.values.date} ${form.values.time}`).format(
+        "YYYY-MM-DD-hh_mm_a",
+      );
 
-  //     if (paymongoWindow?.closed) {
-  //       clearInterval(checkPaymongoWindow);
+      const formData = new FormData();
 
-  //       setTimeout(() => {
-  //         axios({
-  //           method: "GET",
-  //           url: `${PAYMONGO_CONFIG.CHECKOUT_SESSION}/${checkoutSessionId}`,
-  //           headers: PAYMONGO_CONFIG.HEADERS,
-  //         })
-  //           .then(({ data }) => {
-  //             if (
-  //               data?.data?.attributes?.payment_intent?.attributes?.status ===
-  //               "succeeded"
-  //             ) {
-  //               handleAddBooking(form.values);
-  //             } else {
-  //               handleExpireCheckoutSession();
-  //             }
-  //           })
-  //           .catch(() => {
-  //             handleExpireCheckoutSession();
-  //           });
-  //       }, 2000);
-  //     }
-  //   }, 500);
+      formData.append(
+        "file",
+        receiptFile,
+        `[${form.values.client.email}]-[${form.values.client.firstName}-${form.values.client.lastName}]-[${dateTime}]-[receipt]`,
+      );
+      formData.append(
+        "parentId",
+        process.env.NEXT_PUBLIC_GOOGLE_RECEIPTS_APPOINTMENTS_FOLDER_ID!,
+      );
 
-  //   return () => {
-  //     clearInterval(checkPaymongoWindow);
-  //   };
-  // };
+      const { data } = await axios.post(
+        "/api/google/drive/upload_receipts",
+        formData,
+      );
+
+      await handleAddBooking(form.values, data?.uploadedFiles?.id);
+      closePaymentModal();
+    } catch {
+      appNotifications.error({
+        title: "Failed to upload receipt",
+        message: "Could not upload your receipt. Please try again.",
+        autoClose: 5000,
+      });
+    } finally {
+      setIsUploadingReceipt(false);
+    }
+  };
 
   useEffect(() => {
     if (opened && !!user) {
@@ -342,8 +292,8 @@ export default function BookingModal({
     <Modal
       opened={opened}
       onClose={onClose}
-      title="Confirm Booking"
-      withCloseButton={!isBooking}
+      title="Booking Information"
+      withCloseButton={!isBooking && !isUploadingReceipt}
       centered
       size="xl"
     >
@@ -444,7 +394,7 @@ export default function BookingModal({
               onChange={(value: string | null) =>
                 form.setFieldValue(
                   "client.birthday",
-                  value ? dayjs(value, "YYYY-MM-DD").toDate() : null
+                  value ? dayjs(value, "YYYY-MM-DD").toDate() : null,
                 )
               }
               disabled={!!user?.unsafeMetadata?.birthday}
@@ -490,10 +440,6 @@ export default function BookingModal({
             placeholder="Select Areas"
             data={ATTY_PRACTICE_AREAS}
             clearable
-            maxDropdownHeight={200}
-            comboboxProps={{
-              transitionProps: { transition: "pop-top-left", duration: 200 },
-            }}
             styles={{
               pill: {
                 backgroundColor: theme.colors.green[0],
@@ -510,6 +456,9 @@ export default function BookingModal({
             {...form.getInputProps("message")}
             styles={{ input: { paddingBlock: 6 } }}
             rows={5}
+            maxLength={1000}
+            inputWrapperOrder={["label", "error", "input", "description"]}
+            description={`${form.values.message.length}/1000 characters`}
           />
 
           <Checkbox
@@ -525,10 +474,20 @@ export default function BookingModal({
             Cancel
           </Button>
           <Button type="submit" disabled={!form.isValid()} loading={isBooking}>
-            Confirm Booking
+            Proceed to Payment
           </Button>
         </Group>
       </form>
+
+      <BookingPaymentModal
+        opened={isPaymentModalOpen}
+        onClose={closePaymentModal}
+        globalSched={globalSched}
+        selectedDate={selectedDate}
+        selectedTime={selectedTime}
+        onSubmit={handlePaymentSubmit}
+        isSubmitting={isUploadingReceipt}
+      />
     </Modal>
   );
 }

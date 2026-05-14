@@ -24,25 +24,6 @@ export interface AppwriteMatterDocument {
   updatedAt: string;
 }
 
-export interface AppwriteNotaryRequestDocument {
-  referenceNumber: string;
-  $id: string;
-  $createdAt: string;
-  $updatedAt: string;
-
-  requestorEmail: string;
-  requestorFullName: string;
-
-  documentInitialFileId: string;
-  documentFinishedFileId: string;
-
-  status: string;
-  search_blob: string;
-
-  pickupBranch?: "Angeles branch" | "Magalang branch" | "Soft copy only";
-  pickupDate?: Date | string | null;
-}
-
 export interface AppwriteRetainersDocument {
   $id: string;
   $createdAt: string;

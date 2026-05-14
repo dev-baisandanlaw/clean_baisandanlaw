@@ -1,14 +1,15 @@
+import BasicCard from "@/components/Common/BasicCard";
+import DetailField from "@/components/Common/DetailField";
 import { COLLECTIONS } from "@/constants/constants";
 import { approveNotaryRequest } from "@/firebase/approveNotaryRequest";
 import { db } from "@/firebase/config";
-import { syncToAppwrite } from "@/lib/syncToAppwrite";
 import { NotaryRequest, NotaryRequestStatus } from "@/types/notary-requests";
-import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
-import { getNotaryStatus } from "@/utils/getNotaryStatus";
+import { formatFee } from "@/utils/formatFee";
 import { appNotifications } from "@/utils/notifications/notifications";
 import { useUser } from "@clerk/nextjs";
 import {
   ActionIcon,
+  Badge,
   Button,
   Center,
   Divider,
@@ -17,8 +18,8 @@ import {
   Loader,
   Modal,
   Paper,
+  SimpleGrid,
   Stack,
-  Table,
   Text,
   ThemeIcon,
 } from "@mantine/core";
@@ -35,7 +36,7 @@ interface ApproveNotaryRequestModalProps {
   setDataChanged: Dispatch<SetStateAction<boolean>>;
 }
 
-export default function ApproveNotaryRequestModal({
+export default function NS4AdminModal({
   opened,
   onClose,
   notaryRequestId,
@@ -55,7 +56,7 @@ export default function ApproveNotaryRequestModal({
 
     try {
       const snap = await getDoc(
-        doc(db, COLLECTIONS.NOTARY_REQUESTS, notaryRequestId)
+        doc(db, COLLECTIONS.NOTARY_REQUESTS, notaryRequestId),
       );
       if (snap.exists()) {
         setNotaryRequestData({
@@ -69,9 +70,8 @@ export default function ApproveNotaryRequestModal({
       }, 500);
     } catch {
       appNotifications.error({
-        title: "Failed to fetch notary request data",
-        message:
-          "The notary request data could not be fetched. Please try again.",
+        title: "Failed to fetch  request data",
+        message: "The  request data could not be fetched. Please try again.",
       });
       onClose();
     }
@@ -103,6 +103,9 @@ export default function ApproveNotaryRequestModal({
 
   if (!notaryRequestData) return null;
 
+  const isRevision =
+    notaryRequestData.status === NotaryRequestStatus.NEEDS_ATTORNEY_REVISION;
+
   const handleApproveNotaryRequest = async () => {
     setIsApproving(true);
     let fileId = null;
@@ -111,7 +114,7 @@ export default function ApproveNotaryRequestModal({
         // 1. Delete the existing file from Google Drive
         if (notaryRequestData?.documents?.finishedFile?.id) {
           await axios.delete(
-            `/api/google/drive/delete/${notaryRequestData.documents.finishedFile.id}`
+            `/api/google/drive/delete/${notaryRequestData.documents.finishedFile.id}`,
           );
         }
 
@@ -121,7 +124,7 @@ export default function ApproveNotaryRequestModal({
         fd.append("file", file);
         const { data: uploadedFile } = await axios.post(
           "/api/google/drive/upload",
-          fd
+          fd,
         );
 
         fileId = uploadedFile.uploadedFiles.id;
@@ -133,22 +136,18 @@ export default function ApproveNotaryRequestModal({
         name: file!.name,
       });
 
-      // 4. Update the notary request in Appwrite
-      await syncToAppwrite("NOTARY_REQUESTS", notaryRequestId, {
-        documentFinishedFileId: fileId,
-        status: NotaryRequestStatus.FOR_CLIENT_REVIEW,
-      });
-
       appNotifications.success({
-        title: "Notary request approved",
-        message: "The notary request has been approved successfully",
+        title: "Finished document uploaded",
+        message: isRevision
+          ? "The revised document has been uploaded for client review."
+          : "The finished document has been uploaded for client review.",
       });
       setDataChanged((prev) => !prev);
       onClose();
     } catch {
       appNotifications.error({
-        title: "Failed to approve notary request",
-        message: "The notary request could not be approved. Please try again.",
+        title: "Failed to approve  request",
+        message: "The  request could not be approved. Please try again.",
       });
     } finally {
       setIsApproving(false);
@@ -192,7 +191,11 @@ export default function ApproveNotaryRequestModal({
     <Modal
       opened={opened}
       onClose={onClose}
-      title="Approve Notary Request"
+      title={
+        isRevision
+          ? "Upload Revised Finished Document"
+          : "Upload Finished Document"
+      }
       centered
       transitionProps={{ transition: "pop" }}
       size="xl"
@@ -202,60 +205,46 @@ export default function ApproveNotaryRequestModal({
         <Center my="xl">
           <Stack gap="md" align="center" justify="center">
             <Loader size="lg" type="dots" />
-            <Text c="dimmed">Fetching notary request data...</Text>
+            <Text c="dimmed">Fetching request data...</Text>
           </Stack>
         </Center>
       ) : (
         <Stack gap="md">
-          <Table variant="vertical" layout="fixed">
-            <Table.Tbody>
-              <Table.Tr>
-                <Table.Th w={160}>Requestor</Table.Th>
-                <Table.Td>
-                  <Text c="green" fw={600} size="sm">
-                    {notaryRequestData?.requestor.fullname}
-                  </Text>
-                </Table.Td>
-              </Table.Tr>
+          <BasicCard title="Request Details">
+            <SimpleGrid cols={2}>
+              <DetailField
+                title="Requestor"
+                value={notaryRequestData?.requestor.fullname}
+              />
+              <DetailField
+                title="Email"
+                value={notaryRequestData?.requestor.email}
+              />
 
-              <Table.Tr>
-                <Table.Th>Email</Table.Th>
-                <Table.Td>
-                  <Text c="green" fw={600} size="sm">
-                    {notaryRequestData?.requestor.email}
-                  </Text>
-                </Table.Td>
-              </Table.Tr>
+              <DetailField
+                title="Fee"
+                value={formatFee(notaryRequestData?.paymentFields?.fee || 0)}
+              />
+              <DetailField
+                title="Payment Status"
+                value={
+                  <Badge
+                    color={
+                      notaryRequestData?.paymentFields?.isPaid ? "green" : "red"
+                    }
+                    variant="filled"
+                    size="xs"
+                  >
+                    {notaryRequestData?.paymentFields?.isPaid
+                      ? "Paid"
+                      : "Unpaid"}
+                  </Badge>
+                }
+              />
+            </SimpleGrid>
+          </BasicCard>
 
-              <Table.Tr>
-                <Table.Th>Status</Table.Th>
-                <Table.Td>{getNotaryStatus(notaryRequestData.status)}</Table.Td>
-              </Table.Tr>
-
-              <Table.Tr>
-                <Table.Th>Uploaded At</Table.Th>
-                <Table.Td>
-                  <Text c="green" fw={600} size="sm">
-                    {getDateFormatDisplay(
-                      notaryRequestData?.createdAt || "",
-                      true
-                    )}
-                  </Text>
-                </Table.Td>
-              </Table.Tr>
-
-              <Table.Tr>
-                <Table.Th>
-                  <Text c="green" size="sm">
-                    Description
-                  </Text>
-                </Table.Th>
-                <Table.Td>{notaryRequestData?.description}</Table.Td>
-              </Table.Tr>
-            </Table.Tbody>
-          </Table>
-
-          <Divider label="Upload approval document" />
+          <Divider label="Upload finished document" />
 
           {!file && (
             <Dropzone
@@ -309,7 +298,9 @@ export default function ApproveNotaryRequestModal({
               loading={isApproving}
               onClick={handleApproveNotaryRequest}
             >
-              Approve Request
+              {isRevision
+                ? "Upload Revised Document"
+                : "Upload Finished Document"}
             </Button>
           </Group>
         </Stack>

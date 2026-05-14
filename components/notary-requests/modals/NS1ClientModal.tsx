@@ -19,17 +19,15 @@ import {
 } from "@mantine/core";
 import { Dropzone, PDF_MIME_TYPE } from "@mantine/dropzone";
 import { IconCloudUpload, IconFileTypePdf, IconX } from "@tabler/icons-react";
-import { ID } from "appwrite";
+import { customAlphabet } from "nanoid";
 import { SetStateAction, Dispatch, useEffect, useState } from "react";
 import { createNotaryRequest } from "@/firebase/createNotaryRequest";
-import { sendEmail } from "@/emails/triggers/sendEmail";
 import axios from "axios";
 import { updateNotaryRequest } from "@/firebase/updateNotaryRequest";
-import { attachToResend } from "@/lib/attachToResend";
 import { appNotifications } from "@/utils/notifications/notifications";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/firebase/config";
-import { syncToAppwrite } from "@/lib/syncToAppwrite";
+import dayjs from "dayjs";
 
 interface UpsertNotaryRequestModalProps {
   opened: boolean;
@@ -38,22 +36,33 @@ interface UpsertNotaryRequestModalProps {
   setDataChanged: Dispatch<SetStateAction<boolean>>;
 }
 
-export const UpsertNotaryRequestModal = ({
+export const NS1ClientModal = ({
   opened,
   onClose,
   notaryRequestId,
   setDataChanged,
 }: UpsertNotaryRequestModalProps) => {
-  const upsertLabels = {
-    modalTitle: notaryRequestId ? "Edit Request" : "New Request",
-    submitButton: notaryRequestId ? "Update" : "Submit",
-  };
-
   const { user } = useUser();
 
   const [isFetching, setIsFetching] = useState(false);
   const [notaryRequestData, setNotaryRequestData] =
     useState<NotaryRequest | null>(null);
+
+  const isResubmission =
+    notaryRequestData?.status === NotaryRequestStatus.NEEDS_CLIENT_REVISION;
+
+  const upsertLabels = {
+    modalTitle: isResubmission
+      ? "Resubmit Request"
+      : notaryRequestId
+        ? "Edit Request"
+        : "New Request",
+    submitButton: isResubmission
+      ? "Resubmit"
+      : notaryRequestId
+        ? "Update"
+        : "Submit",
+  };
 
   const [description, setDescription] = useState("");
   const [file, setFile] = useState<(File & { id?: string }) | null>(null);
@@ -65,7 +74,7 @@ export const UpsertNotaryRequestModal = ({
 
     try {
       const snap = await getDoc(
-        doc(db, COLLECTIONS.NOTARY_REQUESTS, notaryRequestId)
+        doc(db, COLLECTIONS.NOTARY_REQUESTS, notaryRequestId),
       );
       if (snap.exists()) {
         setNotaryRequestData({
@@ -79,9 +88,8 @@ export const UpsertNotaryRequestModal = ({
       }, 500);
     } catch {
       appNotifications.error({
-        title: "Failed to fetch notary request data",
-        message:
-          "The notary request data could not be fetched. Please try again.",
+        title: "Failed to fetch request data",
+        message: "The request data could not be fetched. Please try again.",
       });
       onClose();
     }
@@ -109,7 +117,7 @@ export const UpsertNotaryRequestModal = ({
               name: notaryRequestData?.documents?.initialFile?.name,
               id: notaryRequestData?.documents?.initialFile?.id,
             }
-          : null) as unknown as File & { id?: string }
+          : null) as unknown as File & { id?: string },
       );
       setDescription(notaryRequestData?.description ?? "");
     }
@@ -117,7 +125,11 @@ export const UpsertNotaryRequestModal = ({
 
   const handleSubmit = async () => {
     setIsUploading(true);
-    const uuid = notaryRequestId || notaryRequestData?.id || ID.unique();
+
+    const uuid =
+      notaryRequestId ||
+      notaryRequestData?.id ||
+      `${dayjs().format("YYYYMMDD")}${customAlphabet("126890", 8)()}`;
 
     try {
       if (notaryRequestId && notaryRequestData) {
@@ -125,7 +137,7 @@ export const UpsertNotaryRequestModal = ({
           if (notaryRequestData?.documents?.initialFile) {
             // 1. Delete the existing file from Google Drive
             await axios.delete(
-              `/api/google/drive/delete/${notaryRequestData?.documents?.initialFile?.id}`
+              `/api/google/drive/delete/${notaryRequestData?.documents?.initialFile?.id}`,
             );
           }
 
@@ -134,23 +146,23 @@ export const UpsertNotaryRequestModal = ({
             description,
             user!,
             notaryRequestData,
-            undefined
+            undefined,
+            isResubmission ? "RESUBMITTED" : "UPDATED",
           );
-
-          // 3. Update the notary request in Appwrite
-          await syncToAppwrite("NOTARY_REQUESTS", notaryRequestId, {
-            status: NotaryRequestStatus.SUBMITTED,
-            documentInitialFileId: "",
-            search_blob: `${notaryRequestId} ${notaryRequestData?.requestor?.fullname} ${notaryRequestData?.requestor?.email}`,
-          });
         }
 
         //existing file
         if (file?.id) {
-          await updateNotaryRequest(description, user!, notaryRequestData, {
-            id: notaryRequestData.documents.initialFile!.id,
-            name: notaryRequestData.documents.initialFile!.name,
-          });
+          await updateNotaryRequest(
+            description,
+            user!,
+            notaryRequestData,
+            {
+              id: notaryRequestData.documents.initialFile!.id,
+              name: notaryRequestData.documents.initialFile!.name,
+            },
+            isResubmission ? "RESUBMITTED" : "UPDATED",
+          );
         }
 
         // there's new file
@@ -158,7 +170,7 @@ export const UpsertNotaryRequestModal = ({
           if (notaryRequestData?.documents?.initialFile) {
             //  1. Delete the existing file from Google Drive
             await axios.delete(
-              `/api/google/drive/delete/${notaryRequestData?.documents?.initialFile?.id}`
+              `/api/google/drive/delete/${notaryRequestData?.documents?.initialFile?.id}`,
             );
           }
 
@@ -166,37 +178,34 @@ export const UpsertNotaryRequestModal = ({
           const fd = new FormData();
           fd.append(
             "parentId",
-            notaryRequestData?.documents?.googleDriveFolderId
+            notaryRequestData?.documents?.googleDriveFolderId,
           );
           fd.append("file", file);
           const { data: uploadedFile } = await axios.post(
             "/api/google/drive/upload",
-            fd
+            fd,
           );
 
           // 3. Update the notary request in Firebase
-          await updateNotaryRequest(description, user!, notaryRequestData, {
-            id: uploadedFile.uploadedFiles.id,
-            name: uploadedFile.uploadedFiles.name,
-          });
-
-          // 4. Update the notary request in Appwrite
-          await syncToAppwrite("NOTARY_REQUESTS", notaryRequestId, {
-            status: NotaryRequestStatus.SUBMITTED,
-            documentInitialFileId: uploadedFile.uploadedFiles.id,
-            search_blob: `${notaryRequestId} ${notaryRequestData?.requestor?.fullname} ${notaryRequestData?.requestor?.email}`,
-          });
+          await updateNotaryRequest(
+            description,
+            user!,
+            notaryRequestData,
+            {
+              id: uploadedFile.uploadedFiles.id,
+              name: uploadedFile.uploadedFiles.name,
+            },
+            isResubmission ? "RESUBMITTED" : "UPDATED",
+          );
         }
       } else {
-        let fileIdToDL = null;
-
         // 1. Create a new Google Drive folder
         const { data: googleDriveFolder } = await axios.post(
           "/api/google/drive/gFolders/create",
           {
             name: uuid,
             parentId: process.env.NEXT_PUBLIC_GOOGLE_DOCUMENTS_NOTARY_FOLDER_ID,
-          }
+          },
         );
 
         // 2. Upload the file to Google Drive
@@ -207,10 +216,8 @@ export const UpsertNotaryRequestModal = ({
 
           const { data: uploadedFile } = await axios.post(
             "/api/google/drive/upload",
-            fd
+            fd,
           );
-
-          fileIdToDL = uploadedFile.uploadedFiles.id;
 
           // 3. Create the notary request in Firebase
           await createNotaryRequest(
@@ -221,74 +228,28 @@ export const UpsertNotaryRequestModal = ({
             {
               id: uploadedFile.uploadedFiles.id,
               name: uploadedFile.uploadedFiles.name,
-            }
+            },
           );
-
-          // 4. Update the notary request in Appwrite
-          await syncToAppwrite("NOTARY_REQUESTS", uuid, {
-            requestorFullName: `${user?.firstName} ${user?.lastName}`,
-            requestorEmail: user?.emailAddresses[0].emailAddress,
-
-            documentInitialFileId: uploadedFile.uploadedFiles.id,
-            documentFinishedFileId: "",
-
-            status: NotaryRequestStatus.SUBMITTED,
-            search_blob: `${uuid} ${user?.firstName} ${user?.lastName} ${user?.emailAddresses[0].emailAddress}`,
-          });
         } else {
           await createNotaryRequest(
             description,
             user!,
             uuid,
-            googleDriveFolder.id
+            googleDriveFolder.id,
           );
-
-          await syncToAppwrite("NOTARY_REQUESTS", uuid, {
-            requestorFullName: `${user?.firstName} ${user?.lastName}`,
-            requestorEmail: user?.emailAddresses[0].emailAddress,
-
-            documentInitialFileId: "",
-            documentFinishedFileId: "",
-
-            status: NotaryRequestStatus.SUBMITTED,
-            search_blob: `${uuid} ${user?.firstName} ${user?.lastName} ${user?.emailAddresses[0].emailAddress}`,
-          });
         }
-        const downloadedAttachments = [];
-        if (fileIdToDL) {
-          const att = await attachToResend(fileIdToDL);
-          downloadedAttachments.push(att);
-        }
-
-        await sendEmail({
-          to: "",
-          subject: "New Notary Request",
-          template: "notarization-new-request",
-          data: {
-            fullname: user?.firstName + " " + user?.lastName,
-            email: user!.emailAddresses[0].emailAddress,
-            description,
-            link: `${process.env.NEXT_PUBLIC_APP_URL}/notary-requests?id=${uuid}`,
-          },
-          ...(downloadedAttachments.length > 0 && {
-            attachments: downloadedAttachments.map((att) => ({
-              filename: att.filename,
-              content: att.content,
-            })),
-          }),
-        });
       }
 
       appNotifications.success({
-        title: "Notary request submitted",
-        message: "The notary request has been submitted successfully",
+        title: "Request submitted",
+        message: "The request has been submitted successfully",
       });
       setDataChanged((prev) => !prev);
       onClose();
     } catch {
       appNotifications.error({
-        title: "Failed to submit notary request",
-        message: "The notary request could not be submitted. Please try again.",
+        title: "Failed to submit request",
+        message: "The request could not be submitted. Please try again.",
       });
     } finally {
       setIsUploading(false);
@@ -342,7 +303,7 @@ export const UpsertNotaryRequestModal = ({
         <Center my="xl">
           <Stack gap="md" align="center" justify="center">
             <Loader size="lg" type="dots" />
-            <Text c="dimmed">Fetching notary request data...</Text>
+            <Text c="dimmed">Fetching request data...</Text>
           </Stack>
         </Center>
       ) : (
@@ -350,12 +311,14 @@ export const UpsertNotaryRequestModal = ({
           <Textarea
             placeholder="Tell us what you need"
             label="Description"
-            minRows={6}
-            autosize
+            rows={6}
             withAsterisk
             styles={{ input: { paddingBlock: 6 } }}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
+            maxLength={1000}
+            inputWrapperOrder={["label", "input", "description", "error"]}
+            description={`${description.length}/1000 characters`}
           />
 
           <Divider label="You can also upload your document" />

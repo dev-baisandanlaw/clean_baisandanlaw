@@ -24,7 +24,6 @@ export interface Booking {
   existingClient: boolean;
   date: string;
   time: string;
-  isPaid: boolean;
   via:
     | "Website"
     | "Phone Call"
@@ -38,5 +37,9 @@ export interface Booking {
   googleCalendar: {
     eventId: string;
     htmlLink: string;
+  };
+  paymentFields: {
+    receiptFileId: string;
+    isPaid: boolean;
   };
 }
