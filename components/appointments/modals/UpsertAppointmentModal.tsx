@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import {
+  Alert,
   Badge,
   Button,
   Checkbox,
@@ -48,6 +49,7 @@ import { Booking } from "@/types/booking";
 import { GlobalSched } from "@/types/global-sched";
 import { Attorney, Client } from "@/types/user";
 import { appNotifications } from "@/utils/notifications/notifications";
+import { IconInfoCircle } from "@tabler/icons-react";
 
 type AddAppointmentModalProps = {
   opened: boolean;
@@ -231,6 +233,7 @@ export default function AddAppointmentModal({
         },
         consultationMode: values.consultationMode,
         branch: values.consultationMode === "in-person" ? values.branch : "",
+        paymentFields: { receiptFileId: "", isPaid: true },
       })
         .then(() => {
           appNotifications.success({
@@ -441,6 +444,28 @@ export default function AddAppointmentModal({
       size="lg"
       withCloseButton={!isLoading}
     >
+      {!booking && (
+        <Alert
+          mb="sm"
+          color="blue"
+          variant="light"
+          styles={(theme) => ({
+            title: { fontWeight: 600, color: theme.colors.blue[7] },
+            message: { color: theme.colors.blue[7] },
+            body: { gap: 2 },
+            root: { paddingBlock: 12 },
+          })}
+          icon={<IconInfoCircle />}
+          title="Important note in manually adding appointments"
+        >
+          <Text size="xs">
+            When adding appointments manually, the payment status will be set to
+            <span style={{ fontWeight: 700 }}> paid</span> by default. Payments
+            under manual appointments will be handled externally and will not be
+            tracked in the system.
+          </Text>
+        </Alert>
+      )}
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack gap="xl">
           <Stack gap="0">
