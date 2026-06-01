@@ -27,7 +27,6 @@ import {
 } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { nanoid } from "nanoid";
-import { toast } from "react-toastify";
 import { Booking } from "@/types/booking";
 import axios from "axios";
 import { addMatterUpdate } from "../utils/addMatterUpdate";
@@ -71,11 +70,11 @@ export default function TabScheduleUpsertModal({
       query(
         collection(db, COLLECTIONS.BOOKINGS),
         where("attorney.id", "==", matterData.leadAttorney.id),
-        where("date", "==", dayjs(form.values.date).format("YYYY-MM-DD"))
-      )
+        where("date", "==", dayjs(form.values.date).format("YYYY-MM-DD")),
+      ),
     );
     setAttyBookings(
-      docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Booking)
+      docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Booking),
     );
   };
 
@@ -86,7 +85,7 @@ export default function TabScheduleUpsertModal({
 
     await axios
       .post("/api/google/calendar/add", {
-        title: values.title,
+        title: `DO NOT REPLY - ${values.title}`,
         description: values.description,
         startISO: dayjs(`${day} ${values.time}`).toISOString(),
         endISO: dayjs(`${day} ${values.time}`).toISOString(),
@@ -109,7 +108,7 @@ export default function TabScheduleUpsertModal({
               googleCalendar,
             }),
           },
-          { merge: true }
+          { merge: true },
         )
           .then(async () => {
             await addMatterUpdate(
@@ -117,7 +116,7 @@ export default function TabScheduleUpsertModal({
               matterData.id,
               user?.unsafeMetadata.role as string,
               MatterUpdateType.SCHEDULE,
-              `Schedule Added: ${values.title}`
+              `Schedule Added: ${values.title}`,
             );
             setDataChanged((prev) => !prev);
             appNotifications.success({
@@ -130,7 +129,7 @@ export default function TabScheduleUpsertModal({
             appNotifications.error({
               title: "Failed to add schedule",
               message: "The schedule could not be added. Please try again.",
-            })
+            }),
           )
           .finally(() => setIsLoading(false));
       })

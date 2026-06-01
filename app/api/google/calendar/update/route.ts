@@ -7,8 +7,8 @@ export async function POST(req: Request) {
     startISO,
     endISO,
     attendeesEmail,
-    description,
     eventId,
+    description,
     location,
   } = await req.json();
 
@@ -22,7 +22,9 @@ export async function POST(req: Request) {
     sendUpdates: "all",
     eventId,
     requestBody: {
-      ...(description ? { description } : {}),
+      description: description
+        ? description
+        : "This invitation was generated automatically by the system. Please do not reply to this calendar invite.",
       ...(location ? { location } : {}),
       summary: title,
       start: { dateTime: startISO, timeZone: "Asia/Manila" },

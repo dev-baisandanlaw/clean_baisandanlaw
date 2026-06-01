@@ -295,7 +295,7 @@ export default function AddAppointmentModal({
     if (booking?.googleCalendar?.eventId) {
       await axios
         .post("/api/google/calendar/update", {
-          title: "Appointment from BaisAndan Law Office",
+          title: "DO NOT REPLY - Appointment from BaisAndan Law Office",
           startISO: startISO.toISOString(),
           endISO: endISO.toISOString(),
           attendeesEmail: [
@@ -323,7 +323,7 @@ export default function AddAppointmentModal({
 
     await axios
       .post("/api/google/calendar/add", {
-        title: "Appointment from BaisAndan Law Office",
+        title: "DO NOT REPLY - Appointment from BaisAndan Law Office",
         startISO: startISO.toISOString(),
         endISO: endISO.toISOString(),
         attendeesEmail: [

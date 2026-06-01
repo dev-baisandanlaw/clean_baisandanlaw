@@ -9,7 +9,9 @@ export async function POST(req: Request) {
     calendarId: "primary",
     sendUpdates: "all",
     requestBody: {
-      ...(description ? { description } : {}),
+      description: description
+        ? description
+        : "This invitation was generated automatically by the system. Please do not reply to this calendar invite.",
       ...(location ? { location } : {}),
       summary: title,
       start: { dateTime: startISO, timeZone: "Asia/Manila" },
