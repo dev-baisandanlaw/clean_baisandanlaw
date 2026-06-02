@@ -42,6 +42,7 @@ import { db } from "@/firebase/config";
 import { GlobalSched } from "@/types/global-sched";
 import dayjs from "dayjs";
 import { useMediaQuery } from "@mantine/hooks";
+import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 
 const timeSlots = getTimeRange({
   startTime: "08:00",
@@ -572,7 +573,7 @@ export default function SettingsModal({
                       dayjs(date).isSameOrAfter(dayjs(), "day"),
                     )
                     .map(([date, timeSlots]) => [
-                      date,
+                      getDateFormatDisplay(date),
                       <Group key={date} gap="2">
                         {timeSlots
                           .sort((a, b) => a.localeCompare(b))
