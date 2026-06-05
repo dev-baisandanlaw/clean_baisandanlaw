@@ -19,6 +19,8 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { ToastContainer } from "react-toastify";
 import { Notifications } from "@mantine/notifications";
 import NextTopLoader from "nextjs-toploader";
+import { Providers } from "./providers";
+import { ClerkTokenProvider } from "@/components/clerk/ClerkTokenProvider";
 
 const openSans = Open_Sans({
   variable: "--font-open-sans",
@@ -146,19 +148,22 @@ export default function RootLayout({
       >
         <NextTopLoader />
         <ToastContainer position="top-center" autoClose={2000} />
-        <MantineProvider theme={theme}>
-          <Notifications position="top-center" />
-          <ClerkProvider
-            appearance={{
-              variables: {
-                colorPrimary: "#2B4E45",
-              },
-            }}
-          >
-            {children}
-            {/* <AppShellComponent>{children}</AppShellComponent> */}
-          </ClerkProvider>
-        </MantineProvider>
+        <Providers>
+          <MantineProvider theme={theme}>
+            <Notifications position="top-center" />
+            <ClerkProvider
+              appearance={{
+                variables: {
+                  colorPrimary: "#2B4E45",
+                },
+              }}
+            >
+              <ClerkTokenProvider />
+              {children}
+              {/* <AppShellComponent>{children}</AppShellComponent> */}
+            </ClerkProvider>
+          </MantineProvider>
+        </Providers>
       </body>
     </html>
   );
