@@ -20,143 +20,233 @@ import {
   Tooltip,
   useMantineTheme,
 } from "@mantine/core";
+import { useForm } from "@mantine/form";
 import { useMediaQuery } from "@mantine/hooks";
 import { IconPencil } from "@tabler/icons-react";
 import { useUser } from "@clerk/nextjs";
-import { doc, setDoc } from "firebase/firestore";
-import dayjs from "dayjs";
 import axios from "axios";
 
-import {
-  ATTY_PRACTICE_AREAS,
-  CLERK_ORG_IDS,
-  COLLECTIONS,
-} from "@/constants/constants";
-import { db } from "@/firebase/config";
-import { syncToAppwrite } from "@/lib/syncToAppwrite";
+import { ATTY_PRACTICE_AREAS, CLERK_ORG_IDS } from "@/constants/constants";
 import { appNotifications } from "@/utils/notifications/notifications";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { AreaBadge } from "../Common/BadgeComp";
 import SubscriptionBadge from "../Common/SubscriptionBadge";
 
-import MatterUpdates from "./TabOverview/MatterUpdates";
-import MatterNotes from "./TabOverview/MatterNotes";
-import { addMatterUpdate } from "./utils/addMatterUpdate";
-
-import { Matter } from "@/types/case";
+import { Matter } from "@/types/matter";
+import { UserReference } from "@/types/user-reference";
 import { Attorney, Client } from "@/types/user";
-import { MatterUpdateDocument, MatterUpdateType } from "@/types/matter-updates";
+import { useUpdateMatterMutation } from "@/store/services/matterService";
+
+// --- Types ---
 
 interface MatterTabOverviewProps {
   matterData: Matter;
-  clientData: Client | null;
-  attorneyData: Attorney;
-  matterUpdates: MatterUpdateDocument;
   setDataChanged: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 interface VerticalTableProps {
   title: string;
-  data: {
-    th: string;
-    td: React.ReactNode;
-  }[];
+  data: { th: string; td: React.ReactNode }[];
   editButton?: React.ReactNode;
 }
 
+interface EditFormValues {
+  caseNumber: string;
+  caseType: string[];
+  clientId: string;
+  attorneyId: string;
+  description: string;
+}
+
+// --- Component ---
+
 export default function TabOverview({
   matterData,
-  clientData,
-  attorneyData,
-  matterUpdates,
   setDataChanged,
 }: MatterTabOverviewProps) {
   const shrink = useMediaQuery("(max-width: 948px)");
-  const shrinkSmall = useMediaQuery("(max-width: 768px)");
   const theme = useMantineTheme();
   const { user } = useUser();
 
+  const [updateMatterFn, { isLoading: isUpdatingMatter }] =
+    useUpdateMatterMutation();
+
   const isAdmin = user?.unsafeMetadata?.role === "admin";
 
-  // Matter Details editing state
-  const [isEditingMatter, setIsEditingMatter] = useState(false);
-  const [isUpdatingMatter, setIsUpdatingMatter] = useState(false);
-  const [editedMatter, setEditedMatter] = useState({
-    caseNumber: matterData.caseNumber,
-    caseType: matterData.caseType,
+  // Which section is being edited
+  const [editModule, setEditModule] = useState("");
+
+  // Consolidated form state via useForm
+  const form = useForm<EditFormValues>({
+    initialValues: {
+      caseNumber: matterData.caseNumber,
+      caseType: matterData.caseType,
+      clientId: matterData.clientData.id || "",
+      attorneyId: matterData.leadAttorney.id || "",
+      description: matterData.caseDescription || "",
+    },
   });
 
-  // Client editing state
-  const [isEditingClient, setIsEditingClient] = useState(false);
-  const [isUpdatingClient, setIsUpdatingClient] = useState(false);
-  const [editedClientId, setEditedClientId] = useState(
-    matterData.clientData.id,
-  );
+  // Clerk user lists (fetched on-demand when editing)
   const [clientUsers, setClientUsers] = useState<Client[]>([]);
-
-  // Attorney editing state
-  const [isEditingAttorney, setIsEditingAttorney] = useState(false);
-  const [isUpdatingAttorney, setIsUpdatingAttorney] = useState(false);
-  const [editedAttorneyId, setEditedAttorneyId] = useState(
-    matterData.leadAttorney.id,
-  );
   const [attorneyUsers, setAttorneyUsers] = useState<Attorney[]>([]);
+
+  // Derived selected users for editing
+  const selectedClientForEdit =
+    editModule === "client"
+      ? clientUsers.find((u) => u.id === form.values.clientId)
+      : null;
+
+  const selectedAttorneyForEdit =
+    editModule === "attorney"
+      ? attorneyUsers.find((u) => u.id === form.values.attorneyId)
+      : null;
+
+  // --- Update handler ---
+
+  const handleUpdateMatter = () => {
+    const preparePayload = (): Partial<{
+      caseNumber: string;
+      caseType: string[];
+      caseDescription: string;
+      clientData: UserReference;
+      leadAttorney: UserReference;
+    }> => {
+      switch (editModule) {
+        case "matter":
+          return {
+            caseNumber: form.values.caseNumber,
+            caseType: form.values.caseType,
+          };
+
+        case "description":
+          return { caseDescription: form.values.description };
+
+        case "client": {
+          if (!selectedClientForEdit) return {};
+          const clientPayload: UserReference = {
+            id: selectedClientForEdit.id,
+            fullname: `${selectedClientForEdit.first_name} ${selectedClientForEdit.last_name}`,
+            email: selectedClientForEdit.email_addresses[0].email_address,
+          };
+          if (selectedClientForEdit.unsafe_metadata?.phoneNumber) {
+            clientPayload.phone =
+              selectedClientForEdit.unsafe_metadata.phoneNumber;
+          }
+          return { clientData: clientPayload };
+        }
+
+        case "attorney": {
+          if (!selectedAttorneyForEdit) return {};
+          return {
+            leadAttorney: {
+              id: selectedAttorneyForEdit.id,
+              fullname: `${selectedAttorneyForEdit.first_name} ${selectedAttorneyForEdit.last_name}`,
+              email: selectedAttorneyForEdit.email_addresses[0].email_address,
+            },
+          };
+        }
+
+        default:
+          return {};
+      }
+    };
+
+    const payload = preparePayload();
+    if (Object.keys(payload).length === 0) return;
+
+    updateMatterFn({ id: matterData.id, ...payload })
+      .unwrap()
+      .then(() => {
+        appNotifications.success({
+          title: "Updated successfully",
+          message: "The matter has been updated successfully.",
+        });
+        setEditModule("");
+        setDataChanged((prev) => !prev);
+      })
+      .catch(() => {
+        appNotifications.error({
+          title: "Update failed",
+          message: "The update could not be completed. Please try again.",
+        });
+      });
+  };
+
+  // --- Cancel: reset form fields to original values ---
+
+  const handleCancel = (module: string) => {
+    switch (module) {
+      case "matter":
+        form.setFieldValue("caseNumber", matterData.caseNumber);
+        form.setFieldValue("caseType", matterData.caseType);
+        break;
+      case "client":
+        form.setFieldValue("clientId", matterData.clientData.id || "");
+        break;
+      case "attorney":
+        form.setFieldValue("attorneyId", matterData.leadAttorney.id || "");
+        break;
+      case "description":
+        form.setFieldValue("description", matterData.caseDescription || "");
+        break;
+    }
+    setEditModule("");
+  };
+
+  // --- Card data ---
 
   const caseDetailsCardData = [
     {
-      th: "Matter #",
-      td: isEditingMatter ? (
-        <TextInput
-          value={editedMatter.caseNumber}
-          placeholder="Enter Matter Number"
-          onChange={(e) =>
-            setEditedMatter({ ...editedMatter, caseNumber: e.target.value })
-          }
-        />
-      ) : (
-        <Text c="green" fw={600} size="sm">
-          {matterData.caseNumber}
-        </Text>
-      ),
+      th: "Matter No.",
+      td:
+        editModule === "matter" ? (
+          <TextInput
+            placeholder="Enter Matter Number"
+            {...form.getInputProps("caseNumber")}
+          />
+        ) : (
+          <Text c="green" fw={600} size="sm">
+            {matterData.caseNumber}
+          </Text>
+        ),
     },
     {
       th: "Matter Type",
-      td: isEditingMatter ? (
-        <TagsInput
-          size="xs"
-          value={editedMatter.caseType}
-          onChange={(value) =>
-            setEditedMatter({ ...editedMatter, caseType: value })
-          }
-          data={ATTY_PRACTICE_AREAS}
-          clearable
-          styles={{
-            pill: {
-              backgroundColor: theme.colors.green[0],
-              color: theme.colors.green[9],
-            },
-          }}
-        />
-      ) : (
-        <Tooltip
-          label={matterData.caseType.join(", ")}
-          withArrow
-          multiline
-          maw={200}
-        >
-          <Group gap={2}>
-            {matterData.caseType.slice(0, 3).map((type) => (
-              <AreaBadge key={type} area={type} />
-            ))}
-            {matterData.caseType.length > 3 && (
-              <AreaBadge
-                key="more"
-                area={`+${matterData.caseType.length - 3}`}
-              />
-            )}
-          </Group>
-        </Tooltip>
-      ),
+      td:
+        editModule === "matter" ? (
+          <TagsInput
+            size="xs"
+            data={ATTY_PRACTICE_AREAS}
+            clearable
+            styles={{
+              pill: {
+                backgroundColor: theme.colors.green[0],
+                color: theme.colors.green[9],
+              },
+            }}
+            {...form.getInputProps("caseType")}
+          />
+        ) : (
+          <Tooltip
+            label={matterData.caseType.join(", ")}
+            withArrow
+            multiline
+            maw={200}
+          >
+            <Group gap={2}>
+              {matterData.caseType.slice(0, 3).map((type) => (
+                <AreaBadge key={type} area={type} />
+              ))}
+              {matterData.caseType.length > 3 && (
+                <AreaBadge
+                  key="more"
+                  area={`+${matterData.caseType.length - 3}`}
+                />
+              )}
+            </Group>
+          </Tooltip>
+        ),
     },
     {
       th: "Date Created",
@@ -168,37 +258,33 @@ export default function TabOverview({
     },
   ];
 
-  const selectedClientForEdit = isEditingClient
-    ? clientUsers.find((u) => u.id === editedClientId)
-    : null;
-
   const clientDetailsCardData = [
     {
       th: "Name",
-      td: isEditingClient ? (
-        <Select
-          size="xs"
-          value={editedClientId}
-          onChange={(value) => setEditedClientId(value || "")}
-          data={clientUsers.map((user) => ({
-            value: user.id,
-            label: `${user.first_name} ${user.last_name}`,
-          }))}
-          searchable
-          clearable
-          nothingFoundMessage="No clients found"
-        />
-      ) : (
-        <Text c="green" fw={600} size="sm">
-          {matterData.clientData.fullname || ""}
-        </Text>
-      ),
+      td:
+        editModule === "client" ? (
+          <Select
+            size="xs"
+            data={clientUsers.map((u) => ({
+              value: u.id,
+              label: `${u.first_name} ${u.last_name}`,
+            }))}
+            searchable
+            clearable
+            nothingFoundMessage="No clients found"
+            {...form.getInputProps("clientId")}
+          />
+        ) : (
+          <Text c="green" fw={600} size="sm">
+            {matterData.clientData.fullname || ""}
+          </Text>
+        ),
     },
     {
       th: "Email",
       td: (
         <Text c="green" fw={600} size="sm">
-          {isEditingClient
+          {editModule === "client"
             ? selectedClientForEdit?.email_addresses[0].email_address || ""
             : matterData.clientData?.email || ""}
         </Text>
@@ -206,19 +292,20 @@ export default function TabOverview({
     },
     {
       th: "Phone",
-      td: isEditingClient
-        ? selectedClientForEdit?.unsafe_metadata?.phoneNumber || "-"
-        : clientData?.unsafe_metadata?.phoneNumber || "-",
+      td:
+        editModule === "client"
+          ? selectedClientForEdit?.unsafe_metadata?.phoneNumber || "-"
+          : "-",
     },
     {
       th: "Subscription",
       td: (
         <SubscriptionBadge
           isSubscribed={
-            isEditingClient
+            editModule === "client"
               ? selectedClientForEdit?.unsafe_metadata?.subscription
                   ?.isSubscribed || false
-              : clientData?.unsafe_metadata?.subscription?.isSubscribed || false
+              : false
           }
           compact
         />
@@ -226,360 +313,127 @@ export default function TabOverview({
     },
   ];
 
-  const selectedAttorneyForEdit = isEditingAttorney
-    ? attorneyUsers.find((u) => u.id === editedAttorneyId)
-    : null;
-
   const attorneyDetailsCardData = [
     {
       th: "Name",
-      td: isEditingAttorney ? (
-        <Select
-          size="xs"
-          value={editedAttorneyId}
-          onChange={(value) => setEditedAttorneyId(value || "")}
-          data={attorneyUsers
-            .filter((user) => !user.banned)
-            .map((user) => ({
-              value: user.id,
-              label: `${user.first_name} ${user.last_name}`,
-            }))}
-          searchable
-          clearable
-          nothingFoundMessage="No attorneys found"
-        />
-      ) : (
-        <Text c="green" fw={600} size="sm">
-          {attorneyData.first_name + " " + attorneyData.last_name}
-        </Text>
-      ),
+      td:
+        editModule === "attorney" ? (
+          <Select
+            size="xs"
+            data={attorneyUsers
+              .filter((u) => !u.banned)
+              .map((u) => ({
+                value: u.id,
+                label: `${u.first_name} ${u.last_name}`,
+              }))}
+            searchable
+            clearable
+            nothingFoundMessage="No attorneys found"
+            {...form.getInputProps("attorneyId")}
+          />
+        ) : (
+          <Text c="green" fw={600} size="sm">
+            {matterData.leadAttorney.fullname}
+          </Text>
+        ),
     },
     {
       th: "Email",
       td: (
         <Text c="green" fw={600} size="sm">
-          {isEditingAttorney
+          {editModule === "attorney"
             ? selectedAttorneyForEdit?.email_addresses[0].email_address || ""
-            : attorneyData.email_addresses[0].email_address}
+            : matterData.leadAttorney.email || ""}
         </Text>
       ),
     },
     {
       th: "Phone",
-      td: isEditingAttorney
-        ? selectedAttorneyForEdit?.unsafe_metadata?.phoneNumber || "-"
-        : attorneyData?.unsafe_metadata?.phoneNumber || "-",
+      td:
+        editModule === "attorney"
+          ? selectedAttorneyForEdit?.unsafe_metadata?.phoneNumber || "-"
+          : "-",
     },
   ];
 
-  const [isUpdatingDescription, setIsUpdatingDescription] = useState(false);
-  const [isEditDescription, setIsEditDescription] = useState(false);
-  const [description, setDescription] = useState("");
-
-  // Fetch clients and attorneys when editing
-  useEffect(() => {
-    if (isEditingClient && clientUsers.length === 0) {
-      const fetchClients = async () => {
-        try {
-          const { data } = await axios.get("/api/clerk/organization/fetch", {
-            params: {
-              organization_id: CLERK_ORG_IDS.client,
-              limit: 500,
-            },
-          });
-          setClientUsers(data);
-        } catch (error) {
-          console.error("Failed to fetch clients:", error);
-        }
-      };
-      fetchClients();
-    }
-  }, [isEditingClient, clientUsers.length]);
+  // --- Effects ---
 
   useEffect(() => {
-    if (isEditingAttorney && attorneyUsers.length === 0) {
-      const fetchAttorneys = async () => {
-        try {
-          const { data } = await axios.get("/api/clerk/organization/fetch", {
-            params: {
-              organization_id: CLERK_ORG_IDS.attorney,
-              limit: 500,
-            },
-          });
-          setAttorneyUsers(data);
-        } catch (error) {
-          console.error("Failed to fetch attorneys:", error);
-        }
-      };
-      fetchAttorneys();
+    if (editModule === "client" && clientUsers.length === 0) {
+      axios
+        .get("/api/clerk/organization/fetch", {
+          params: { organization_id: CLERK_ORG_IDS.client, limit: 500 },
+        })
+        .then(({ data }) => setClientUsers(data))
+        .catch((err) => console.error("Failed to fetch clients:", err));
     }
-  }, [isEditingAttorney, attorneyUsers.length]);
-
-  const handleUpdateMatter = async () => {
-    setIsUpdatingMatter(true);
-    try {
-      const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
-
-      // Update Firebase
-      await setDoc(
-        doc(db, COLLECTIONS.CASES, matterData.id),
-        {
-          caseNumber: editedMatter.caseNumber,
-          caseType: editedMatter.caseType,
-          updatedAt: now,
-        },
-        { merge: true },
-      );
-
-      // Sync to Appwrite
-      await syncToAppwrite("MATTERS", matterData.id, {
-        matterNumber: editedMatter.caseNumber,
-        leadAttorneyFirstName: attorneyData.first_name,
-        leadAttorneyLastName: attorneyData.last_name,
-        clientFirstName: matterData.clientData.fullname.split(" ")[0],
-        clientLastName: matterData.clientData.fullname
-          .split(" ")
-          .slice(1)
-          .join(" "),
-        status: matterData.status,
-        matterType: editedMatter.caseType.join("&_&"),
-        leadAttorneyId: matterData.leadAttorney.id,
-        clientId: matterData.clientData.id,
-        search_blob: `${editedMatter.caseNumber} ${attorneyData.first_name} ${attorneyData.last_name} ${matterData.clientData.fullname} ${editedMatter.caseType.join(" ")}`,
-      });
-
-      await addMatterUpdate(
-        user!,
-        matterData.id,
-        user?.unsafeMetadata.role as string,
-        MatterUpdateType.SYSTEM,
-        "Matter Type Updated",
-      );
-
-      setDataChanged((prev) => !prev);
-      appNotifications.success({
-        title: "Matter details updated successfully",
-        message: "The matter details have been updated successfully",
-      });
-      setIsEditingMatter(false);
-    } catch (error) {
-      console.error("Failed to update matter:", error);
-      appNotifications.error({
-        title: "Failed to update matter details",
-        message: "The matter details could not be updated. Please try again.",
-      });
-    } finally {
-      setIsUpdatingMatter(false);
-    }
-  };
-
-  const handleUpdateClient = async () => {
-    setIsUpdatingClient(true);
-    try {
-      const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
-      const selectedClient = clientUsers.find((u) => u.id === editedClientId);
-
-      if (!selectedClient) {
-        throw new Error("Client not found");
-      }
-
-      const newClientData = {
-        id: selectedClient.id,
-        fullname: `${selectedClient.first_name} ${selectedClient.last_name}`,
-        imageUrl: selectedClient.profile_image_url,
-        email: selectedClient.email_addresses[0].email_address,
-      };
-
-      // Update Firebase
-      await setDoc(
-        doc(db, COLLECTIONS.CASES, matterData.id),
-        {
-          clientData: newClientData,
-          updatedAt: now,
-        },
-        { merge: true },
-      );
-
-      // Sync to Appwrite
-      await syncToAppwrite("MATTERS", matterData.id, {
-        matterNumber: matterData.caseNumber,
-        leadAttorneyFirstName: attorneyData.first_name,
-        leadAttorneyLastName: attorneyData.last_name,
-        clientFirstName: selectedClient.first_name,
-        clientLastName: selectedClient.last_name,
-        status: matterData.status,
-        matterType: matterData.caseType.join("&_&"),
-        leadAttorneyId: matterData.leadAttorney.id,
-        clientId: selectedClient.id,
-        search_blob: `${matterData.caseNumber} ${attorneyData.first_name} ${attorneyData.last_name} ${selectedClient.first_name} ${selectedClient.last_name} ${matterData.caseType.join(" ")}`,
-      });
-
-      await addMatterUpdate(
-        user!,
-        matterData.id,
-        user?.unsafeMetadata.role as string,
-        MatterUpdateType.SYSTEM,
-        "Client Updated",
-      );
-
-      setDataChanged((prev) => !prev);
-      appNotifications.success({
-        title: "Client updated successfully",
-        message: "The client has been updated successfully",
-      });
-      setIsEditingClient(false);
-    } catch (error) {
-      console.error("Failed to update client:", error);
-      appNotifications.error({
-        title: "Failed to update client",
-        message: "The client could not be updated. Please try again.",
-      });
-    } finally {
-      setIsUpdatingClient(false);
-    }
-  };
-
-  const handleUpdateAttorney = async () => {
-    setIsUpdatingAttorney(true);
-    try {
-      const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
-      const selectedAttorney = attorneyUsers.find(
-        (u) => u.id === editedAttorneyId,
-      );
-
-      if (!selectedAttorney) {
-        throw new Error("Attorney not found");
-      }
-
-      const newAttorneyData = {
-        id: selectedAttorney.id,
-        fullname: `${selectedAttorney.first_name} ${selectedAttorney.last_name}`,
-        imageUrl: selectedAttorney.profile_image_url,
-        email: selectedAttorney.email_addresses[0].email_address,
-      };
-
-      // Update old attorney's case count
-      const oldAttorneyCasesCount =
-        attorneyData?.unsafe_metadata?.involvedCases || 0;
-      await axios.patch("/api/clerk/user/update-user-metadata", {
-        userId: attorneyData.id,
-        unsafe_metadata: {
-          ...attorneyData?.unsafe_metadata,
-          involvedCases: Math.max(0, oldAttorneyCasesCount - 1),
-        },
-      });
-
-      // Update new attorney's case count
-      const newAttorneyCasesCount =
-        selectedAttorney?.unsafe_metadata?.involvedCases || 0;
-      await axios.patch("/api/clerk/user/update-user-metadata", {
-        userId: selectedAttorney.id,
-        unsafe_metadata: {
-          ...selectedAttorney?.unsafe_metadata,
-          involvedCases: newAttorneyCasesCount + 1,
-        },
-      });
-
-      // Update Firebase
-      await setDoc(
-        doc(db, COLLECTIONS.CASES, matterData.id),
-        {
-          leadAttorney: newAttorneyData,
-          updatedAt: now,
-        },
-        { merge: true },
-      );
-
-      // Sync to Appwrite
-      await syncToAppwrite("MATTERS", matterData.id, {
-        matterNumber: matterData.caseNumber,
-        leadAttorneyFirstName: selectedAttorney.first_name,
-        leadAttorneyLastName: selectedAttorney.last_name,
-        clientFirstName: matterData.clientData.fullname.split(" ")[0],
-        clientLastName: matterData.clientData.fullname
-          .split(" ")
-          .slice(1)
-          .join(" "),
-        status: matterData.status,
-        matterType: matterData.caseType.join("&_&"),
-        leadAttorneyId: selectedAttorney.id,
-        clientId: matterData.clientData.id,
-        search_blob: `${matterData.caseNumber} ${selectedAttorney.first_name} ${selectedAttorney.last_name} ${matterData.clientData.fullname} ${matterData.caseType.join(" ")}`,
-      });
-
-      await addMatterUpdate(
-        user!,
-        matterData.id,
-        user?.unsafeMetadata.role as string,
-        MatterUpdateType.SYSTEM,
-        "Lead Attorney Updated",
-      );
-
-      setDataChanged((prev) => !prev);
-      appNotifications.success({
-        title: "Lead attorney updated successfully",
-        message: "The lead attorney has been updated successfully",
-      });
-      setIsEditingAttorney(false);
-    } catch (error) {
-      console.error("Failed to update attorney:", error);
-      appNotifications.error({
-        title: "Failed to update lead attorney",
-        message: "The lead attorney could not be updated. Please try again.",
-      });
-    } finally {
-      setIsUpdatingAttorney(false);
-    }
-  };
-
-  const handleUpdateDescription = async () => {
-    setIsUpdatingDescription(true);
-    try {
-      const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
-
-      await setDoc(
-        doc(db, COLLECTIONS.CASES, matterData.id),
-        {
-          caseDescription: description,
-          updatedAt: now,
-        },
-        {
-          merge: true,
-        },
-      );
-      await addMatterUpdate(
-        user!,
-        matterData.id,
-        user?.unsafeMetadata.role as string,
-        MatterUpdateType.DESCRIPTION,
-        "Description Updated",
-      );
-
-      setDataChanged((prev) => !prev);
-      appNotifications.success({
-        title: "Description updated successfully",
-        message: "The description has been updated successfully",
-      });
-      setIsEditDescription(false);
-    } catch {
-      appNotifications.error({
-        title: "Failed to update description",
-        message: "The description could not be updated. Please try again.",
-      });
-    } finally {
-      setIsUpdatingDescription(false);
-    }
-  };
+  }, [editModule, clientUsers.length]);
 
   useEffect(() => {
-    setDescription(matterData?.caseDescription || "");
-    setEditedMatter({
+    if (editModule === "attorney" && attorneyUsers.length === 0) {
+      axios
+        .get("/api/clerk/organization/fetch", {
+          params: { organization_id: CLERK_ORG_IDS.attorney, limit: 500 },
+        })
+        .then(({ data }) => setAttorneyUsers(data))
+        .catch((err) => console.error("Failed to fetch attorneys:", err));
+    }
+  }, [editModule, attorneyUsers.length]);
+
+  // Sync form when matterData changes (e.g. after refetch)
+  useEffect(() => {
+    form.setValues({
       caseNumber: matterData.caseNumber,
       caseType: matterData.caseType,
+      clientId: matterData.clientData.id || "",
+      attorneyId: matterData.leadAttorney.id || "",
+      description: matterData.caseDescription || "",
     });
-    setEditedClientId(matterData.clientData.id);
-    setEditedAttorneyId(matterData.leadAttorney.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matterData]);
+
+  // --- Edit button helper ---
+
+  const renderEditButton = (module: string, isSaveDisabled: boolean) => {
+    if (!isAdmin) return undefined;
+
+    if (editModule !== module) {
+      return (
+        <ActionIcon
+          variant="white"
+          size="sm"
+          color={theme.other.customPumpkin}
+          onClick={() => setEditModule(module)}
+          disabled={!!editModule}
+        >
+          <IconPencil size={20} />
+        </ActionIcon>
+      );
+    }
+
+    return (
+      <Group gap={4}>
+        <Button
+          size="xs"
+          variant="default"
+          onClick={() => handleCancel(module)}
+          disabled={isUpdatingMatter}
+        >
+          Cancel
+        </Button>
+        <Button
+          size="xs"
+          loading={isUpdatingMatter}
+          onClick={handleUpdateMatter}
+          disabled={isSaveDisabled}
+        >
+          Save
+        </Button>
+      </Group>
+    );
+  };
+
+  // --- Render ---
 
   return (
     <Flex direction="column" gap="md">
@@ -587,128 +441,29 @@ export default function TabOverview({
         <VerticalTable
           title="Matter Details"
           data={caseDetailsCardData}
-          editButton={
-            isAdmin && !isEditingMatter ? (
-              <ActionIcon
-                variant="white"
-                size="sm"
-                color={theme.other.customPumpkin}
-                onClick={() => setIsEditingMatter(true)}
-              >
-                <IconPencil size={20} />
-              </ActionIcon>
-            ) : isAdmin && isEditingMatter ? (
-              <Group gap={4}>
-                <Button
-                  size="xs"
-                  variant="default"
-                  onClick={() => {
-                    setIsEditingMatter(false);
-                    setEditedMatter({
-                      caseNumber: matterData.caseNumber,
-                      caseType: matterData.caseType,
-                    });
-                  }}
-                  disabled={isUpdatingMatter}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="xs"
-                  loading={isUpdatingMatter}
-                  onClick={handleUpdateMatter}
-                  disabled={
-                    !editedMatter.caseNumber.trim().length ||
-                    !editedMatter.caseType.length
-                  }
-                >
-                  Save
-                </Button>
-              </Group>
-            ) : undefined
-          }
+          editButton={renderEditButton(
+            "matter",
+            !form.values.caseNumber.trim().length ||
+              !form.values.caseType.length,
+          )}
         />
         <VerticalTable
           title="Client Details"
           data={clientDetailsCardData}
-          editButton={
-            isAdmin && !isEditingClient ? (
-              <ActionIcon
-                variant="white"
-                size="sm"
-                color={theme.other.customPumpkin}
-                onClick={() => setIsEditingClient(true)}
-              >
-                <IconPencil size={20} />
-              </ActionIcon>
-            ) : isAdmin && isEditingClient ? (
-              <Group gap={4}>
-                <Button
-                  size="xs"
-                  variant="default"
-                  onClick={() => {
-                    setIsEditingClient(false);
-                    setEditedClientId(matterData.clientData.id);
-                  }}
-                  disabled={isUpdatingClient}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="xs"
-                  loading={isUpdatingClient}
-                  onClick={handleUpdateClient}
-                  disabled={
-                    !editedClientId ||
-                    editedClientId === matterData.clientData.id
-                  }
-                >
-                  Save
-                </Button>
-              </Group>
-            ) : undefined
-          }
+          editButton={renderEditButton(
+            "client",
+            !form.values.clientId ||
+              form.values.clientId === matterData.clientData.id,
+          )}
         />
         <VerticalTable
           title="Lead Attorney"
           data={attorneyDetailsCardData}
-          editButton={
-            isAdmin && !isEditingAttorney ? (
-              <ActionIcon
-                variant="white"
-                size="sm"
-                color={theme.other.customPumpkin}
-                onClick={() => setIsEditingAttorney(true)}
-              >
-                <IconPencil size={20} />
-              </ActionIcon>
-            ) : isAdmin && isEditingAttorney ? (
-              <Group gap={4}>
-                <Button
-                  size="xs"
-                  variant="default"
-                  onClick={() => {
-                    setIsEditingAttorney(false);
-                    setEditedAttorneyId(matterData.leadAttorney.id);
-                  }}
-                  disabled={isUpdatingAttorney}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="xs"
-                  loading={isUpdatingAttorney}
-                  onClick={handleUpdateAttorney}
-                  disabled={
-                    !editedAttorneyId ||
-                    editedAttorneyId === matterData.leadAttorney.id
-                  }
-                >
-                  Save
-                </Button>
-              </Group>
-            ) : undefined
-          }
+          editButton={renderEditButton(
+            "attorney",
+            !form.values.attorneyId ||
+              form.values.attorneyId === matterData.leadAttorney.id,
+          )}
         />
       </SimpleGrid>
 
@@ -718,37 +473,36 @@ export default function TabOverview({
             Description
           </Text>
 
-          {!isEditDescription && user?.unsafeMetadata.role !== "client" && (
-            <ActionIcon
-              variant="white"
-              size="sm"
-              color={theme.other.customPumpkin}
-              onClick={() => setIsEditDescription(true)}
-            >
-              <IconPencil size={20} />
-            </ActionIcon>
-          )}
+          {editModule !== "description" &&
+            user?.unsafeMetadata.role !== "client" && (
+              <ActionIcon
+                variant="white"
+                size="sm"
+                color={theme.other.customPumpkin}
+                onClick={() => setEditModule("description")}
+                disabled={!!editModule}
+              >
+                <IconPencil size={20} />
+              </ActionIcon>
+            )}
 
-          {isEditDescription && (
+          {editModule === "description" && (
             <Group gap={4}>
               <Button
                 size="xs"
                 variant="default"
-                onClick={() => {
-                  setIsEditDescription(false);
-                  setDescription(matterData.caseDescription || "");
-                }}
-                disabled={isUpdatingDescription}
+                onClick={() => handleCancel("description")}
+                disabled={isUpdatingMatter}
               >
                 Discard
               </Button>
               <Button
                 size="xs"
-                loading={isUpdatingDescription}
-                onClick={handleUpdateDescription}
+                loading={isUpdatingMatter}
+                onClick={handleUpdateMatter}
                 disabled={
-                  !description.trim().length ||
-                  matterData.caseDescription === description
+                  !form.values.description.trim().length ||
+                  matterData.caseDescription === form.values.description
                 }
               >
                 Save
@@ -757,13 +511,12 @@ export default function TabOverview({
           )}
         </Group>
 
-        {isEditDescription ? (
+        {editModule === "description" ? (
           <Textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
             minRows={6}
             autosize
             styles={{ input: { paddingBlock: 6 } }}
+            {...form.getInputProps("description")}
           />
         ) : (
           <Spoiler
@@ -780,18 +533,11 @@ export default function TabOverview({
           </Spoiler>
         )}
       </Paper>
-
-      <Flex direction={shrinkSmall ? "column-reverse" : "column"} gap="md">
-        <MatterUpdates updates={matterUpdates.items} />
-        <MatterNotes
-          notes={matterData.notes || null}
-          matterId={matterData.id}
-          setDataChanged={setDataChanged}
-        />
-      </Flex>
     </Flex>
   );
 }
+
+// --- Sub-components ---
 
 const VerticalTable = ({
   title,

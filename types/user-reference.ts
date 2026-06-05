@@ -3,4 +3,6 @@ export interface UserReference {
   email: string | undefined;
   id: string | undefined;
   division?: string | null | undefined;
+
+  phone?: string | undefined;
 }

@@ -4,6 +4,7 @@ import {
   CreateNewMatterDto,
   MatterListingResponse,
 } from "../service-types/type-matter-service";
+import { Matter } from "@/types/matter";
 
 export const matterService = createApi({
   reducerPath: "matterService",
@@ -12,6 +13,22 @@ export const matterService = createApi({
   endpoints: (builder) => ({
     getAllMatters: builder.query<MatterListingResponse, void>({
       query: () => "/matters/listing",
+      providesTags: ["Matter"],
+    }),
+
+    getSingleMatter: builder.query<
+      Matter,
+      {
+        id: string;
+        options?: string[];
+      }
+    >({
+      query: ({ id, options = [] }) => ({
+        url: `/matters/${id}`,
+        params: {
+          options,
+        },
+      }),
       providesTags: ["Matter"],
     }),
 
@@ -26,14 +43,30 @@ export const matterService = createApi({
 
         return {
           method: "POST",
-          url: "matters/create",
+          url: "/matters/create",
           body: payload,
         };
       },
       invalidatesTags: ["Matter"],
     }),
+
+    updateMatter: builder.mutation<
+      { message: string },
+      Partial<CreateNewMatterDto> & { id: string }
+    >({
+      query: ({ id, ...payload }) => ({
+        method: "PATCH",
+        url: `/matters/update/${id}`,
+        body: payload,
+      }),
+      invalidatesTags: ["Matter"],
+    }),
   }),
 });
 
-export const { useGetAllMattersQuery, useCreateNewMatterMutation } =
-  matterService;
+export const {
+  useGetAllMattersQuery,
+  useGetSingleMatterQuery,
+  useCreateNewMatterMutation,
+  useUpdateMatterMutation,
+} = matterService;
