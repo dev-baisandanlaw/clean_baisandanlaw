@@ -3,6 +3,7 @@ import {
   CardProps,
   CardSection,
   CardSectionProps,
+  Group,
   Text,
 } from "@mantine/core";
 import { ReactNode } from "react";
@@ -12,6 +13,7 @@ interface BasicCardProps extends Omit<CardProps, "children"> {
   title?: string;
   headerProps?: CardSectionProps;
   bodyProps?: CardSectionProps;
+  actionButton?: ReactNode;
 }
 
 const BasicCard = ({
@@ -19,15 +21,19 @@ const BasicCard = ({
   title,
   headerProps,
   bodyProps,
+  actionButton,
 }: BasicCardProps) => {
   return (
     <Card shadow="none" padding="none" radius="md" p="none" withBorder>
-      <CardSection withBorder p="md" bg="gray.0" {...headerProps}>
-        <Text fz="sm" fw={700}>
-          {title}
-        </Text>
+      <CardSection withBorder p="sm" bg="gray.0" {...headerProps}>
+        <Group justify="space-between">
+          <Text fz="sm" fw={700} c="green">
+            {title}
+          </Text>
+          {actionButton && actionButton}
+        </Group>
       </CardSection>
-      <CardSection p="md" {...bodyProps}>
+      <CardSection p="sm" {...bodyProps}>
         {children}
       </CardSection>
     </Card>

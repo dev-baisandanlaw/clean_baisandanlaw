@@ -1,7 +1,6 @@
 import {
   ActionIcon,
   Button,
-  Card,
   Flex,
   Group,
   SimpleGrid,
@@ -12,7 +11,6 @@ import {
   Text,
   Tooltip,
 } from "@mantine/core";
-import { Matter } from "@/types/case";
 import { getMimeTypeIcon } from "@/utils/getMimeTypeIcon";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import {
@@ -27,18 +25,17 @@ import TabDocumentsUploadFileModal from "./modals/TabDocumentsUploadFileModal";
 import EmptyTableComponent from "../EmptyTableComponent";
 import axios from "axios";
 import { appNotifications } from "@/utils/notifications/notifications";
+import { Matter } from "@/types/matter";
+import { Document } from "@/types/document";
+import BasicCard from "../Common/BasicCard";
+import DetailField from "../Common/DetailField";
 
 interface MatterTabDocumentsProps {
   matterData: Matter;
-  setDataChanged: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export default function TabDocuments({
-  matterData,
-  setDataChanged,
-}: MatterTabDocumentsProps) {
-  const [selectedDocument, setSelectedDocument] =
-    useState<Matter["documents"][number]>();
+export default function TabDocuments({ matterData }: MatterTabDocumentsProps) {
+  const [selectedDocument, setSelectedDocument] = useState<Document>();
 
   const [
     isDeleteModalFileOpen,
@@ -59,11 +56,11 @@ export default function TabDocuments({
     switch (activeTab) {
       case "images":
         return matterData.documents.filter((doc) =>
-          doc.mimeType.startsWith("image/")
+          doc.mimeType.startsWith("image/"),
         );
       case "pdfs":
         return matterData.documents.filter(
-          (doc) => doc.mimeType === "application/pdf"
+          (doc) => doc.mimeType === "application/pdf",
         );
       case "all":
       default:
@@ -83,7 +80,7 @@ export default function TabDocuments({
       });
       const disposition = res.headers["content-disposition"];
       const filenameMatch = disposition?.match(
-        /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/
+        /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/,
       );
 
       let filename = "download";
@@ -117,74 +114,63 @@ export default function TabDocuments({
   return (
     <>
       <Flex direction="column" gap="md">
-        <SimpleGrid cols={1}>
-          <Card withBorder radius="md" p="md">
-            <Card.Section inheritPadding py="xs">
-              <Group justify="space-between">
-                <Text size="lg" fw={600} c="green">
-                  Documents
-                </Text>
+        <BasicCard
+          title="Documents"
+          actionButton={
+            <Button
+              leftSection={<IconCirclePlus />}
+              size="xs"
+              variant="outline"
+              onClick={openUploadModalFile}
+            >
+              Upload
+            </Button>
+          }
+        >
+          <SimpleGrid cols={{ base: 2, xs: 2, sm: 4, md: 4 }}>
+            <DetailField
+              title="Files"
+              value={matterData.documents?.length || 0}
+            />
 
-                <Button
-                  leftSection={<IconCirclePlus />}
-                  size="xs"
-                  variant="outline"
-                  onClick={openUploadModalFile}
-                >
-                  Upload
-                </Button>
-              </Group>
-            </Card.Section>
+            <DetailField
+              title="Size"
+              value={`${
+                matterData?.documents?.reduce(
+                  (sum, doc) => sum + Number(doc.sizeInMb || 0),
+                  0,
+                ) || 0
+              } MB`}
+            />
 
-            <Table variant="vertical" layout="fixed">
-              <Table.Tbody>
-                <Table.Tr>
-                  <Table.Th w={160}>Total Files</Table.Th>
-                  <Table.Td>
-                    <Text c="green" fw={600} size="sm">
-                      {matterData.documents?.length || 0}
-                    </Text>
-                  </Table.Td>
-                </Table.Tr>
+            <DetailField
+              title="Images"
+              value={
+                matterData.documents?.filter((doc) =>
+                  doc.mimeType.startsWith("image/"),
+                ).length || 0
+              }
+            />
 
-                <Table.Tr>
-                  <Table.Th>Total Size</Table.Th>
-                  <Table.Td>
-                    <Text c="green" fw={600} size="sm">
-                      {matterData.documents
-                        ?.reduce((sum, doc) => sum + (doc.sizeInMb || 0), 0)
-                        .toFixed(2) || 0}
-                      MB
-                    </Text>
-                  </Table.Td>
-                </Table.Tr>
-              </Table.Tbody>
-            </Table>
-          </Card>
-        </SimpleGrid>
+            <DetailField
+              title="PDFs"
+              value={
+                matterData.documents?.filter(
+                  (doc) => doc.mimeType === "application/pdf",
+                ).length || 0
+              }
+            />
+          </SimpleGrid>
+        </BasicCard>
 
         <Tabs
           value={activeTab}
           onChange={(value) => setActiveTab(value || "all")}
         >
           <Tabs.List>
-            <Tabs.Tab value="all">
-              All ({matterData.documents?.length || 0})
-            </Tabs.Tab>
-            <Tabs.Tab value="images">
-              Images (
-              {matterData.documents?.filter((doc) =>
-                doc.mimeType.startsWith("image/")
-              ).length || 0}
-              )
-            </Tabs.Tab>
-            <Tabs.Tab value="pdfs">
-              PDFs (
-              {matterData.documents?.filter(
-                (doc) => doc.mimeType === "application/pdf"
-              ).length || 0}
-              )
-            </Tabs.Tab>
+            <Tabs.Tab value="all">All</Tabs.Tab>
+            <Tabs.Tab value="images">Images</Tabs.Tab>
+            <Tabs.Tab value="pdfs">PDFs</Tabs.Tab>
           </Tabs.List>
         </Tabs>
 
@@ -213,7 +199,7 @@ export default function TabDocuments({
                     </Table.Td>
                     <Table.Td>
                       <Text size="sm" fw={600} c="green">
-                        {doc.sizeInMb.toFixed(2)} MB
+                        {doc.sizeInMb} MB
                       </Text>
                     </Table.Td>
                     <Table.Td>{getMimeTypeIcon(doc.mimeType)}</Table.Td>
@@ -262,19 +248,15 @@ export default function TabDocuments({
       </Flex>
 
       <TabDocumentsUploadFileModal
-        googleDriveFolderId={matterData.googleDriveFolderId}
         opened={isUploadModalFileOpen}
         onClose={closeUploadModalFile}
         matterId={matterData.id!}
-        setDataChanged={setDataChanged}
       />
 
       <TabDocumentDeleteFileModal
         opened={isDeleteModalFileOpen}
         onClose={closeDeleteModalFile}
         document={selectedDocument}
-        matterData={matterData}
-        setDataChanged={setDataChanged}
       />
     </>
   );

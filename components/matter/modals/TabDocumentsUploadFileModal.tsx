@@ -26,38 +26,26 @@ import {
   IconFileTypePdf,
   IconX,
 } from "@tabler/icons-react";
-import { useUser } from "@clerk/nextjs";
-import { arrayUnion, doc, updateDoc } from "firebase/firestore";
-import { db } from "@/firebase/config";
-import { COLLECTIONS } from "@/constants/constants";
-import { addMatterUpdate } from "../utils/addMatterUpdate";
-import { MatterUpdateType } from "@/types/matter-updates";
-import axios from "axios";
-import { nanoid } from "nanoid";
-import dayjs from "dayjs";
 import { appNotifications } from "@/utils/notifications/notifications";
+import { useUploadMatterDocumentMutation } from "@/store/services/matterService";
 
 interface TabDocumentsUploadFileModalProps {
   opened: boolean;
   onClose: () => void;
   matterId: string;
-  googleDriveFolderId: string;
-  setDataChanged: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export default function TabDocumentsUploadFileModal({
   opened,
   onClose,
   matterId,
-  googleDriveFolderId,
-  setDataChanged,
 }: TabDocumentsUploadFileModalProps) {
-  const { user } = useUser();
+  const [uploadMatterDocumentFn, { isLoading: isUploadingDocument }] =
+    useUploadMatterDocumentMutation();
+
   const [files, setFiles] = useState<File[]>([]);
   const [rejectedFiles, setRejectedFiles] = useState<FileRejection[]>([]);
   const [disclaimer, setDisclaimer] = useState<string>("");
-
-  const [isUploading, setIsUploading] = useState(false);
 
   const handleDrop = (newFiles: File[]) => {
     setRejectedFiles([]);
@@ -73,8 +61,8 @@ export default function TabDocumentsUploadFileModal({
           (existing) =>
             existing.name === newFile.name &&
             existing.size === newFile.size &&
-            existing.lastModified === newFile.lastModified
-        )
+            existing.lastModified === newFile.lastModified,
+        ),
     );
 
     // Slice to ensure we don't exceed the max
@@ -85,7 +73,7 @@ export default function TabDocumentsUploadFileModal({
     const droppedCount = newFiles.length - acceptedFiles.length;
     if (droppedCount > 0) {
       setDisclaimer(
-        `${droppedCount} file(s) ignored due to duplicates or max limit`
+        `${droppedCount} file(s) ignored due to duplicates or max limit`,
       );
     }
   };
@@ -97,79 +85,41 @@ export default function TabDocumentsUploadFileModal({
   };
 
   const handleUploadFiles = async () => {
-    setIsUploading(true);
+    uploadMatterDocumentFn({ id: matterId, files: Array.from(files) })
+      .unwrap()
+      .then(({ failedUploads, successfulUploads }) => {
+        if (successfulUploads <= 0) {
+          appNotifications.success({
+            title: "Failed to upload files",
+            message: "All files failed to upload",
+          });
+          return;
+        }
 
-    const CASE_REF = doc(db, COLLECTIONS.CASES, matterId);
+        if (successfulUploads === files.length) {
+          appNotifications.success({
+            title: "Files uploaded successfully",
+            message: `All files were uploaded successfully`,
+          });
+          onClose();
+          return;
+        }
 
-    // 1. upload files to google drive
-    const settled = await Promise.allSettled(
-      files.map(async (file) => {
-        const fd = new FormData();
-        fd.append("parentId", googleDriveFolderId);
-        fd.append("file", file);
-
-        const res = await axios.post("/api/google/drive/upload", fd);
-        return { file, raw: res.data };
+        if (successfulUploads > 0 && failedUploads > 0) {
+          appNotifications.success({
+            title: "Some files uploaded successfully",
+            message: `Only ${successfulUploads} file(s) were uploaded successfully`,
+          });
+          onClose();
+          return;
+        }
       })
-    );
-
-    // 2. prepare documents to add to the database
-    const docsToAdd = settled
-      .filter((r) => r.status === "fulfilled")
-      .map((r) => {
-        const { file, raw } = r.value;
-        return {
-          id: nanoid(),
-          name: file.name,
-          mimeType: file.type,
-          originalSize: file.size,
-          sizeInMb: +(file.size / 1024 / 1024).toFixed(2),
-          uploadedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-          googleDriveId: raw.uploadedFiles.id,
-          uploadedBy: {
-            id: user?.id ?? null,
-            fullname:
-              [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
-              null,
-          },
-        };
+      .catch(() => {
+        appNotifications.success({
+          title: "Failed to upload files",
+          message: "All files failed to upload",
+        });
       });
-
-    // 3. add documents to the database
-    if (docsToAdd.length) {
-      await updateDoc(CASE_REF, {
-        updatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-        documents: arrayUnion(...docsToAdd),
-      });
-
-      // 4. add matter update
-      await addMatterUpdate(
-        user!,
-        matterId,
-        user?.unsafeMetadata.role as string,
-        MatterUpdateType.DOCUMENT,
-        `${docsToAdd.length} file(s) uploaded`
-      );
-
-      appNotifications.success({
-        title: `Files uploaded successfully`,
-        message: `${docsToAdd.length} file(s) uploaded successfully`,
-      });
-      setDataChanged((prev) => !prev);
-    }
-
-    if (settled.filter((r) => r.status === "rejected").length > 0) {
-      appNotifications.error({
-        title: `Failed to upload files`,
-        message: `${settled.filter((r) => r.status === "rejected").length} file(s) failed to upload`,
-      });
-    }
-
-    setTimeout(() => {
-      setIsUploading(false);
-    }, 1000);
-
-    onClose();
   };
 
   const previews = files.map((file, index) => {
@@ -195,7 +145,7 @@ export default function TabDocumentsUploadFileModal({
               right={5}
               size={24}
               onClick={() => handleRemoveFile(index)}
-              disabled={isUploading}
+              disabled={isUploadingDocument}
             >
               <IconX size={16} />
             </ActionIcon>
@@ -249,7 +199,7 @@ export default function TabDocumentsUploadFileModal({
       size="xl"
       title="Upload Document"
       transitionProps={{ transition: "pop" }}
-      withCloseButton={!isUploading}
+      withCloseButton={!isUploadingDocument}
       centered
     >
       {rejectedFiles.length > 0 && (
@@ -326,13 +276,17 @@ export default function TabDocumentsUploadFileModal({
       </SimpleGrid>
 
       <Group justify="flex-end" mt="xl">
-        <Button variant="outline" onClick={onClose} disabled={isUploading}>
+        <Button
+          variant="outline"
+          onClick={onClose}
+          disabled={isUploadingDocument}
+        >
           Cancel
         </Button>
         <Button
           disabled={files.length === 0}
           onClick={handleUploadFiles}
-          loading={isUploading}
+          loading={isUploadingDocument}
         >
           Upload
         </Button>

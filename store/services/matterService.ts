@@ -61,6 +61,40 @@ export const matterService = createApi({
       }),
       invalidatesTags: ["Matter"],
     }),
+
+    uploadMatterDocument: builder.mutation<
+      { failedUploads: number; successfulUploads: number },
+      {
+        id: string;
+        files: File[];
+      }
+    >({
+      query: ({ id, files }) => {
+        const formData = new FormData();
+
+        files.forEach((file) => {
+          formData.append("files", file);
+        });
+
+        return {
+          method: "POST",
+          url: `/matters/upload/documents/${id}`,
+          body: formData,
+        };
+      },
+      invalidatesTags: ["Matter"],
+    }),
+
+    deleteMatterDocument: builder.mutation<
+      { message: string },
+      { id: string; driveId: string }
+    >({
+      query: ({ id, driveId }) => ({
+        method: "DELETE",
+        url: `/documents/delete/${id}/${driveId}`,
+      }),
+      invalidatesTags: ["Matter"],
+    }),
   }),
 });
 
@@ -69,4 +103,6 @@ export const {
   useGetSingleMatterQuery,
   useCreateNewMatterMutation,
   useUpdateMatterMutation,
+  useUploadMatterDocumentMutation,
+  useDeleteMatterDocumentMutation,
 } = matterService;

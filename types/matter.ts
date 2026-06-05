@@ -1,3 +1,4 @@
+import { Document } from "./document";
 import { UserReference } from "./user-reference";
 
 export interface Matter {
@@ -11,6 +12,8 @@ export interface Matter {
   leadAttorney: UserReference;
 
   createdBy: UserReference;
+
+  documents?: Document[];
 
   googleDriveFolderId: string;
   status: string;
