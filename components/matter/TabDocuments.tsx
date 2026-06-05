@@ -130,7 +130,7 @@ export default function TabDocuments({ matterData }: MatterTabDocumentsProps) {
           <SimpleGrid cols={{ base: 2, xs: 2, sm: 4, md: 4 }}>
             <DetailField
               title="Files"
-              value={matterData.documents?.length || 0}
+              value={matterData.documents?.length || "0"}
             />
 
             <DetailField
@@ -139,7 +139,7 @@ export default function TabDocuments({ matterData }: MatterTabDocumentsProps) {
                 matterData?.documents?.reduce(
                   (sum, doc) => sum + Number(doc.sizeInMb || 0),
                   0,
-                ) || 0
+                ) || "0"
               } MB`}
             />
 
@@ -148,7 +148,7 @@ export default function TabDocuments({ matterData }: MatterTabDocumentsProps) {
               value={
                 matterData.documents?.filter((doc) =>
                   doc.mimeType.startsWith("image/"),
-                ).length || 0
+                ).length || "0"
               }
             />
 
@@ -157,7 +157,7 @@ export default function TabDocuments({ matterData }: MatterTabDocumentsProps) {
               value={
                 matterData.documents?.filter(
                   (doc) => doc.mimeType === "application/pdf",
-                ).length || 0
+                ).length || "0"
               }
             />
           </SimpleGrid>

@@ -1,68 +1,40 @@
-import { COLLECTIONS } from "@/constants/constants";
-import { db } from "@/firebase/config";
-import { Task, TaskDetails } from "@/types/task";
-import { useUser } from "@clerk/nextjs";
 import { Button, Modal, Text } from "@mantine/core";
 import { IconTrash } from "@tabler/icons-react";
-import { doc, setDoc } from "firebase/firestore";
-import { useState } from "react";
-import { toast } from "react-toastify";
-import { addMatterUpdate } from "../utils/addMatterUpdate";
-import { MatterUpdateType } from "@/types/matter-updates";
 import { appNotifications } from "@/utils/notifications/notifications";
+import { MatterTask } from "@/types/matter";
+import { useDeleteMatterTaskMutation } from "@/store/services/matterService";
 
 interface TabTasksDeleteTaskModalProps {
   opened: boolean;
   onClose: () => void;
-  task: Task | null;
-  taskDetails: TaskDetails | null;
-  setDataChanged: React.Dispatch<React.SetStateAction<boolean>>;
+  task: MatterTask | null;
 }
 
 export default function TabTasksDeleteTaskModal({
   opened,
   onClose,
   task,
-  taskDetails,
-  setDataChanged,
 }: TabTasksDeleteTaskModalProps) {
-  const { user } = useUser();
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteMatterTaskFn, { isLoading: isDeleting }] =
+    useDeleteMatterTaskMutation();
 
   const handleDeleteTask = async () => {
-    setIsDeleting(true);
-    try {
-      await setDoc(
-        doc(db, COLLECTIONS.TASKS, taskDetails!.caseId),
-        {
-          tasks: taskDetails!.tasks.filter((t) => t.taskId !== task!.taskId),
-        },
-        { merge: true }
-      );
-      await addMatterUpdate(
-        user!,
-        taskDetails!.caseId,
-        user?.unsafeMetadata.role as string,
-        MatterUpdateType.TASK,
-        `Task Deleted: ${task!.taskName}`
-      );
-
-      appNotifications.success({
-        title: "Task deleted successfully",
-        message: "The task has been deleted successfully",
+    deleteMatterTaskFn({ matterId: task!.caseId, taskId: task!.id })
+      .unwrap()
+      .then(() => {
+        appNotifications.success({
+          title: "Task deleted successfully",
+          message: "The task has been deleted successfully",
+        });
+        onClose();
+      })
+      .catch((e) => {
+        console.log(e);
+        appNotifications.error({
+          title: "Failed to delete task",
+          message: "The task could not be deleted. Please try again.",
+        });
       });
-
-      setDataChanged((prev) => !prev);
-      onClose();
-    } catch {
-      appNotifications.error({
-        title: "Failed to delete task",
-        message: "The task could not be deleted. Please try again.",
-      });
-    } finally {
-      setIsDeleting(false);
-    }
-    onClose();
   };
 
   return (

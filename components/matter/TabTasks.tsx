@@ -1,49 +1,35 @@
-import { COLLECTIONS } from "@/constants/constants";
-import { db } from "@/firebase/config";
-import { Matter } from "@/types/case";
-import { Task, TaskDetails } from "@/types/task";
 import { useUser } from "@clerk/nextjs";
 import {
   ActionIcon,
   Button,
-  Card,
   Group,
-  LoadingOverlay,
+  SimpleGrid,
   Stack,
   Table,
   TableScrollContainer,
   Text,
-  useMantineTheme,
 } from "@mantine/core";
-import { doc, getDoc } from "firebase/firestore";
-import { useCallback, useEffect, useState } from "react";
-import EmptyTableComponent from "../EmptyTableComponent";
+import { useState } from "react";
 import { IconCirclePlus, IconEye, IconTrash } from "@tabler/icons-react";
 import { useDisclosure } from "@mantine/hooks";
-import TabTasksAddTaskModal from "./modals/TabTasksAddTaskModal";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { getPriorityBadge } from "@/utils/getPriorityBadge";
+import { getMatterStatus } from "@/utils/getMatterStatus";
+import { Matter, MatterTask } from "@/types/matter";
+import BasicCard from "../Common/BasicCard";
+import DetailField from "../Common/DetailField";
+import TabTasksAddTaskModal from "./modals/TabTasksAddTaskModal";
 import TabTasksDeleteTaskModal from "./modals/TabTasksDeleteTaskModal";
 import TabTaskInfoTaskModal from "./modals/TabTaskInfoTaskModal";
-import { getMatterStatus } from "@/utils/getMatterStatus";
 
 interface MatterTabTasksProps {
   matterData: Matter;
-  // setDataChanged: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export default function TabTasks({ matterData }: MatterTabTasksProps) {
-  const theme = useMantineTheme();
   const { user } = useUser();
 
-  const [dataChanged, setDataChanged] = useState(false);
-  const [taskDetails, setTaskDetails] = useState<TaskDetails | null>(null);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-
-  const [allTasks, setAllTasks] = useState<Task[] | null>(null);
-  const [pendingTasks, setPendingTasks] = useState<Task[] | null>(null);
-
-  const [isLoading, setIsLoading] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<MatterTask | null>(null);
 
   const [
     isAddTaskModalOpen,
@@ -60,38 +46,20 @@ export default function TabTasks({ matterData }: MatterTabTasksProps) {
     { open: openInfoTaskModal, close: closeInfoTaskModal },
   ] = useDisclosure(false);
 
-  const fetchAllTasks = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const taskRef = doc(db, COLLECTIONS.TASKS, matterData.id);
-      const taskSnap = await getDoc(taskRef);
+  const tasksByDivision = (division: string) =>
+    matterData?.tasks?.filter((task) => task.assignee?.division === division) ||
+    [];
 
-      if (!taskSnap.exists()) return;
+  const taskSummary = (division: string) => {
+    const tasks = tasksByDivision(division);
 
-      const taskData = taskSnap.data() as TaskDetails;
-      setTaskDetails(taskData);
-      setAllTasks(taskData.tasks);
-      setPendingTasks(
-        taskData.tasks.filter(
-          (task) => task.status === "Pending" && task.assignee.id === user?.id
-        )
-      );
-    } catch (err) {
-      console.error("fetchAllTasks error:", err);
-    } finally {
-      setIsLoading(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [matterData.id]);
-
-  useEffect(() => {
-    fetchAllTasks();
-  }, [fetchAllTasks, dataChanged]);
+    return `${tasks.filter((task) => task.status === "Complete").length} / ${tasks.length}`;
+  };
 
   const renderTableHeaders = () => {
     const taskTableHeaders = [
       "Task",
-      "Deadline",
+      "Due date",
       "Assigned To",
       "Priority",
       "Status",
@@ -109,29 +77,32 @@ export default function TabTasks({ matterData }: MatterTabTasksProps) {
     );
   };
 
-  const renderTableBody = (pending: boolean = false) => {
-    if (!allTasks?.length)
-      return (
-        <Table.Tbody>
-          <EmptyTableComponent colspan={6} message="No tasks found" />
-        </Table.Tbody>
-      );
-
-    const tasksToMap = pending ? pendingTasks : allTasks;
+  const renderTableBody = () => {
+    const tasksToMap =
+      matterData?.tasks && matterData?.tasks?.length > 0
+        ? matterData.tasks || []
+        : [];
 
     return (
       <Table.Tbody>
         {tasksToMap
-          ?.sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+          // ?.sort((a, b) => a.dueDate.localeCompare(b.dueDate))
           .map((task) => (
-            <Table.Tr key={task.taskId}>
+            <Table.Tr key={task.id}>
               <Table.Td>
                 <Text fw={600} c="green" size="sm">
                   {task.taskName}
                 </Text>
               </Table.Td>
-              <Table.Td>{getDateFormatDisplay(task.dueDate, true)}</Table.Td>
-              <Table.Td>{task.assignee.fullname}</Table.Td>
+              <Table.Td>{getDateFormatDisplay(task.dueDate)}</Table.Td>
+              <Table.Td>
+                <Stack gap={0}>
+                  <Text size="sm">{task.assignee.fullname}</Text>
+                  <Text size="xs" c="dimmed">
+                    {task.assignee.division}
+                  </Text>
+                </Stack>
+              </Table.Td>
               <Table.Td>{getPriorityBadge(task.priority)}</Table.Td>
               <Table.Td>
                 <Stack gap={0}>
@@ -157,7 +128,7 @@ export default function TabTasks({ matterData }: MatterTabTasksProps) {
                   </ActionIcon>
 
                   {user?.unsafeMetadata?.role !== "client" &&
-                    task.status !== "Completed" && (
+                    task.status !== "Complete" && (
                       <ActionIcon size="sm" variant="subtle" c="red">
                         <IconTrash
                           size={24}
@@ -179,87 +150,70 @@ export default function TabTasks({ matterData }: MatterTabTasksProps) {
   return (
     <>
       <Stack gap="xl">
-        {pendingTasks && pendingTasks?.length > 0 && (
-          <Card withBorder radius="md" p="md" pos="relative">
-            <LoadingOverlay visible={isLoading} />
-            <Card.Section inheritPadding py="xs">
-              <Group justify="space-between">
-                <Text size="lg" fw={600} c={theme.other.customPumpkin}>
-                  Your pending Tasks
-                </Text>
-              </Group>
-            </Card.Section>
+        <BasicCard
+          title="Tasks"
+          actionButton={
+            user?.unsafeMetadata?.role !== "client" && (
+              <Button
+                leftSection={<IconCirclePlus />}
+                size="xs"
+                variant="outline"
+                onClick={openAddTaskModal}
+              >
+                Add Task
+              </Button>
+            )
+          }
+        >
+          <SimpleGrid cols={{ base: 2, xs: 3, sm: 3, md: 3 }}>
+            <DetailField title="All" value={matterData?.tasks?.length || "0"} />
 
-            <TableScrollContainer
-              minWidth={800}
-              mah="40vh"
-              pos="relative"
-              w="100%"
-            >
-              <Table stickyHeader stickyHeaderOffset={0} verticalSpacing="sm">
-                {renderTableHeaders()}
-                {renderTableBody(true)}
-              </Table>
-            </TableScrollContainer>
-          </Card>
-        )}
+            <DetailField
+              title="Pending"
+              value={
+                matterData?.tasks?.filter((i) => i.status === "Pending")
+                  .length || "0"
+              }
+            />
 
-        <Card withBorder radius="md" p="md" pos="relative">
-          <LoadingOverlay visible={isLoading} />
-          <Card.Section inheritPadding py="xs">
-            <Group justify="space-between">
-              <Text size="lg" fw={600} c="green">
-                All Tasks
-              </Text>
+            <DetailField
+              title="Complete"
+              value={
+                matterData?.tasks?.filter((i) => i.status === "Complete")
+                  .length || "0"
+              }
+            />
 
-              {user?.unsafeMetadata?.role !== "client" && (
-                <Button
-                  leftSection={<IconCirclePlus />}
-                  size="sm"
-                  variant="outline"
-                  onClick={openAddTaskModal}
-                >
-                  Add Task
-                </Button>
-              )}
-            </Group>
-          </Card.Section>
+            <DetailField title="Attorney" value={taskSummary("Attorney")} />
+            <DetailField title="Client" value={taskSummary("Client")} />
+            <DetailField title="Staff" value={taskSummary("Staff")} />
+          </SimpleGrid>
+        </BasicCard>
 
-          <TableScrollContainer
-            minWidth={800}
-            mah="40vh"
-            pos="relative"
-            w="100%"
-          >
-            <Table stickyHeader stickyHeaderOffset={0} verticalSpacing="sm">
-              {renderTableHeaders()}
-              {renderTableBody()}
-            </Table>
-          </TableScrollContainer>
-        </Card>
+        <TableScrollContainer minWidth={800} h="60vh" pos="relative" w="100%">
+          <Table stickyHeader stickyHeaderOffset={0} verticalSpacing="sm">
+            {renderTableHeaders()}
+            {renderTableBody()}
+          </Table>
+        </TableScrollContainer>
       </Stack>
 
       <TabTasksAddTaskModal
         opened={isAddTaskModalOpen}
         onClose={closeAddTaskModal}
         matterData={matterData}
-        setDataChanged={setDataChanged}
       />
 
       <TabTasksDeleteTaskModal
         opened={isDeleteTaskModalOpen}
         onClose={closeDeleteTaskModal}
         task={selectedTask}
-        setDataChanged={setDataChanged}
-        taskDetails={taskDetails}
       />
 
       <TabTaskInfoTaskModal
         opened={isInfoTaskModalOpen}
         onClose={closeInfoTaskModal}
         task={selectedTask}
-        taskDetails={taskDetails}
-        setDataChanged={setDataChanged}
         user={user ?? null}
       />
     </>

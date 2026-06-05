@@ -1,6 +1,6 @@
 export enum TaskStatus {
   Pending = "Pending",
-  Completed = "Completed",
+  Completed = "Complete",
 }
 
 export enum TaskDivision {

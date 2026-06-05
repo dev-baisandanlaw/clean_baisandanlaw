@@ -39,7 +39,7 @@ export default function MatterDetailsFeature({
     isLoading: isFetchingMatterDetails,
     refetch: refetchMatterDetails,
   } = useGetSingleMatterQuery(
-    { id: matterId!, options: ["documents"] },
+    { id: matterId!, options: ["documents", "tasks"] },
     { skip: !matterId || !isLoaded },
   );
 
@@ -92,16 +92,13 @@ export default function MatterDetailsFeature({
 
         {!isFetchingMatterDetails && matterDetails && (
           <Tabs.Panel value="documents">
-            <TabDocuments
-              matterData={matterDetails as unknown as MatterCase}
-              setDataChanged={setDataChanged}
-            />
+            <TabDocuments matterData={matterDetails} />
           </Tabs.Panel>
         )}
 
         {!isFetchingMatterDetails && matterDetails && (
           <Tabs.Panel value="tasks">
-            <TabTasks matterData={matterDetails as unknown as MatterCase} />
+            <TabTasks matterData={matterDetails} />
           </Tabs.Panel>
         )}
 

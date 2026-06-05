@@ -19,3 +19,13 @@ export interface CreateNewMatterDto {
   caseType: string[];
   caseDescription: string;
 }
+
+export interface CreateNewMatterTaskDto {
+  caseId: string;
+  description: string;
+  dueDate: string;
+  priority: string;
+  status: string;
+  taskName: string;
+  assignee: UserReference;
+}

@@ -1,6 +1,3 @@
-import { COLLECTIONS } from "@/constants/constants";
-import { db } from "@/firebase/config";
-import { Matter } from "@/types/case";
 import {
   Button,
   CheckIcon,
@@ -12,31 +9,28 @@ import {
   Textarea,
   TextInput,
 } from "@mantine/core";
-import { DateTimePicker } from "@mantine/dates";
+import { DatePickerInput } from "@mantine/dates";
 import { useForm } from "@mantine/form";
-import { arrayUnion, doc, increment, setDoc } from "firebase/firestore";
-import { useEffect, useState } from "react";
 import { nanoid } from "nanoid";
-import dayjs from "dayjs";
-import { TaskDivision } from "@/types/task";
-import { addMatterUpdate } from "../utils/addMatterUpdate";
-import { useUser } from "@clerk/nextjs";
-import { MatterUpdateType } from "@/types/matter-updates";
 import { appNotifications } from "@/utils/notifications/notifications";
+import { Matter } from "@/types/matter";
+import { useCreateNewMatterTaskMutation } from "@/store/services/matterService";
+import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
+import { useEffect } from "react";
 
 interface TabTasksAddTaskModalProps {
   opened: boolean;
   onClose: () => void;
   matterData: Matter;
-  setDataChanged: React.Dispatch<React.SetStateAction<boolean>>;
 }
 export default function TabTasksAddTaskModal({
   opened,
   onClose,
   matterData,
-  setDataChanged,
 }: TabTasksAddTaskModalProps) {
-  const { user } = useUser();
+  const [createMatterTaskFn, { isLoading: isSubmitting }] =
+    useCreateNewMatterTaskMutation();
+
   const selectData = [
     {
       label: `Attorney (${matterData?.leadAttorney.fullname})`,
@@ -49,14 +43,11 @@ export default function TabTasksAddTaskModal({
     { label: "Staff", value: "staff" },
   ];
 
-  const [isLoading, setIsLoading] = useState(false);
-
   const form = useForm({
     initialValues: {
       priority: "",
-      name: "",
       staffName: "",
-      dueDate: "",
+      dueDate: new Date(),
       description: "",
       assignee: "",
       taskName: "",
@@ -64,70 +55,48 @@ export default function TabTasksAddTaskModal({
   });
 
   const handleSubmit = async () => {
-    setIsLoading(true);
-    try {
-      const assigneeDetails =
-        form.values.assignee === "attorney"
-          ? matterData?.leadAttorney
-          : form.values.assignee === "client"
-            ? matterData?.clientData
-            : {
-                id: `id-${nanoid(8)}-staff`,
-                fullname: form.values.staffName,
-                email: `email-${nanoid(8)}-staff`,
-                division: "Staff",
-              };
+    const assigneeDetails =
+      form.values.assignee === "attorney"
+        ? { ...matterData?.leadAttorney, division: "Attorney" }
+        : form.values.assignee === "client"
+          ? { ...matterData?.clientData, division: "Client" }
+          : {
+              id: `id-${nanoid(8)}-staff`,
+              fullname: form.values.staffName,
+              email: `email-${nanoid(8)}-staff`,
+              division: "Staff",
+            };
 
-      await setDoc(
-        doc(db, COLLECTIONS.TASKS, matterData!.id),
-        {
-          totalTasks: increment(1),
-          totalPendingTasks: increment(1),
-          updatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-          tasks: arrayUnion({
-            ...form.values,
-            assignee: {
-              ...assigneeDetails,
-              division:
-                form.values.assignee === "attorney"
-                  ? TaskDivision.Attorney
-                  : TaskDivision.Client,
-            },
-            taskId: nanoid(10),
-            status: "Pending",
-            createdAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-          }),
-        },
-        { merge: true }
-      );
-      await addMatterUpdate(
-        user!,
-        matterData!.id,
-        user?.unsafeMetadata.role as string,
-        MatterUpdateType.TASK,
-        `Task Created: ${form.values.taskName}`
-      );
-
-      appNotifications.success({
-        title: "Task created successfully",
-        message: "The task has been created successfully",
+    createMatterTaskFn({
+      description: form.values.description,
+      dueDate: getDateFormatDisplay(form.values.dueDate),
+      priority: form.values.priority,
+      taskName: form.values.taskName,
+      status: "Pending",
+      assignee: assigneeDetails,
+      caseId: matterData.id,
+    })
+      .unwrap()
+      .then(() => {
+        appNotifications.success({
+          title: "Task created successfully",
+          message: "The task has been created successfully",
+        });
+        onClose();
+      })
+      .catch(() => {
+        appNotifications.error({
+          title: "Failed to create task",
+          message: "The task could not be created. Please try again.",
+        });
       });
-      setDataChanged((prev) => !prev);
-      onClose();
-    } catch {
-      appNotifications.error({
-        title: "Failed to create task",
-        message: "The task could not be created. Please try again.",
-      });
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   useEffect(() => {
     if (!opened) form.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened]);
+
   return (
     <Modal
       opened={opened}
@@ -136,7 +105,7 @@ export default function TabTasksAddTaskModal({
       centered
       transitionProps={{ transition: "pop" }}
       size="lg"
-      withCloseButton={!isLoading}
+      withCloseButton={!isSubmitting}
     >
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack gap="md">
@@ -181,10 +150,11 @@ export default function TabTasksAddTaskModal({
             {...form.getInputProps("taskName")}
           />
 
-          <DateTimePicker
+          <DatePickerInput
             withAsterisk
             label="Due Date"
             placeholder="Select Due Date"
+            minDate={new Date()}
             {...form.getInputProps("dueDate")}
           />
 
@@ -195,15 +165,17 @@ export default function TabTasksAddTaskModal({
             rows={4}
             styles={{ input: { paddingBlock: 6 } }}
             {...form.getInputProps("description")}
+            inputWrapperOrder={["label", "error", "input", "description"]}
+            description={`${form.values.description.length}/1000 characters`}
           />
 
           <Group justify="end">
-            <Button variant="outline" onClick={onClose} disabled={isLoading}>
+            <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </Button>
             <Button
               type="submit"
-              loading={isLoading}
+              loading={isSubmitting}
               disabled={
                 !form.values.assignee ||
                 !form.values.taskName ||

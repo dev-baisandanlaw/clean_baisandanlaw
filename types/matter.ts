@@ -1,4 +1,5 @@
 import { Document } from "./document";
+import { TaskStatus } from "./task";
 import { UserReference } from "./user-reference";
 
 export interface Matter {
@@ -14,10 +15,28 @@ export interface Matter {
   createdBy: UserReference;
 
   documents?: Document[];
+  tasks?: MatterTask[];
 
   googleDriveFolderId: string;
   status: string;
 
   createdAt: string;
   updatedAt: string;
+}
+
+export interface MatterTask {
+  id: string;
+
+  assignee: UserReference;
+
+  caseId: string;
+  completedAt: string | null;
+  description: string;
+  dueDate: string;
+  priority: string;
+  status: TaskStatus;
+  taskName: string;
+
+  updatedAt: string;
+  createdAt: string;
 }
