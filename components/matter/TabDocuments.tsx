@@ -240,7 +240,7 @@ export default function TabDocuments({ matterData }: MatterTabDocumentsProps) {
                 ))}
 
               {filteredDocuments.length === 0 && (
-                <EmptyTableComponent colspan={5} />
+                <EmptyTableComponent colspan={5} message="No documents found" />
               )}
             </Table.Tbody>
           </Table>

@@ -16,6 +16,7 @@ export interface Matter {
 
   documents?: Document[];
   tasks?: MatterTask[];
+  schedules?: MatterSchedule[];
 
   googleDriveFolderId: string;
   status: string;
@@ -39,4 +40,19 @@ export interface MatterTask {
 
   updatedAt: string;
   createdAt: string;
+}
+
+export interface MatterSchedule {
+  id: string;
+
+  caseId: string;
+  date: string;
+  time: string;
+
+  location: string;
+  title: string;
+  description: string;
+
+  createdAt: string;
+  updatedAt: string;
 }

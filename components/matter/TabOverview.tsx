@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import {
   ActionIcon,
   Button,
-  Card,
   Flex,
   Group,
   Paper,
@@ -36,12 +35,12 @@ import { Matter } from "@/types/matter";
 import { UserReference } from "@/types/user-reference";
 import { Attorney, Client } from "@/types/user";
 import { useUpdateMatterMutation } from "@/store/services/matterService";
+import BasicCard from "../Common/BasicCard";
 
 // --- Types ---
 
 interface MatterTabOverviewProps {
   matterData: Matter;
-  setDataChanged: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 interface VerticalTableProps {
@@ -60,10 +59,7 @@ interface EditFormValues {
 
 // --- Component ---
 
-export default function TabOverview({
-  matterData,
-  setDataChanged,
-}: MatterTabOverviewProps) {
+export default function TabOverview({ matterData }: MatterTabOverviewProps) {
   const shrink = useMediaQuery("(max-width: 948px)");
   const theme = useMantineTheme();
   const { user } = useUser();
@@ -163,7 +159,6 @@ export default function TabOverview({
           message: "The matter has been updated successfully.",
         });
         setEditModule("");
-        setDataChanged((prev) => !prev);
       })
       .catch(() => {
         appNotifications.error({
@@ -544,16 +539,7 @@ const VerticalTable = ({
   data = [],
   editButton,
 }: VerticalTableProps) => (
-  <Card withBorder radius="md" p="md">
-    <Card.Section inheritPadding py="xs">
-      <Group justify="space-between" align="center">
-        <Text size="lg" fw={600} c="green">
-          {title}
-        </Text>
-        {editButton}
-      </Group>
-    </Card.Section>
-
+  <BasicCard title={title} actionButton={editButton} bodyProps={{ p: 0 }}>
     <Table variant="vertical" layout="fixed">
       <Table.Tbody>
         {data.map((item, index) => (
@@ -564,5 +550,5 @@ const VerticalTable = ({
         ))}
       </Table.Tbody>
     </Table>
-  </Card>
+  </BasicCard>
 );

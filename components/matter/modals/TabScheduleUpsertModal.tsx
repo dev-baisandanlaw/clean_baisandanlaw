@@ -1,6 +1,3 @@
-import { COLLECTIONS } from "@/constants/constants";
-import { db } from "@/firebase/config";
-import { Matter, Schedule } from "@/types/case";
 import {
   Button,
   Group,
@@ -15,42 +12,25 @@ import {
 } from "@mantine/core";
 import { DatePickerInput, TimePicker, TimeValue } from "@mantine/dates";
 import { useForm } from "@mantine/form";
-import dayjs from "dayjs";
-import {
-  arrayUnion,
-  collection,
-  doc,
-  getDocs,
-  query,
-  setDoc,
-  where,
-} from "firebase/firestore";
 import { useEffect, useState } from "react";
-import { nanoid } from "nanoid";
 import { Booking } from "@/types/booking";
-import axios from "axios";
-import { addMatterUpdate } from "../utils/addMatterUpdate";
 import { useUser } from "@clerk/nextjs";
-import { MatterUpdateType } from "@/types/matter-updates";
-import { appNotifications } from "@/utils/notifications/notifications";
+import { MatterSchedule, MatterTask } from "@/types/matter";
 
 interface TabScheduleUpsertModalProps {
   opened: boolean;
   onClose: () => void;
-  schedule: Schedule | null;
-  setDataChanged: React.Dispatch<React.SetStateAction<boolean>>;
-  matterData: Matter;
+  schedule: MatterSchedule | null;
+  matterData: MatterTask;
 }
 
 export default function TabScheduleUpsertModal({
   opened,
   onClose,
   schedule,
-  setDataChanged,
   matterData,
 }: TabScheduleUpsertModalProps) {
   const { user } = useUser();
-  const [isLoading, setIsLoading] = useState(false);
   const [attyBookings, setAttyBookings] = useState<Booking[]>([]);
 
   const isEdit = !!schedule;
@@ -65,82 +45,82 @@ export default function TabScheduleUpsertModal({
     },
   });
 
-  const fetchAttyBookings = async () => {
-    const { docs } = await getDocs(
-      query(
-        collection(db, COLLECTIONS.BOOKINGS),
-        where("attorney.id", "==", matterData.leadAttorney.id),
-        where("date", "==", dayjs(form.values.date).format("YYYY-MM-DD")),
-      ),
-    );
-    setAttyBookings(
-      docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Booking),
-    );
-  };
+  // const fetchAttyBookings = async () => {
+  //   const { docs } = await getDocs(
+  //     query(
+  //       collection(db, COLLECTIONS.BOOKINGS),
+  //       where("attorney.id", "==", matterData.leadAttorney.id),
+  //       where("date", "==", dayjs(form.values.date).format("YYYY-MM-DD")),
+  //     ),
+  //   );
+  //   setAttyBookings(
+  //     docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Booking),
+  //   );
+  // };
 
-  const handleSubmit = async (values: typeof form.values) => {
-    if (isEdit) return;
-    setIsLoading(true);
-    const day = dayjs(values.date).format("YYYY-MM-DD");
+  // const handleSubmit = async (values: typeof form.values) => {
+  //   if (isEdit) return;
+  //   setIsLoading(true);
+  //   const day = dayjs(values.date).format("YYYY-MM-DD");
 
-    await axios
-      .post("/api/google/calendar/add", {
-        title: `DO NOT REPLY - ${values.title}`,
-        description: values.description,
-        startISO: dayjs(`${day} ${values.time}`).toISOString(),
-        endISO: dayjs(`${day} ${values.time}`).toISOString(),
-        attendeesEmail: [
-          matterData.leadAttorney.email,
-          matterData.clientData.email,
-        ],
-        location: values.location,
-      })
-      .then(async ({ data: googleCalendar }) => {
-        await setDoc(
-          doc(db, COLLECTIONS.CASES, matterData.id),
-          {
-            schedules: arrayUnion({
-              ...values,
-              date: dayjs(values.date).format("YYYY-MM-DD"),
-              scheduleId: nanoid(10),
-              createdAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-              updatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-              googleCalendar,
-            }),
-          },
-          { merge: true },
-        )
-          .then(async () => {
-            await addMatterUpdate(
-              user!,
-              matterData.id,
-              user?.unsafeMetadata.role as string,
-              MatterUpdateType.SCHEDULE,
-              `Schedule Added: ${values.title}`,
-            );
-            setDataChanged((prev) => !prev);
-            appNotifications.success({
-              title: "Schedule added successfully",
-              message: "The schedule has been added successfully",
-            });
-            onClose();
-          })
-          .catch(() =>
-            appNotifications.error({
-              title: "Failed to add schedule",
-              message: "The schedule could not be added. Please try again.",
-            }),
-          )
-          .finally(() => setIsLoading(false));
-      })
-      .catch(() => {
-        appNotifications.error({
-          title: "Failed to add schedule",
-          message: "The schedule could not be added. Please try again.",
-        });
-        setIsLoading(false);
-      });
-  };
+  //   await axios
+  //     .post("/api/google/calendar/add", {
+  //       title: `DO NOT REPLY - ${values.title}`,
+  //       description: values.description,
+  //       startISO: dayjs(`${day} ${values.time}`).toISOString(),
+  //       endISO: dayjs(`${day} ${values.time}`).toISOString(),
+  //       attendeesEmail: [
+  //         matterData.leadAttorney.email,
+  //         matterData.clientData.email,
+  //       ],
+  //       location: values.location,
+  //     })
+  //     .then(async ({ data: googleCalendar }) => {
+  //       await setDoc(
+  //         doc(db, COLLECTIONS.CASES, matterData.id),
+  //         {
+  //           schedules: arrayUnion({
+  //             ...values,
+  //             date: dayjs(values.date).format("YYYY-MM-DD"),
+  //             scheduleId: nanoid(10),
+  //             createdAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
+  //             updatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
+  //             googleCalendar,
+  //           }),
+  //         },
+  //         { merge: true },
+  //       )
+  //         .then(async () => {
+  //           await addMatterUpdate(
+  //             user!,
+  //             matterData.id,
+  //             user?.unsafeMetadata.role as string,
+  //             MatterUpdateType.SCHEDULE,
+  //             `Schedule Added: ${values.title}`,
+  //           );
+  //           setDataChanged((prev) => !prev);
+  //           appNotifications.success({
+  //             title: "Schedule added successfully",
+  //             message: "The schedule has been added successfully",
+  //           });
+  //           onClose();
+  //         })
+  //         .catch(() =>
+  //           appNotifications.error({
+  //             title: "Failed to add schedule",
+  //             message: "The schedule could not be added. Please try again.",
+  //           }),
+  //         )
+  //         .finally(() => setIsLoading(false));
+  //     })
+  //     .catch(() => {
+  //       appNotifications.error({
+  //         title: "Failed to add schedule",
+  //         message: "The schedule could not be added. Please try again.",
+  //       });
+  //       setIsLoading(false);
+  //     });
+  // };
 
   useEffect(() => {
     if (!opened) {
@@ -149,10 +129,10 @@ export default function TabScheduleUpsertModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened]);
 
-  useEffect(() => {
-    if (form.values.date) fetchAttyBookings();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.values.date]);
+  // useEffect(() => {
+  //   if (form.values.date) fetchAttyBookings();
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [form.values.date]);
 
   return (
     <Modal
