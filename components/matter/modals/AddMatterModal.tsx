@@ -1,10 +1,9 @@
-import { useEffect, useState } from "react";
-
 import { useRouter } from "next/navigation";
 
 import {
   Button,
   Group,
+  Loader,
   Modal,
   Select,
   Stack,
@@ -14,14 +13,13 @@ import {
   useMantineTheme,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import axios from "axios";
 
-import { ATTY_PRACTICE_AREAS, CLERK_ORG_IDS } from "@/constants/constants";
+import { ATTY_PRACTICE_AREAS } from "@/constants/constants";
 import { appNotifications } from "@/utils/notifications/notifications";
 
-import { Attorney, Client } from "@/types/user";
 import { useCreateNewMatterMutation } from "@/store/services/matterService";
 import { CreateNewMatterDto } from "@/store/service-types/type-matter-service";
+import { useGetUsersByOrgQuery } from "@/store/services/userService";
 
 interface AddMatterModalProps {
   opened: boolean;
@@ -35,6 +33,17 @@ export default function AddMatterModal({
   const theme = useMantineTheme();
   const router = useRouter();
 
+  const {
+    data: users,
+    isLoading: isLoadingUsers,
+    isFetching: isFetchingUsers,
+  } = useGetUsersByOrgQuery(
+    {
+      types: ["attorney", "client"],
+    },
+    { skip: !opened },
+  );
+
   const [createNewMatterFn, { isLoading: isSubmitting }] =
     useCreateNewMatterMutation();
 
@@ -45,46 +54,49 @@ export default function AddMatterModal({
         fullname: "",
         id: "",
         email: "",
+        phone: "",
       },
       clientData: {
         fullname: "",
         id: "",
         email: "",
+        phone: "",
       },
       caseType: [],
       caseDescription: "",
     },
   });
 
-  const [isClientFetchCalled, setIsClientFetchCalled] = useState(false);
-  const [isAttorneyFetchCalled, setIsAttorneyFetchCalled] = useState(false);
-
-  const [clientUsers, setClientUsers] = useState<Client[]>([]);
-  const [attorneyUsers, setAttorneyUsers] = useState<Attorney[]>([]);
-
   const handleSubmit = async (values: typeof form.values) => {
-    const leadAttorneyDetails = attorneyUsers.find(
+    const leadAttorneyDetails = users?.attorney.find(
       (user) => user.id === values.leadAttorney.id,
     );
 
-    const clientDetails = clientUsers.find(
+    const clientDetails = users?.client.find(
       (user) => user.id === values.clientData.id,
     );
+
+    if (!leadAttorneyDetails || !clientDetails) {
+      appNotifications.error({
+        message: "Client or Attorney details are missing",
+        title: "Failed to create new Matter",
+      });
+      return;
+    }
 
     const payload = {
       ...values,
       leadAttorney: {
-        fullname:
-          leadAttorneyDetails?.first_name +
-          " " +
-          leadAttorneyDetails?.last_name,
+        fullname: leadAttorneyDetails?.fullname,
         id: leadAttorneyDetails?.id,
-        email: leadAttorneyDetails?.email_addresses[0].email_address,
+        email: leadAttorneyDetails?.email,
+        phone: leadAttorneyDetails?.phone || undefined,
       },
       clientData: {
-        fullname: clientDetails?.first_name + " " + clientDetails?.last_name,
+        fullname: clientDetails?.fullname,
         id: clientDetails?.id,
-        email: clientDetails?.email_addresses[0].email_address,
+        email: clientDetails?.email,
+        phone: clientDetails?.phone || undefined,
       },
       caseNumber: form.values.caseNumber.trim(),
     };
@@ -133,41 +145,7 @@ export default function AddMatterModal({
     // );
   };
 
-  useEffect(() => {
-    if (isClientFetchCalled && isAttorneyFetchCalled) {
-      form.reset();
-      return;
-    }
-
-    const fetchClientUsers = async () => {
-      const { data } = await axios.get("/api/clerk/organization/fetch", {
-        params: {
-          organization_id: CLERK_ORG_IDS.client,
-          limit: 500,
-        },
-      });
-
-      setClientUsers(data);
-      setIsClientFetchCalled(true);
-    };
-
-    const fetchAttorneyUsers = async () => {
-      const { data } = await axios.get("/api/clerk/organization/fetch", {
-        params: {
-          organization_id: CLERK_ORG_IDS.attorney,
-          limit: 500,
-        },
-      });
-
-      setAttorneyUsers(data);
-      setIsAttorneyFetchCalled(true);
-    };
-
-    fetchAttorneyUsers();
-    fetchClientUsers();
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isClientFetchCalled, isAttorneyFetchCalled, opened]);
+  const isLoading = isFetchingUsers || isLoadingUsers;
 
   return (
     <Modal
@@ -191,12 +169,14 @@ export default function AddMatterModal({
             withAsterisk
             label="Lead Attorney"
             placeholder="Jane Doe (jane.doe@example.com)"
-            data={attorneyUsers
-              .filter((user) => !user.banned)
-              .map((user) => ({
-                value: user.id,
-                label: `${user.first_name} ${user.last_name} (${user.email_addresses[0].email_address})`,
-              }))}
+            data={
+              users?.attorney?.map((u) => ({
+                value: u?.id || "",
+                label: `${u.fullname} (${u.email})`,
+              })) || []
+            }
+            rightSection={isLoading ? <Loader size="sm" /> : undefined}
+            disabled={isLoading}
             searchable
             clearable
             nothingFoundMessage="No attorneys found"
@@ -207,12 +187,16 @@ export default function AddMatterModal({
             withAsterisk
             label="Client"
             placeholder="Jane Doe (jane.doe@example.com)"
-            data={clientUsers.map((user) => ({
-              value: user.id,
-              label: `${user.first_name} ${user.last_name} (${user.email_addresses[0].email_address})`,
-            }))}
+            data={
+              users?.client?.map((u) => ({
+                value: u?.id || "",
+                label: `${u.fullname} (${u.email})`,
+              })) || []
+            }
             searchable
             clearable
+            rightSection={isLoading ? <Loader size="sm" /> : undefined}
+            disabled={isLoading}
             nothingFoundMessage="No clients found"
             {...form.getInputProps("clientData.id")}
           />

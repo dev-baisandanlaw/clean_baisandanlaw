@@ -92,10 +92,11 @@ export default function Page() {
         lastName: values.lastName,
         emailAddress: values.email,
         password: values.password,
+        phoneNumber: String("0" + values.phoneNumber),
 
         unsafeMetadata: {
           role: "client",
-          phoneNumber: values.phoneNumber,
+          phoneNumber: String("0" + values.phoneNumber),
           fullAddress: values.address,
           birthday: dayjs(values.birthday).format("YYYY-MM-DD"),
 

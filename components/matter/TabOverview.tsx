@@ -7,6 +7,7 @@ import {
   Button,
   Flex,
   Group,
+  Loader,
   Paper,
   Select,
   SimpleGrid,
@@ -23,19 +24,17 @@ import { useForm } from "@mantine/form";
 import { useMediaQuery } from "@mantine/hooks";
 import { IconPencil } from "@tabler/icons-react";
 import { useUser } from "@clerk/nextjs";
-import axios from "axios";
 
-import { ATTY_PRACTICE_AREAS, CLERK_ORG_IDS } from "@/constants/constants";
+import { ATTY_PRACTICE_AREAS } from "@/constants/constants";
 import { appNotifications } from "@/utils/notifications/notifications";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { AreaBadge } from "../Common/BadgeComp";
-import SubscriptionBadge from "../Common/SubscriptionBadge";
 
 import { Matter } from "@/types/matter";
 import { UserReference } from "@/types/user-reference";
-import { Attorney, Client } from "@/types/user";
 import { useUpdateMatterMutation } from "@/store/services/matterService";
 import BasicCard from "../Common/BasicCard";
+import { useGetUsersByOrgQuery } from "@/store/services/userService";
 
 // --- Types ---
 
@@ -62,12 +61,19 @@ interface EditFormValues {
 export default function TabOverview({ matterData }: MatterTabOverviewProps) {
   const shrink = useMediaQuery("(max-width: 948px)");
   const theme = useMantineTheme();
-  const { user } = useUser();
+  const { user, isLoaded, isSignedIn } = useUser();
+
+  const isAdmin = user?.unsafeMetadata?.role === "admin";
 
   const [updateMatterFn, { isLoading: isUpdatingMatter }] =
     useUpdateMatterMutation();
 
-  const isAdmin = user?.unsafeMetadata?.role === "admin";
+  const { data: users, isLoading: isLoadingUsers } = useGetUsersByOrgQuery(
+    {
+      types: ["attorney", "client"],
+    },
+    { skip: !isLoaded || !isSignedIn || !isAdmin },
+  );
 
   // Which section is being edited
   const [editModule, setEditModule] = useState("");
@@ -83,19 +89,15 @@ export default function TabOverview({ matterData }: MatterTabOverviewProps) {
     },
   });
 
-  // Clerk user lists (fetched on-demand when editing)
-  const [clientUsers, setClientUsers] = useState<Client[]>([]);
-  const [attorneyUsers, setAttorneyUsers] = useState<Attorney[]>([]);
-
   // Derived selected users for editing
   const selectedClientForEdit =
     editModule === "client"
-      ? clientUsers.find((u) => u.id === form.values.clientId)
+      ? users?.client.find((u) => u.id === form.values.clientId)
       : null;
 
   const selectedAttorneyForEdit =
     editModule === "attorney"
-      ? attorneyUsers.find((u) => u.id === form.values.attorneyId)
+      ? users?.attorney.find((u) => u.id === form.values.attorneyId)
       : null;
 
   // --- Update handler ---
@@ -122,13 +124,10 @@ export default function TabOverview({ matterData }: MatterTabOverviewProps) {
           if (!selectedClientForEdit) return {};
           const clientPayload: UserReference = {
             id: selectedClientForEdit.id,
-            fullname: `${selectedClientForEdit.first_name} ${selectedClientForEdit.last_name}`,
-            email: selectedClientForEdit.email_addresses[0].email_address,
+            fullname: selectedClientForEdit.fullname,
+            email: selectedClientForEdit.email,
+            phone: selectedClientForEdit?.phone || undefined,
           };
-          if (selectedClientForEdit.unsafe_metadata?.phoneNumber) {
-            clientPayload.phone =
-              selectedClientForEdit.unsafe_metadata.phoneNumber;
-          }
           return { clientData: clientPayload };
         }
 
@@ -137,8 +136,9 @@ export default function TabOverview({ matterData }: MatterTabOverviewProps) {
           return {
             leadAttorney: {
               id: selectedAttorneyForEdit.id,
-              fullname: `${selectedAttorneyForEdit.first_name} ${selectedAttorneyForEdit.last_name}`,
-              email: selectedAttorneyForEdit.email_addresses[0].email_address,
+              fullname: selectedAttorneyForEdit.fullname,
+              email: selectedAttorneyForEdit.email,
+              phone: selectedAttorneyForEdit.phone,
             },
           };
         }
@@ -160,10 +160,14 @@ export default function TabOverview({ matterData }: MatterTabOverviewProps) {
         });
         setEditModule("");
       })
-      .catch(() => {
+      .catch((e) => {
+        const message =
+          e?.data?.message ??
+          "The update could not be completed. Please try again.";
+
         appNotifications.error({
-          title: "Update failed",
-          message: "The update could not be completed. Please try again.",
+          title: "Update Matter failed",
+          message,
         });
       });
   };
@@ -247,10 +251,6 @@ export default function TabOverview({ matterData }: MatterTabOverviewProps) {
       th: "Date Created",
       td: getDateFormatDisplay(matterData.createdAt, true),
     },
-    {
-      th: "Last Update",
-      td: getDateFormatDisplay(matterData.updatedAt, true),
-    },
   ];
 
   const clientDetailsCardData = [
@@ -260,10 +260,12 @@ export default function TabOverview({ matterData }: MatterTabOverviewProps) {
         editModule === "client" ? (
           <Select
             size="xs"
-            data={clientUsers.map((u) => ({
-              value: u.id,
-              label: `${u.first_name} ${u.last_name}`,
+            data={users?.client.map((u) => ({
+              value: u?.id || "",
+              label: u.fullname,
             }))}
+            disabled={isLoadingUsers}
+            rightSection={isLoadingUsers ? <Loader size="sm" /> : null}
             searchable
             clearable
             nothingFoundMessage="No clients found"
@@ -280,8 +282,8 @@ export default function TabOverview({ matterData }: MatterTabOverviewProps) {
       td: (
         <Text c="green" fw={600} size="sm">
           {editModule === "client"
-            ? selectedClientForEdit?.email_addresses[0].email_address || ""
-            : matterData.clientData?.email || ""}
+            ? selectedClientForEdit?.email || "-"
+            : matterData.clientData?.email || "-"}
         </Text>
       ),
     },
@@ -289,22 +291,8 @@ export default function TabOverview({ matterData }: MatterTabOverviewProps) {
       th: "Phone",
       td:
         editModule === "client"
-          ? selectedClientForEdit?.unsafe_metadata?.phoneNumber || "-"
-          : "-",
-    },
-    {
-      th: "Subscription",
-      td: (
-        <SubscriptionBadge
-          isSubscribed={
-            editModule === "client"
-              ? selectedClientForEdit?.unsafe_metadata?.subscription
-                  ?.isSubscribed || false
-              : false
-          }
-          compact
-        />
-      ),
+          ? selectedClientForEdit?.phone || "-"
+          : matterData?.clientData?.phone || "-",
     },
   ];
 
@@ -315,12 +303,12 @@ export default function TabOverview({ matterData }: MatterTabOverviewProps) {
         editModule === "attorney" ? (
           <Select
             size="xs"
-            data={attorneyUsers
-              .filter((u) => !u.banned)
-              .map((u) => ({
-                value: u.id,
-                label: `${u.first_name} ${u.last_name}`,
-              }))}
+            data={users?.attorney.map((u) => ({
+              value: u?.id || "",
+              label: u.fullname,
+            }))}
+            disabled={isLoadingUsers}
+            rightSection={isLoadingUsers ? <Loader size="sm" /> : null}
             searchable
             clearable
             nothingFoundMessage="No attorneys found"
@@ -337,8 +325,8 @@ export default function TabOverview({ matterData }: MatterTabOverviewProps) {
       td: (
         <Text c="green" fw={600} size="sm">
           {editModule === "attorney"
-            ? selectedAttorneyForEdit?.email_addresses[0].email_address || ""
-            : matterData.leadAttorney.email || ""}
+            ? selectedAttorneyForEdit?.email || "-"
+            : matterData.leadAttorney.email || "-"}
         </Text>
       ),
     },
@@ -346,34 +334,10 @@ export default function TabOverview({ matterData }: MatterTabOverviewProps) {
       th: "Phone",
       td:
         editModule === "attorney"
-          ? selectedAttorneyForEdit?.unsafe_metadata?.phoneNumber || "-"
-          : "-",
+          ? selectedAttorneyForEdit?.phone || "-"
+          : matterData?.leadAttorney?.phone || "-",
     },
   ];
-
-  // --- Effects ---
-
-  useEffect(() => {
-    if (editModule === "client" && clientUsers.length === 0) {
-      axios
-        .get("/api/clerk/organization/fetch", {
-          params: { organization_id: CLERK_ORG_IDS.client, limit: 500 },
-        })
-        .then(({ data }) => setClientUsers(data))
-        .catch((err) => console.error("Failed to fetch clients:", err));
-    }
-  }, [editModule, clientUsers.length]);
-
-  useEffect(() => {
-    if (editModule === "attorney" && attorneyUsers.length === 0) {
-      axios
-        .get("/api/clerk/organization/fetch", {
-          params: { organization_id: CLERK_ORG_IDS.attorney, limit: 500 },
-        })
-        .then(({ data }) => setAttorneyUsers(data))
-        .catch((err) => console.error("Failed to fetch attorneys:", err));
-    }
-  }, [editModule, attorneyUsers.length]);
 
   // Sync form when matterData changes (e.g. after refetch)
   useEffect(() => {
