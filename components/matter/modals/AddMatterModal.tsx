@@ -90,8 +90,9 @@ export default function AddMatterModal({
     };
 
     createNewMatterFn(payload)
+      .unwrap()
       .then(({ data }) => {
-        const id = data?.data.id;
+        const id = data?.id;
 
         appNotifications.success({
           title: "Matter added successfully",
@@ -103,12 +104,13 @@ export default function AddMatterModal({
         router.push(`/matters/${id}`);
       })
       .catch((e) => {
+        const message = e?.data?.message
+          ? e.data.message
+          : "The matter could not be added. Please try again.";
+
         appNotifications.error({
           title: "Failed to add matter",
-          message:
-            typeof e === "string"
-              ? e
-              : "The matter could not be added. Please try again.",
+          message,
         });
       });
 

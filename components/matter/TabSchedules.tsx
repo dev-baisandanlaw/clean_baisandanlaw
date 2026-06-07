@@ -104,13 +104,13 @@ export default function TabSchedules({ matterData }: TabSchedulesProps) {
       </Card>
       </Stack>*/}
 
-          <TabScheduleUpsertModal
+          {/* <TabScheduleUpsertModal
             opened={schedModal}
             onClose={closeSchedModal}
             schedule={selectedSchedule}
             setDataChanged={setDataChanged}
             matterData={matterData}
-          />
+          /> */}
         </BasicCard>
       </Stack>
     </>

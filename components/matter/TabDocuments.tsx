@@ -29,12 +29,14 @@ import { Matter } from "@/types/matter";
 import { Document } from "@/types/document";
 import BasicCard from "../Common/BasicCard";
 import DetailField from "../Common/DetailField";
+import { useUser } from "@clerk/nextjs";
 
 interface MatterTabDocumentsProps {
   matterData: Matter;
 }
 
 export default function TabDocuments({ matterData }: MatterTabDocumentsProps) {
+  const { user } = useUser();
   const [selectedDocument, setSelectedDocument] = useState<Document>();
 
   const [
@@ -223,17 +225,26 @@ export default function TabDocuments({ matterData }: MatterTabDocumentsProps) {
                           <IconFileDownload size={24} />
                         </ActionIcon>
 
-                        <ActionIcon
-                          variant="subtle"
-                          size="sm"
-                          color="red"
-                          onClick={() => {
-                            setSelectedDocument(doc);
-                            openDeleteModalFile();
-                          }}
-                        >
-                          <IconTrash />
-                        </ActionIcon>
+                        {user?.unsafeMetadata?.role !== "client" ||
+                          (user?.unsafeMetadata?.role === "client" &&
+                            user.id === doc.uploadedBy.id && (
+                              <ActionIcon
+                                variant="subtle"
+                                size="sm"
+                                color="red"
+                                onClick={() => {
+                                  setSelectedDocument(doc);
+                                  openDeleteModalFile();
+                                }}
+                                disabled={
+                                  user?.unsafeMetadata?.role === "client"
+                                    ? doc.uploadedBy.id !== user.id
+                                    : false
+                                }
+                              >
+                                <IconTrash />
+                              </ActionIcon>
+                            ))}
                       </Group>
                     </Table.Td>
                   </Table.Tr>
