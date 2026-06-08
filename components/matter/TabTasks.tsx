@@ -155,7 +155,7 @@ export default function TabTasks({ matterData }: MatterTabTasksProps) {
           actionButton={
             user?.unsafeMetadata?.role !== "client" && (
               <Button
-                leftSection={<IconCirclePlus />}
+                leftSection={<IconCirclePlus size={18} />}
                 size="xs"
                 variant="outline"
                 onClick={openAddTaskModal}

@@ -14,8 +14,8 @@ import {
 import { getMimeTypeIcon } from "@/utils/getMimeTypeIcon";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import {
-  IconCirclePlus,
   IconFileDownload,
+  IconFileUpload,
   IconTrash,
 } from "@tabler/icons-react";
 import TabDocumentDeleteFileModal from "./modals/TabDocumentDeleteFileModal";
@@ -120,7 +120,7 @@ export default function TabDocuments({ matterData }: MatterTabDocumentsProps) {
           title="Documents"
           actionButton={
             <Button
-              leftSection={<IconCirclePlus />}
+              leftSection={<IconFileUpload size={16} />}
               size="xs"
               variant="outline"
               onClick={openUploadModalFile}

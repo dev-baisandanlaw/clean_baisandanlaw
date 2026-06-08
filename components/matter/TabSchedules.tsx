@@ -55,7 +55,7 @@ export default function TabSchedules({ matterData }: TabSchedulesProps) {
           actionButton={
             user?.unsafeMetadata?.role !== "client" && (
               <Button
-                leftSection={<IconCirclePlus />}
+                leftSection={<IconCirclePlus size={18} />}
                 size="xs"
                 variant="outline"
                 // onClick={() => handleSelectSchedule(null)}
