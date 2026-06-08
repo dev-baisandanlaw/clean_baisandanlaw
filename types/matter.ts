@@ -1,4 +1,5 @@
 import { Document } from "./document";
+import { Note } from "./notes";
 import { TaskStatus } from "./task";
 import { UserReference } from "./user-reference";
 
@@ -17,6 +18,7 @@ export interface Matter {
   documents?: Document[];
   tasks?: MatterTask[];
   schedules?: MatterSchedule[];
+  notes?: Note[];
 
   googleDriveFolderId: string;
   status: string;

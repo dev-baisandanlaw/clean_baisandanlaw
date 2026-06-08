@@ -65,7 +65,12 @@ const theme = createTheme({
 
   components: {
     TextInput: { defaultProps: { maxLength: 75 } },
-    Textarea: { defaultProps: { maxLength: 1000 } },
+    Textarea: {
+      defaultProps: {
+        maxLength: 1000,
+        inputWrapperOrder: ["label", "error", "input", "description"],
+      },
+    },
     TagsInput: {
       defaultProps: {
         maxTags: 10,

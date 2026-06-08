@@ -8,7 +8,6 @@ import {
   Flex,
   Group,
   Loader,
-  Paper,
   Select,
   SimpleGrid,
   Spoiler,
@@ -35,6 +34,7 @@ import { UserReference } from "@/types/user-reference";
 import { useUpdateMatterMutation } from "@/store/services/matterService";
 import BasicCard from "../Common/BasicCard";
 import { useGetUsersByOrgQuery } from "@/store/services/userService";
+import NoteSection from "../Common/notes/NoteSection";
 
 // --- Types ---
 
@@ -75,10 +75,8 @@ export default function TabOverview({ matterData }: MatterTabOverviewProps) {
     { skip: !isLoaded || !isSignedIn || !isAdmin },
   );
 
-  // Which section is being edited
   const [editModule, setEditModule] = useState("");
 
-  // Consolidated form state via useForm
   const form = useForm<EditFormValues>({
     initialValues: {
       caseNumber: matterData.caseNumber,
@@ -89,7 +87,6 @@ export default function TabOverview({ matterData }: MatterTabOverviewProps) {
     },
   });
 
-  // Derived selected users for editing
   const selectedClientForEdit =
     editModule === "client"
       ? users?.client.find((u) => u.id === form.values.clientId)
@@ -99,8 +96,6 @@ export default function TabOverview({ matterData }: MatterTabOverviewProps) {
     editModule === "attorney"
       ? users?.attorney.find((u) => u.id === form.values.attorneyId)
       : null;
-
-  // --- Update handler ---
 
   const handleUpdateMatter = () => {
     const preparePayload = (): Partial<{
@@ -172,8 +167,6 @@ export default function TabOverview({ matterData }: MatterTabOverviewProps) {
       });
   };
 
-  // --- Cancel: reset form fields to original values ---
-
   const handleCancel = (module: string) => {
     switch (module) {
       case "matter":
@@ -192,8 +185,6 @@ export default function TabOverview({ matterData }: MatterTabOverviewProps) {
     }
     setEditModule("");
   };
-
-  // --- Card data ---
 
   const caseDetailsCardData = [
     {
@@ -359,13 +350,13 @@ export default function TabOverview({ matterData }: MatterTabOverviewProps) {
     if (editModule !== module) {
       return (
         <ActionIcon
-          variant="white"
+          variant="subtle"
           size="sm"
           color={theme.other.customPumpkin}
           onClick={() => setEditModule(module)}
           disabled={!!editModule}
         >
-          <IconPencil size={20} />
+          <IconPencil size={18} />
         </ActionIcon>
       );
     }
@@ -393,7 +384,6 @@ export default function TabOverview({ matterData }: MatterTabOverviewProps) {
   };
 
   // --- Render ---
-
   return (
     <Flex direction="column" gap="md">
       <SimpleGrid cols={shrink ? 1 : 3}>
@@ -426,56 +416,22 @@ export default function TabOverview({ matterData }: MatterTabOverviewProps) {
         />
       </SimpleGrid>
 
-      <Paper withBorder radius="md" p="md">
-        <Group align="center" mb="sm" gap={4} justify="space-between">
-          <Text size="lg" fw={600} c="green">
-            Description
-          </Text>
-
-          {editModule !== "description" &&
-            user?.unsafeMetadata.role !== "client" && (
-              <ActionIcon
-                variant="white"
-                size="sm"
-                color={theme.other.customPumpkin}
-                onClick={() => setEditModule("description")}
-                disabled={!!editModule}
-              >
-                <IconPencil size={20} />
-              </ActionIcon>
-            )}
-
-          {editModule === "description" && (
-            <Group gap={4}>
-              <Button
-                size="xs"
-                variant="default"
-                onClick={() => handleCancel("description")}
-                disabled={isUpdatingMatter}
-              >
-                Discard
-              </Button>
-              <Button
-                size="xs"
-                loading={isUpdatingMatter}
-                onClick={handleUpdateMatter}
-                disabled={
-                  !form.values.description.trim().length ||
-                  matterData.caseDescription === form.values.description
-                }
-              >
-                Save
-              </Button>
-            </Group>
-          )}
-        </Group>
-
+      <BasicCard
+        title="Description"
+        actionButton={renderEditButton(
+          "description",
+          !form.values.description ||
+            form.values.description === matterData.caseDescription,
+        )}
+      >
         {editModule === "description" ? (
           <Textarea
             minRows={6}
             autosize
             styles={{ input: { paddingBlock: 6 } }}
             {...form.getInputProps("description")}
+            inputWrapperOrder={["label", "error", "input", "description"]}
+            description={`${form.values.description.length}/1000 characters`}
           />
         ) : (
           <Spoiler
@@ -491,7 +447,13 @@ export default function TabOverview({ matterData }: MatterTabOverviewProps) {
             </Text>
           </Spoiler>
         )}
-      </Paper>
+      </BasicCard>
+
+      <NoteSection
+        from="matter"
+        notes={matterData?.notes || []}
+        slugId={matterData?.id || ""}
+      />
     </Flex>
   );
 }
