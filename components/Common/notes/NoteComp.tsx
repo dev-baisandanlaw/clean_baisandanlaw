@@ -1,13 +1,16 @@
 import { Note } from "@/types/notes";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
-import { ActionIcon, Group, Paper, Stack, Text, Textarea } from "@mantine/core";
-import { UseFormReturnType } from "@mantine/form";
 import {
-  IconCancel,
-  IconCheck,
-  IconPencil,
-  IconTrash,
-} from "@tabler/icons-react";
+  ActionIcon,
+  Button,
+  Group,
+  Paper,
+  Stack,
+  Text,
+  Textarea,
+} from "@mantine/core";
+import { UseFormReturnType } from "@mantine/form";
+import { IconPencil, IconTrash } from "@tabler/icons-react";
 import React, { SetStateAction } from "react";
 
 export default function NoteComp({
@@ -67,25 +70,23 @@ export default function NoteComp({
 
           {canPerformAction && editingId === note.id && (
             <Group gap="2">
-              <ActionIcon
+              <Button
+                size="compact-xs"
+                variant="default"
+                onClick={() => setEditingId("")}
+                disabled={isUpdating}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="compact-xs"
                 variant="filled"
-                size="xs"
-                color="green"
                 onClick={() => handleUpdateNote(note.id)}
                 disabled={form.values.note.trim().length === 0}
                 loading={isUpdating}
               >
-                <IconCheck size={16} />
-              </ActionIcon>
-              <ActionIcon
-                variant="filled"
-                size="xs"
-                color="orange"
-                onClick={() => setEditingId("")}
-                disabled={isUpdating}
-              >
-                <IconCancel size={16} />
-              </ActionIcon>
+                Save
+              </Button>
             </Group>
           )}
         </Group>
