@@ -63,7 +63,7 @@ export default function TabTasksAddTaskModal({
           : {
               id: `id-${nanoid(8)}-staff`,
               fullname: form.values.staffName,
-              email: `email-${nanoid(8)}-staff`,
+              email: `email-${nanoid(8)}-staff@example.com`,
               division: "Staff",
             };
 

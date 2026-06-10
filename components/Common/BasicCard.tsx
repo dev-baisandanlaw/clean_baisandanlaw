@@ -13,6 +13,7 @@ interface BasicCardProps extends Omit<CardProps, "children"> {
   title?: string;
   headerProps?: CardSectionProps;
   bodyProps?: CardSectionProps;
+  containerProps?: CardProps;
   actionButton?: ReactNode;
 }
 
@@ -21,10 +22,18 @@ const BasicCard = ({
   title,
   headerProps,
   bodyProps,
+  containerProps,
   actionButton,
 }: BasicCardProps) => {
   return (
-    <Card shadow="none" padding="none" radius="md" p="none" withBorder>
+    <Card
+      shadow="none"
+      padding="none"
+      radius="md"
+      p="none"
+      withBorder
+      {...containerProps}
+    >
       <CardSection withBorder p="sm" bg="gray.0" {...headerProps}>
         <Group justify="space-between">
           <Text fz="sm" fw={700} c="green">

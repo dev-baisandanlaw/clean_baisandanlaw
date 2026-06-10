@@ -11,6 +11,7 @@ import {
   Select,
   SimpleGrid,
   Spoiler,
+  Stack,
   Table,
   TagsInput,
   Text,
@@ -35,6 +36,7 @@ import { useUpdateMatterMutation } from "@/store/services/matterService";
 import BasicCard from "../Common/BasicCard";
 import { useGetUsersByOrgQuery } from "@/store/services/userService";
 import NoteSection from "../Common/notes/NoteSection";
+import UpdatesSection from "../Common/updates/UpdatesSection";
 
 // --- Types ---
 
@@ -416,44 +418,53 @@ export default function TabOverview({ matterData }: MatterTabOverviewProps) {
         />
       </SimpleGrid>
 
-      <BasicCard
-        title="Description"
-        actionButton={renderEditButton(
-          "description",
-          !form.values.description ||
-            form.values.description === matterData.caseDescription,
-        )}
-      >
-        {editModule === "description" ? (
-          <Textarea
-            minRows={6}
-            autosize
-            styles={{ input: { paddingBlock: 6 } }}
-            {...form.getInputProps("description")}
-            inputWrapperOrder={["label", "error", "input", "description"]}
-            description={`${form.values.description.length}/1000 characters`}
-          />
-        ) : (
-          <Spoiler
-            maxHeight={80}
-            showLabel="Show more"
-            hideLabel="Show less"
-            styles={{
-              control: { fontWeight: 700, color: "#448AFF", fontSize: 14 },
-            }}
+      <Flex direction={shrink ? "column" : "row"} gap="sm" align="flex-start">
+        <Stack flex={3} w="100%">
+          <BasicCard
+            title="Description"
+            actionButton={renderEditButton(
+              "description",
+              !form.values.description ||
+                form.values.description === matterData.caseDescription,
+            )}
+            containerProps={{ w: "100%" }}
           >
-            <Text size="sm" mr="xl" style={{ whiteSpace: "pre-wrap" }}>
-              {matterData.caseDescription || "-"}
-            </Text>
-          </Spoiler>
-        )}
-      </BasicCard>
+            {editModule === "description" ? (
+              <Textarea
+                minRows={6}
+                autosize
+                styles={{ input: { paddingBlock: 6 } }}
+                {...form.getInputProps("description")}
+                inputWrapperOrder={["label", "error", "input", "description"]}
+                description={`${form.values.description.length}/1000 characters`}
+              />
+            ) : (
+              <Spoiler
+                maxHeight={80}
+                showLabel="Show more"
+                hideLabel="Show less"
+                styles={{
+                  control: { fontWeight: 700, color: "#448AFF", fontSize: 14 },
+                }}
+              >
+                <Text size="sm" mr="xl" style={{ whiteSpace: "pre-wrap" }}>
+                  {matterData.caseDescription || "-"}
+                </Text>
+              </Spoiler>
+            )}
+          </BasicCard>
 
-      <NoteSection
-        from="matter"
-        notes={matterData?.notes || []}
-        slugId={matterData?.id || ""}
-      />
+          <NoteSection
+            from="matter"
+            notes={matterData?.notes || []}
+            slugId={matterData?.id || ""}
+          />
+        </Stack>
+
+        <Stack flex={2} w="100%">
+          <UpdatesSection updates={matterData?.updates || []} />
+        </Stack>
+      </Flex>
     </Flex>
   );
 }

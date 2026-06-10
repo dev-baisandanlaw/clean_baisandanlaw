@@ -35,7 +35,10 @@ export default function MatterDetailsFeature({
 
   const { data: matterDetails, isLoading: isFetchingMatterDetails } =
     useGetSingleMatterQuery(
-      { id: matterId!, options: ["documents", "tasks", "schedules", "notes"] },
+      {
+        id: matterId!,
+        options: ["documents", "tasks", "schedules", "notes", "updates"],
+      },
       { skip: !matterId || !isLoaded },
     );
 

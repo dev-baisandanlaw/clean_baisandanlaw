@@ -113,6 +113,14 @@ export default function TabDocuments({ matterData }: MatterTabDocumentsProps) {
     }
   };
 
+  const canDelete = (doc: Document) => {
+    if (!user) return false;
+
+    return (
+      user.unsafeMetadata?.role !== "client" || user.id === doc.uploadedBy.id
+    );
+  };
+
   return (
     <>
       <Flex direction="column" gap="md">
@@ -138,10 +146,9 @@ export default function TabDocuments({ matterData }: MatterTabDocumentsProps) {
             <DetailField
               title="Size"
               value={`${
-                matterData?.documents?.reduce(
-                  (sum, doc) => sum + Number(doc.sizeInMb || 0),
-                  0,
-                ) || "0"
+                matterData?.documents
+                  ?.reduce((sum, doc) => sum + Number(doc.sizeInMb || 0), 0)
+                  .toFixed(2) || "0"
               } MB`}
             />
 
@@ -225,26 +232,24 @@ export default function TabDocuments({ matterData }: MatterTabDocumentsProps) {
                           <IconFileDownload size={24} />
                         </ActionIcon>
 
-                        {user?.unsafeMetadata?.role !== "client" ||
-                          (user?.unsafeMetadata?.role === "client" &&
-                            user.id === doc.uploadedBy.id && (
-                              <ActionIcon
-                                variant="subtle"
-                                size="sm"
-                                color="red"
-                                onClick={() => {
-                                  setSelectedDocument(doc);
-                                  openDeleteModalFile();
-                                }}
-                                disabled={
-                                  user?.unsafeMetadata?.role === "client"
-                                    ? doc.uploadedBy.id !== user.id
-                                    : false
-                                }
-                              >
-                                <IconTrash />
-                              </ActionIcon>
-                            ))}
+                        {canDelete(doc) && (
+                          <ActionIcon
+                            variant="subtle"
+                            size="sm"
+                            color="red"
+                            onClick={() => {
+                              setSelectedDocument(doc);
+                              openDeleteModalFile();
+                            }}
+                            disabled={
+                              user?.unsafeMetadata?.role === "client"
+                                ? doc.uploadedBy.id !== user.id
+                                : false
+                            }
+                          >
+                            <IconTrash />
+                          </ActionIcon>
+                        )}
                       </Group>
                     </Table.Td>
                   </Table.Tr>
