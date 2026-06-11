@@ -125,24 +125,6 @@ export default function AddMatterModal({
           message,
         });
       });
-
-    // // 3. Update lead attorney's involved cases count
-    // await axios.patch("/api/clerk/user/update-user-metadata", {
-    //   userId: leadAttorneyDetails?.id,
-    //   unsafe_metadata: {
-    //     ...leadAttorneyDetails?.unsafe_metadata,
-    //     involvedCases: attyCasesCount + 1,
-    //   },
-    // });
-
-    // // 6. Add matter update
-    // await addMatterUpdate(
-    //   user!,
-    //   res.id,
-    //   "system",
-    //   MatterUpdateType.SYSTEM,
-    //   "Matter Initiated",
-    // );
   };
 
   const isLoading = isFetchingUsers || isLoadingUsers;

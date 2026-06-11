@@ -6,10 +6,10 @@ import {
   ActionIcon,
   Button,
   Flex,
-  Group,
   Pagination,
   Paper,
   Progress,
+  Stack,
   Table,
   TableScrollContainer,
   Text,
@@ -27,7 +27,6 @@ import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import EmptyTableComponent from "@/components/EmptyTableComponent";
 import AddMatterModal from "@/components/matter/modals/AddMatterModal";
 
-import { AreaBadge } from "@/components/Common/BadgeComp";
 import { useGetAllMattersQuery } from "@/store/services/matterService";
 
 export default function MattersListing() {
@@ -66,7 +65,6 @@ export default function MattersListing() {
             <Table.Th>Matter No.</Table.Th>
             <Table.Th>Attorney</Table.Th>
             <Table.Th>Client</Table.Th>
-            <Table.Th>Matter Type</Table.Th>
             <Table.Th>Date Created</Table.Th>
             <Table.Th>Date Updated</Table.Th>
             <Table.Th ta="center">Actions</Table.Th>
@@ -79,7 +77,7 @@ export default function MattersListing() {
       <Table.Thead>
         <Table.Tr>
           <Table.Th>Matter #</Table.Th>
-          <Table.Th>Lead Attorney</Table.Th>
+          <Table.Th>Attorney</Table.Th>
           <Table.Th>Case Type</Table.Th>
           <Table.Th>Created At</Table.Th>
           <Table.Th ta="center">Actions</Table.Th>
@@ -160,9 +158,16 @@ export default function MattersListing() {
                         <Text size="sm">{matter.leadAttorney.fullname}</Text>
                       </Table.Td>
                       {user?.unsafeMetadata?.role !== "client" && (
-                        <Table.Td>{matter.clientData.fullname}</Table.Td>
+                        <Table.Td>
+                          <Stack gap={2}>
+                            <Text size="sm">{matter.clientData.fullname}</Text>
+                            <Text size="xs" c="dimmed">
+                              {matter.clientData.email}
+                            </Text>
+                          </Stack>
+                        </Table.Td>
                       )}
-                      <Table.Td width={200}>
+                      {/* <Table.Td width={200}>
                         <Group gap={2}>
                           {matter.caseType?.slice(0, 3).map((type) => (
                             <AreaBadge key={type} area={type} />
@@ -173,7 +178,7 @@ export default function MattersListing() {
                             />
                           )}
                         </Group>
-                      </Table.Td>
+                      </Table.Td> */}
 
                       <Table.Td>
                         {getDateFormatDisplay(matter.createdAt, true)}

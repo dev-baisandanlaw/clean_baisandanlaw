@@ -1,6 +1,7 @@
 import { baseQueryWithAuth } from "@/lib/baseQuery";
 import { createApi } from "@reduxjs/toolkit/query/react";
 import { matterService } from "./matterService";
+import { retainerService } from "./retainerService";
 
 export const noteService = createApi({
   reducerPath: "noteService",
@@ -26,6 +27,7 @@ export const noteService = createApi({
       async onQueryStarted(_, { dispatch, queryFulfilled }) {
         await queryFulfilled;
         dispatch(matterService.util.invalidateTags(["Matter"]));
+        dispatch(retainerService.util.invalidateTags(["Retainer"]));
       },
     }),
 
@@ -43,6 +45,7 @@ export const noteService = createApi({
       async onQueryStarted(_, { dispatch, queryFulfilled }) {
         await queryFulfilled;
         dispatch(matterService.util.invalidateTags(["Matter"]));
+        dispatch(retainerService.util.invalidateTags(["Retainer"]));
       },
     }),
 
@@ -61,6 +64,7 @@ export const noteService = createApi({
       async onQueryStarted(_, { dispatch, queryFulfilled }) {
         await queryFulfilled;
         dispatch(matterService.util.invalidateTags(["Matter"]));
+        dispatch(retainerService.util.invalidateTags(["Retainer"]));
       },
     }),
   }),
