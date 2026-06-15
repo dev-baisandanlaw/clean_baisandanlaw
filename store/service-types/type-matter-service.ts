@@ -1,16 +1,19 @@
 import { Matter } from "@/types/matter";
+import { GenericPaginatedResponse } from "@/types/pagination";
 import { UserReference } from "@/types/user-reference";
 
-export type MatterListingResponse = Pick<
-  Matter,
-  | "id"
-  | "caseNumber"
-  | "caseType"
-  | "clientData"
-  | "leadAttorney"
-  | "createdAt"
-  | "updatedAt"
->[];
+export type MatterListingResponse = GenericPaginatedResponse<
+  Pick<
+    Matter,
+    | "id"
+    | "caseNumber"
+    | "caseType"
+    | "clientData"
+    | "leadAttorney"
+    | "createdAt"
+    | "updatedAt"
+  >
+>;
 
 export interface CreateNewMatterDto {
   caseNumber: string;

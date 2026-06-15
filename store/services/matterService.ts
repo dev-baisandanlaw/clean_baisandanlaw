@@ -12,8 +12,18 @@ export const matterService = createApi({
   baseQuery: baseQueryWithAuth,
   tagTypes: ["Matter"],
   endpoints: (builder) => ({
-    getAllMatters: builder.query<MatterListingResponse, void>({
-      query: () => "/matters/listing",
+    getAllMatters: builder.query<
+      MatterListingResponse,
+      { page: number; limit: number; search?: string }
+    >({
+      query: ({ page, limit, search }) => {
+        const params = new URLSearchParams();
+        params.append("page", page.toString());
+        params.append("limit", limit.toString());
+        params.append("search", search?.trim() || "");
+
+        return `/matters/listing?${params.toString()}`;
+      },
       providesTags: ["Matter"],
     }),
 

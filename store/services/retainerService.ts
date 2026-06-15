@@ -12,8 +12,17 @@ export const retainerService = createApi({
   baseQuery: baseQueryWithAuth,
   tagTypes: ["Retainer"],
   endpoints: (builder) => ({
-    getAllRetainers: builder.query<RetainerListingResponse, void>({
-      query: () => "/retainers/listing",
+    getAllRetainers: builder.query<
+      RetainerListingResponse,
+      { page: number; limit: number; search?: string }
+    >({
+      query: ({ page, limit, search }) => {
+        const params = new URLSearchParams();
+        params.append("page", page.toString());
+        params.append("limit", limit.toString());
+        params.append("search", search?.trim() || "");
+        return `/retainers/listing?${params.toString()}`;
+      },
       providesTags: ["Retainer"],
     }),
 
