@@ -10,7 +10,7 @@ export const metadata = {
 export default async function AttorneysPage() {
   const user = await currentUser();
 
-  if (user?.unsafeMetadata?.role !== "client") {
+  if (user?.unsafeMetadata?.role !== "admin") {
     redirect("/appointments?error=unauthorized");
   }
 
