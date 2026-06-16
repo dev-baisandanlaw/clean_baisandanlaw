@@ -1,10 +1,7 @@
-import { useRouter } from "next/navigation";
-
 import {
   Button,
   Group,
   Loader,
-  Modal,
   Select,
   Stack,
   TagsInput,
@@ -20,6 +17,8 @@ import { appNotifications } from "@/utils/notifications/notifications";
 import { useCreateNewMatterMutation } from "@/store/services/matterService";
 import { CreateNewMatterDto } from "@/store/service-types/type-matter-service";
 import { useGetUsersByOrgQuery } from "@/store/services/userService";
+import AppModal from "@/components/Common/modal/AppModal";
+import { useRouter } from "nextjs-toploader/app";
 
 interface AddMatterModalProps {
   opened: boolean;
@@ -130,14 +129,14 @@ export default function AddMatterModal({
   const isLoading = isFetchingUsers || isLoadingUsers;
 
   return (
-    <Modal
+    <AppModal
       opened={opened}
       onClose={onClose}
-      title="Add Matter"
-      centered
+      title="New Matter"
       transitionProps={{ transition: "pop" }}
       size="lg"
-      withCloseButton={!isSubmitting}
+      type="success"
+      closable={!isSubmitting}
     >
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack gap="md">
@@ -228,6 +227,6 @@ export default function AddMatterModal({
           </Group>
         </Stack>
       </form>
-    </Modal>
+    </AppModal>
   );
 }

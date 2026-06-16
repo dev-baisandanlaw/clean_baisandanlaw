@@ -169,7 +169,7 @@ export default function DowngradeSubscriptionModal({
             <Group grow mt="lg">
               <Button
                 variant="filled"
-                color={theme.colors.red[6]}
+                color="red.5"
                 onClick={handleCancelSubscription}
                 loading={isLoading}
               >

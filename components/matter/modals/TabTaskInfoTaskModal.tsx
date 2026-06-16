@@ -1,7 +1,7 @@
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { getMatterStatus } from "@/utils/getMatterStatus";
 import { getPriorityBadge } from "@/utils/getPriorityBadge";
-import { Button, Group, Modal, SimpleGrid, Stack, Text } from "@mantine/core";
+import { Button, Group, SimpleGrid, Stack, Text } from "@mantine/core";
 
 import { appNotifications } from "@/utils/notifications/notifications";
 import { MatterTask } from "@/types/matter";
@@ -10,6 +10,7 @@ import { useCompleteMatterTaskMutation } from "@/store/services/matterService";
 import BasicCard from "@/components/Common/BasicCard";
 import DetailField from "@/components/Common/DetailField";
 import SpoilerComp from "@/components/Common/SpoilerComp";
+import AppModal from "@/components/Common/modal/AppModal";
 
 interface TabTaskInfoTaskModalProps {
   opened: boolean;
@@ -52,14 +53,14 @@ export default function TabTaskInfoTaskModal({
   if (!task) return null;
 
   return (
-    <Modal
+    <AppModal
       opened={opened}
       onClose={onClose}
       title="Task Information"
       centered
-      transitionProps={{ transition: "pop" }}
       size="lg"
-      withCloseButton={!isSubmitting}
+      closable={!isSubmitting}
+      type="success"
     >
       <Stack gap="md">
         <BasicCard title={task.taskName}>
@@ -122,6 +123,6 @@ export default function TabTaskInfoTaskModal({
           )}
         </Group>
       </Stack>
-    </Modal>
+    </AppModal>
   );
 }

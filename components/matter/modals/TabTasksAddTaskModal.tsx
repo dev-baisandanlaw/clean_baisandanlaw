@@ -2,7 +2,6 @@ import {
   Button,
   CheckIcon,
   Group,
-  Modal,
   Radio,
   Select,
   Stack,
@@ -17,6 +16,7 @@ import { Matter } from "@/types/matter";
 import { useCreateNewMatterTaskMutation } from "@/store/services/matterService";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { useEffect } from "react";
+import AppModal from "@/components/Common/modal/AppModal";
 
 interface TabTasksAddTaskModalProps {
   opened: boolean;
@@ -98,14 +98,13 @@ export default function TabTasksAddTaskModal({
   }, [opened]);
 
   return (
-    <Modal
+    <AppModal
       opened={opened}
       onClose={onClose}
       title="Add Task"
-      centered
-      transitionProps={{ transition: "pop" }}
       size="lg"
-      withCloseButton={!isSubmitting}
+      closable={!isSubmitting}
+      type="success"
     >
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack gap="md">
@@ -125,7 +124,7 @@ export default function TabTasksAddTaskModal({
           <Select
             withAsterisk
             label="Assignee"
-            placeholder="Select Assignee"
+            placeholder="Jane Doe (jane.doe@example.com)"
             data={matterData ? selectData : []}
             searchable
             clearable
@@ -138,7 +137,7 @@ export default function TabTasksAddTaskModal({
             <TextInput
               withAsterisk
               label="Staff name"
-              placeholder="Enter staff name"
+              placeholder="Mark Doe"
               {...form.getInputProps("staffName")}
             />
           )}
@@ -146,14 +145,14 @@ export default function TabTasksAddTaskModal({
           <TextInput
             withAsterisk
             label="Name"
-            placeholder="Enter task name"
+            placeholder="Submit necessary documents"
             {...form.getInputProps("taskName")}
           />
 
           <DatePickerInput
             withAsterisk
             label="Due Date"
-            placeholder="Select Due Date"
+            placeholder="January 01, 2000"
             minDate={new Date()}
             {...form.getInputProps("dueDate")}
           />
@@ -161,7 +160,7 @@ export default function TabTasksAddTaskModal({
           <Textarea
             withAsterisk
             label="Description"
-            placeholder="Enter description"
+            placeholder="Type here the task's description"
             rows={4}
             styles={{ input: { paddingBlock: 6 } }}
             {...form.getInputProps("description")}
@@ -191,6 +190,6 @@ export default function TabTasksAddTaskModal({
           </Group>
         </Stack>
       </form>
-    </Modal>
+    </AppModal>
   );
 }

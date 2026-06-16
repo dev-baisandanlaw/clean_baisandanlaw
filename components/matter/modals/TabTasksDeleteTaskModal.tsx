@@ -1,8 +1,9 @@
-import { Button, Modal, Text } from "@mantine/core";
+import { Button, Text } from "@mantine/core";
 import { IconTrash } from "@tabler/icons-react";
 import { appNotifications } from "@/utils/notifications/notifications";
 import { MatterTask } from "@/types/matter";
 import { useDeleteMatterTaskMutation } from "@/store/services/matterService";
+import AppModal from "@/components/Common/modal/AppModal";
 
 interface TabTasksDeleteTaskModalProps {
   opened: boolean;
@@ -38,15 +39,14 @@ export default function TabTasksDeleteTaskModal({
   };
 
   return (
-    <Modal
+    <AppModal
       opened={opened}
       onClose={onClose}
       title="Delete Task"
-      centered
-      transitionProps={{ transition: "pop" }}
-      withCloseButton={!isDeleting}
+      closable={!isDeleting}
+      type="danger"
     >
-      <Text ta="center" mb="md">
+      <Text mb="md">
         Are you sure? This will remove the{" "}
         <Text fw={600} span>
           {task?.taskName}
@@ -57,12 +57,12 @@ export default function TabTasksDeleteTaskModal({
       <Button
         onClick={handleDeleteTask}
         loading={isDeleting}
-        color="red"
+        color="red.5"
         fullWidth
         leftSection={<IconTrash />}
       >
         I Understand
       </Button>
-    </Modal>
+    </AppModal>
   );
 }
