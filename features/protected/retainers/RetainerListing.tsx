@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { Button, Flex, Tabs, TextInput } from "@mantine/core";
+import { Button, Flex, TextInput } from "@mantine/core";
 import {
   useDebouncedValue,
   useDisclosure,
@@ -23,10 +23,6 @@ export default function RetainerListing() {
 
   const [search, setSearch] = useState("");
   const [debouncedSearch] = useDebouncedValue(search, 500);
-
-  const [clientTypeFilter, setClientTypeFilter] = useState<string | null>(
-    "all",
-  );
 
   const [
     retainerModal,
@@ -67,14 +63,6 @@ export default function RetainerListing() {
             </Button>
           )}
         </Flex>
-
-        <Tabs value={clientTypeFilter} onChange={setClientTypeFilter}>
-          <Tabs.List>
-            <Tabs.Tab value="all">All</Tabs.Tab>
-            <Tabs.Tab value="individual">Individual</Tabs.Tab>
-            <Tabs.Tab value="company">Company</Tabs.Tab>
-          </Tabs.List>
-        </Tabs>
 
         {isLoaded && isSignedIn && (
           <DataTable
