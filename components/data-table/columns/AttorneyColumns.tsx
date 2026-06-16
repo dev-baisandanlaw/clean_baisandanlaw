@@ -2,20 +2,27 @@ import { type ColumnDef } from "@tanstack/react-table";
 import { ActionIcon, Group, Text } from "@mantine/core";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { AreaBadge } from "@/components/Common/BadgeComp";
-import { IconEye } from "@tabler/icons-react";
+import { IconBan, IconPencil, IconRestore } from "@tabler/icons-react";
 import TableUserField from "@/components/Common/TableUserField";
 import { UserReference } from "@/types/user-reference";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AttorneyRow = UserReference & { metadata: any };
+export type AttorneyRow = UserReference & { metadata: any };
 
-export const attorneyColumns: ColumnDef<AttorneyRow>[] = [
+export const createAttorneyColumns = (
+  onBanToggleClick: (attorney: AttorneyRow) => void,
+  onUpdateClick: (attorney: AttorneyRow) => void,
+): ColumnDef<AttorneyRow>[] => [
   {
     accessorKey: "fullname",
     header: "Name",
     size: 250,
     cell: ({ row }) => (
-      <Text size="sm" fw={600} c="green">
+      <Text
+        size="sm"
+        fw={600}
+        c={row.original?.metadata?.banned ? "red" : "green"}
+      >
         {row.original.fullname ?? "-"}
       </Text>
     ),
@@ -24,9 +31,16 @@ export const attorneyColumns: ColumnDef<AttorneyRow>[] = [
     accessorKey: "email",
     header: "Contact",
     cell: ({ row }) => {
-      const { email, phone } = row.original;
+      const { email, phone, metadata } = row.original;
+      const isBanned = metadata?.banned;
 
-      return <TableUserField title={email || "-"} subTitle={phone} />;
+      return (
+        <TableUserField
+          title={email || "-"}
+          subTitle={phone}
+          titleColor={isBanned ? "red" : "green"}
+        />
+      );
     },
   },
   {
@@ -35,7 +49,8 @@ export const attorneyColumns: ColumnDef<AttorneyRow>[] = [
     size: 300,
     cell: ({ row }) => {
       const metadata = row.original.metadata;
-      if (metadata?.practiceAreas && metadata?.practiceAreas?.length > 0) {
+
+      if (metadata?.practiceAreas && metadata.practiceAreas.length > 0) {
         return (
           <Group gap={2} wrap="wrap" style={{ overflow: "hidden" }}>
             {metadata.practiceAreas.map((a: string) => (
@@ -44,6 +59,7 @@ export const attorneyColumns: ColumnDef<AttorneyRow>[] = [
           </Group>
         );
       }
+
       return "-";
     },
   },
@@ -61,18 +77,45 @@ export const attorneyColumns: ColumnDef<AttorneyRow>[] = [
   {
     id: "actions",
     header: "",
-    size: 80,
-    cell: ({ row }) => (
-      <Group justify="center">
-        <ActionIcon
-          size="sm"
-          variant="subtle"
-          component="a"
-          href={`/matters/${row.original.id}`}
-        >
-          <IconEye size={24} />
-        </ActionIcon>
-      </Group>
-    ),
+    size: 180,
+    cell: ({ row }) => {
+      const attorney = row.original;
+      const isBanned = attorney?.metadata?.banned;
+
+      return (
+        <Group justify="center" gap="xs" wrap="nowrap">
+          {!isBanned && (
+            <ActionIcon
+              size="sm"
+              variant="subtle"
+              color="red.7"
+              onClick={() => onBanToggleClick(attorney)}
+            >
+              <IconBan size={24} />
+            </ActionIcon>
+          )}
+
+          {isBanned && (
+            <ActionIcon
+              size="sm"
+              variant="subtle"
+              color="green.7"
+              onClick={() => onBanToggleClick(attorney)}
+            >
+              <IconRestore size={24} />
+            </ActionIcon>
+          )}
+
+          <ActionIcon
+            size="sm"
+            variant="subtle"
+            color="#D4AF37"
+            onClick={() => onUpdateClick(attorney)}
+          >
+            <IconPencil size={24} />
+          </ActionIcon>
+        </Group>
+      );
+    },
   },
 ];

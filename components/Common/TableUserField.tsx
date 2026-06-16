@@ -3,13 +3,15 @@ import { Stack, Text } from "@mantine/core";
 export default function TableUserField({
   title,
   subTitle,
+  titleColor,
 }: {
   title: string;
   subTitle: string | number | undefined;
+  titleColor?: string;
 }) {
   return (
     <Stack gap="0">
-      <Text size="sm" c="green" fw={600}>
+      <Text size="sm" c={titleColor || "green"} fw={600}>
         {title}
       </Text>
       {typeof subTitle === "string" ||

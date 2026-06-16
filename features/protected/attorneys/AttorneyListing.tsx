@@ -1,8 +1,6 @@
 "use client";
 
-import { Attorney } from "@/types/user";
-
-import { Button, Flex, Tabs, TextInput } from "@mantine/core";
+import { Button, Flex, TextInput } from "@mantine/core";
 import {
   useDebouncedValue,
   useDisclosure,
@@ -12,18 +10,24 @@ import { IconCirclePlus, IconSearch } from "@tabler/icons-react";
 import { useState } from "react";
 import { useGetUsersQuery } from "@/store/services/userService";
 import DataTable from "@/components/data-table/DataTable";
-import { attorneyColumns } from "@/components/data-table/columns/AttorneyColumns";
+import {
+  AttorneyRow,
+  createAttorneyColumns,
+} from "@/components/data-table/columns/AttorneyColumns";
+import { AddAttorneyModal } from "@/components/attorneys/modals/AddAttorneyModal";
+import BanAttorneyModal from "@/components/attorneys/modals/BanAttorneyModal";
+import UnbanAttorneyModal from "@/components/attorneys/modals/UnbanAttorneyModal";
 
 export default function AttorneyListing() {
   const shrink = useMediaQuery("(max-width: 768px)");
 
-  const [selectedAtty, setSelectedAtty] = useState<Attorney | null>(null);
+  const [selectedAtty, setSelectedAtty] = useState<AttorneyRow | null>(null);
 
   const [search, setSearch] = useState("");
   const [debouncedSearch] = useDebouncedValue(search, 500);
 
-  type StatusTab = "Active" | "Banned";
-  const [statusTab, setStatusTab] = useState<StatusTab>("Active");
+  // type StatusTab = "Active" | "Banned";
+  // const [statusTab, setStatusTab] = useState<StatusTab>("Active");
 
   const [
     isAddAttorneyModalOpen,
@@ -39,6 +43,18 @@ export default function AttorneyListing() {
     isUnbanAttorneyModalOpen,
     { open: openUnbanAttorneyModal, close: closeUnbanAttorneyModal },
   ] = useDisclosure(false);
+
+  const handleOnBanClick = (row: AttorneyRow) => {
+    setSelectedAtty(row);
+    if (row?.metadata?.banned) openUnbanAttorneyModal();
+    else openBanAttorneyModal();
+  };
+
+  const handleOnUpdateClick = (row: AttorneyRow) => {
+    setSelectedAtty(row);
+  };
+
+  const columns = createAttorneyColumns(handleOnBanClick, handleOnUpdateClick);
 
   return (
     <>
@@ -73,46 +89,32 @@ export default function AttorneyListing() {
           </Button>
         </Flex>
 
-        <Tabs
-          value={statusTab}
-          onChange={(v) => setStatusTab((v as StatusTab) ?? "Active")}
-        >
-          <Tabs.List>
-            <Tabs.Tab value="Active">Active</Tabs.Tab>
-            <Tabs.Tab value="Banned">Banned</Tabs.Tab>
-          </Tabs.List>
-        </Tabs>
-
         <DataTable
-          columns={attorneyColumns}
+          columns={columns}
           useQuery={useGetUsersQuery}
           queryArgs={{
             organization_id: "attorney",
             search: debouncedSearch,
-            banned: statusTab === "Active" ? "false" : "true",
           }}
         />
       </Flex>
 
-      {/* <AddAttorneyModal
+      <AddAttorneyModal
         opened={isAddAttorneyModalOpen}
         onClose={closeAddAttorneyModal}
-        setIsDataChanged={setIsDataChanged}
       />
 
       <BanAttorneyModal
         opened={isBanAttorneyModalOpen}
         userDetails={selectedAtty}
         onClose={closeBanAttorneyModal}
-        setDataChanged={setIsDataChanged}
       />
 
       <UnbanAttorneyModal
         opened={isUnbanAttorneyModalOpen}
         userDetails={selectedAtty}
         onClose={closeUnbanAttorneyModal}
-        setDataChanged={setIsDataChanged}
-      /> */}
+      />
     </>
   );
 }

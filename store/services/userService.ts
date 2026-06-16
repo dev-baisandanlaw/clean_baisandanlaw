@@ -3,6 +3,19 @@ import { GenericPaginatedResponse } from "@/types/pagination";
 import { UserReference } from "@/types/user-reference";
 import { createApi } from "@reduxjs/toolkit/query/react";
 
+export type CreateAttorneyPayload = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber?: string;
+  password: string;
+  practiceAreas: string[];
+};
+
+export type CreateAttorneyResponse = {
+  message: string;
+};
+
 export const userService = createApi({
   reducerPath: "userService",
   baseQuery: baseQueryWithAuth,
@@ -49,7 +62,41 @@ export const userService = createApi({
       },
       providesTags: ["Users"],
     }),
+
+    addNewAttorney: builder.mutation<
+      CreateAttorneyResponse,
+      CreateAttorneyPayload
+    >({
+      query: (body) => ({
+        url: "/users/attorneys",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Users"],
+    }),
+
+    banAttorney: builder.mutation<{ message: string }, { id: string }>({
+      query: ({ id }) => ({
+        url: `/users/attorneys/ban/${id}`,
+        method: "PATCH",
+      }),
+      invalidatesTags: ["Users"],
+    }),
+
+    unBanAttorney: builder.mutation<{ message: string }, { id: string }>({
+      query: ({ id }) => ({
+        url: `/users/attorneys/unban/${id}`,
+        method: "PATCH",
+      }),
+      invalidatesTags: ["Users"],
+    }),
   }),
 });
 
-export const { useGetUsersByOrgQuery, useGetUsersQuery } = userService;
+export const {
+  useGetUsersByOrgQuery,
+  useGetUsersQuery,
+  useAddNewAttorneyMutation,
+  useBanAttorneyMutation,
+  useUnBanAttorneyMutation,
+} = userService;

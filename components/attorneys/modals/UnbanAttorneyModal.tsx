@@ -1,59 +1,60 @@
-import { Attorney } from "@/types/user";
+import BasicCard from "@/components/Common/BasicCard";
+import DetailField from "@/components/Common/DetailField";
+import AppModal from "@/components/Common/modal/AppModal";
+import { AttorneyRow } from "@/components/data-table/columns/AttorneyColumns";
+import { useUnBanAttorneyMutation } from "@/store/services/userService";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { appNotifications } from "@/utils/notifications/notifications";
-import { Alert, Button, Modal, Stack, Table } from "@mantine/core";
+import { Alert, Button, SimpleGrid, Stack } from "@mantine/core";
 import { IconAlertCircle, IconRestore } from "@tabler/icons-react";
-import axios from "axios";
-import { useState } from "react";
 
 interface UnbanAttorneyModalProps {
   opened: boolean;
   onClose: () => void;
-  userDetails: Attorney | null;
-  setDataChanged: React.Dispatch<React.SetStateAction<boolean>>;
+  userDetails: AttorneyRow | null;
 }
 
 export default function UnbanAttorneyModal({
   opened,
   onClose,
   userDetails,
-  setDataChanged,
 }: UnbanAttorneyModalProps) {
-  const [isUnbanning, setIsUnbanning] = useState(false);
+  const [unBanAttorneyFn, { isLoading: isUnbanning }] =
+    useUnBanAttorneyMutation();
 
   const handleUnbanAttorney = async () => {
-    setIsUnbanning(true);
-    try {
-      await axios.post("/api/clerk/user/unban-user", {
-        userId: userDetails!.id,
+    unBanAttorneyFn({ id: userDetails!.id! })
+      .unwrap()
+      .then(() => {
+        appNotifications.success({
+          title: "Attorney unbanned successfully",
+          message:
+            "The attorney can now sign in again and access their account.",
+        });
+        onClose();
+      })
+      .catch((e) => {
+        const message =
+          e?.data?.message ||
+          "The attorney could not be unbanned. Please try again.";
+
+        appNotifications.error({
+          title: "Failed to unban attorney",
+          message,
+        });
       });
-      appNotifications.success({
-        title: "Attorney unbanned successfully",
-        message: "The attorney can now sign in again and access their account.",
-      });
-      setDataChanged((prev) => !prev);
-      onClose();
-    } catch {
-      appNotifications.error({
-        title: "Failed to unban attorney",
-        message: "The attorney could not be unbanned. Please try again.",
-      });
-    } finally {
-      setIsUnbanning(false);
-    }
   };
 
   if (!userDetails) return null;
 
   return (
-    <Modal
+    <AppModal
       opened={opened}
       onClose={onClose}
       title="Unban Attorney"
-      centered
-      transitionProps={{ transition: "pop" }}
       size="lg"
-      withCloseButton={!isUnbanning}
+      closable={!isUnbanning}
+      type="success"
     >
       <Stack>
         <Alert
@@ -65,34 +66,17 @@ export default function UnbanAttorneyModal({
           will be allowed to sign in and use their account again.
         </Alert>
 
-        <Table variant="vertical" layout="fixed">
-          <Table.Tbody>
-            <Table.Tr>
-              <Table.Th w={160}>Attorney Name</Table.Th>
-              <Table.Td>
-                {userDetails.first_name} {userDetails.last_name}
-              </Table.Td>
-            </Table.Tr>
-            <Table.Tr>
-              <Table.Th w={160}>Email</Table.Th>
-              <Table.Td>
-                {userDetails.email_addresses[0].email_address}
-              </Table.Td>
-            </Table.Tr>
-            <Table.Tr>
-              <Table.Th w={160}>Phone Number</Table.Th>
-              <Table.Td>
-                {userDetails.unsafe_metadata?.phoneNumber || "-"}
-              </Table.Td>
-            </Table.Tr>
-            <Table.Tr>
-              <Table.Th w={160}>Member Since</Table.Th>
-              <Table.Td>
-                {getDateFormatDisplay(userDetails.created_at, true)}
-              </Table.Td>
-            </Table.Tr>
-          </Table.Tbody>
-        </Table>
+        <BasicCard title="Attorney's Information">
+          <SimpleGrid cols={2}>
+            <DetailField title="Name" value={userDetails.fullname} />
+            <DetailField title="Email" value={userDetails.email} />
+            <DetailField title="Phone" value={userDetails.phone} />
+            <DetailField
+              title="Member Since"
+              value={getDateFormatDisplay(userDetails?.metadata?.createdAt)}
+            />
+          </SimpleGrid>
+        </BasicCard>
 
         <Button
           onClick={handleUnbanAttorney}
@@ -105,6 +89,6 @@ export default function UnbanAttorneyModal({
           Confirm Unban
         </Button>
       </Stack>
-    </Modal>
+    </AppModal>
   );
 }

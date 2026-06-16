@@ -37,7 +37,7 @@ const DataTableNoPagination = <TData,>({
               {table.getHeaderGroups().map((headerGroup) => (
                 <Table.Tr key={headerGroup.id} bg="gray.3">
                   {headerGroup.headers.map((header) => (
-                    <Table.Th key={header.id}>
+                    <Table.Th key={header.id} p="sm">
                       {header.isPlaceholder
                         ? null
                         : flexRender(
@@ -65,6 +65,7 @@ const DataTableNoPagination = <TData,>({
                     <Table.Tr key={row.id}>
                       {row.getVisibleCells().map((cell) => (
                         <Table.Td
+                          p="sm"
                           key={cell.id}
                           style={{
                             width: cell.column.columnDef.size
