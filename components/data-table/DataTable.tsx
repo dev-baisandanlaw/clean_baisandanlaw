@@ -99,7 +99,7 @@ const DataTable = <TData,>({
           <Table highlightOnHover={false} pb={0}>
             <Table.Thead>
               {table.getHeaderGroups().map((headerGroup) => (
-                <Table.Tr key={headerGroup.id} bg="gray.4">
+                <Table.Tr key={headerGroup.id} bg="gray.3">
                   {headerGroup.headers.map((header) => (
                     <Table.Th key={header.id}>
                       {header.isPlaceholder

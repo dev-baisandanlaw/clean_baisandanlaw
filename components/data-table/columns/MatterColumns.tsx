@@ -12,7 +12,7 @@ export const matterColumns: ColumnDef<MatterRow>[] = [
   {
     accessorKey: "caseNumber",
     header: "Matter No.",
-    size: 100,
+    size: 125,
     cell: ({ row }) => (
       <Tooltip
         label={row.original.caseNumber || "-"}
