@@ -1,11 +1,12 @@
-import { Client } from "@/types/user";
+import BasicCard from "@/components/Common/BasicCard";
+import DetailField from "@/components/Common/DetailField";
+import AppModal from "@/components/Common/modal/AppModal";
+import { ClientRow } from "@/components/data-table/columns/Clientcolumns";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { appNotifications } from "@/utils/notifications/notifications";
 import {
-  Modal,
   Stack,
   Text,
-  Table,
   Group,
   Button,
   Badge,
@@ -14,6 +15,7 @@ import {
   useMantineTheme,
   em,
   Flex,
+  SimpleGrid,
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import {
@@ -28,15 +30,13 @@ import { useState } from "react";
 interface DowngradeSubscriptionModalProps {
   opened: boolean;
   onClose: () => void;
-  clientDetails: Client | null;
-  setDataChanged: React.Dispatch<React.SetStateAction<boolean>>;
+  clientDetails: ClientRow | null;
 }
 
 export default function DowngradeSubscriptionModal({
   opened,
   onClose,
   clientDetails,
-  setDataChanged,
 }: DowngradeSubscriptionModalProps) {
   const isMobile = useMediaQuery(`(max-width: ${em(750)})`);
   const theme = useMantineTheme();
@@ -50,9 +50,9 @@ export default function DowngradeSubscriptionModal({
       await axios.patch("/api/clerk/user/update-user-metadata", {
         userId: clientDetails?.id,
         unsafe_metadata: {
-          ...clientDetails?.unsafe_metadata,
+          ...clientDetails?.metadata,
           subscription: {
-            ...clientDetails?.unsafe_metadata?.subscription,
+            ...clientDetails?.metadata?.subscription,
             isSubscribed: false,
             subscribedEndDate: null,
             subscribedStartDate: null,
@@ -63,7 +63,6 @@ export default function DowngradeSubscriptionModal({
         title: "Subscription Canceled",
         message: "The subscription has been canceled successfully.",
       });
-      setDataChanged((prev) => !prev);
       onClose();
     } catch {
       appNotifications.error({
@@ -78,14 +77,13 @@ export default function DowngradeSubscriptionModal({
   if (!clientDetails) return null;
 
   return (
-    <Modal
+    <AppModal
       opened={opened}
       onClose={onClose}
       title="Cancel Premium Subscription"
-      centered
-      transitionProps={{ transition: "pop" }}
+      type="danger"
       size="xl"
-      withCloseButton={!isLoading}
+      closable={!isLoading}
     >
       <Stack>
         <Text>
@@ -96,40 +94,17 @@ export default function DowngradeSubscriptionModal({
           the Premium Plan subscription for this client?
         </Text>
 
-        <Table variant="vertical" layout="fixed">
-          <Table.Tbody>
-            <Table.Tr>
-              <Table.Th w={isMobile ? 120 : 160}>Client Name</Table.Th>
-              <Table.Td>
-                {clientDetails.first_name} {clientDetails.last_name}
-              </Table.Td>
-            </Table.Tr>
-            <Table.Tr>
-              <Table.Th w={isMobile ? 120 : 160}>Email</Table.Th>
-              <Table.Td>
-                {clientDetails.email_addresses[0].email_address}
-              </Table.Td>
-            </Table.Tr>
-            <Table.Tr>
-              <Table.Th w={isMobile ? 120 : 160}>Phone Number</Table.Th>
-              <Table.Td>
-                {clientDetails.unsafe_metadata?.phoneNumber || "-"}
-              </Table.Td>
-            </Table.Tr>
-            <Table.Tr>
-              <Table.Th w={isMobile ? 120 : 160}>Member Since</Table.Th>
-              <Table.Td>
-                {getDateFormatDisplay(clientDetails.created_at, true)}
-              </Table.Td>
-            </Table.Tr>
-            <Table.Tr>
-              <Table.Th w={isMobile ? 120 : 160}>Total Subscriptions</Table.Th>
-              <Table.Td>
-                {clientDetails.unsafe_metadata?.subscription?.count || 0}
-              </Table.Td>
-            </Table.Tr>
-          </Table.Tbody>
-        </Table>
+        <BasicCard title="Client's Information">
+          <SimpleGrid cols={2}>
+            <DetailField title="Client Name" value={clientDetails?.fullname} />
+            <DetailField title="Email" value={clientDetails?.email} />
+            <DetailField title="Phone Number" value={clientDetails?.phone} />
+            <DetailField
+              title="Total Subscriptions"
+              value={clientDetails?.metadata?.subscription?.count || "0"}
+            />
+          </SimpleGrid>
+        </BasicCard>
 
         <Group mt="lg" align="flex-start" wrap="nowrap">
           <Stack flex={1}>
@@ -155,12 +130,11 @@ export default function DowngradeSubscriptionModal({
                   <Text size="xs" c="dimmed">
                     Valid until:{" "}
                     <Text span fw={600} c="black">
-                      {clientDetails.unsafe_metadata?.subscription
-                        ?.subscribedEndDate
+                      {clientDetails.metadata?.subscription?.subscribedEndDate
                         ? getDateFormatDisplay(
-                            clientDetails.unsafe_metadata?.subscription
+                            clientDetails.metadata?.subscription
                               ?.subscribedEndDate,
-                            true
+                            true,
                           )
                         : "-"}
                     </Text>
@@ -194,16 +168,8 @@ export default function DowngradeSubscriptionModal({
 
             <Group grow mt="lg">
               <Button
-                variant="default"
-                onClick={onClose}
-                disabled={isLoading}
-                c="black"
-              >
-                Cancel
-              </Button>
-              <Button
                 variant="filled"
-                color="red"
+                color={theme.colors.red[6]}
                 onClick={handleCancelSubscription}
                 loading={isLoading}
               >
@@ -213,6 +179,6 @@ export default function DowngradeSubscriptionModal({
           </Stack>
         </Group>
       </Stack>
-    </Modal>
+    </AppModal>
   );
 }

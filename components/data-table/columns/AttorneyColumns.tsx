@@ -61,6 +61,7 @@ export const attorneyColumns: ColumnDef<AttorneyRow>[] = [
   {
     id: "actions",
     header: "",
+    size: 80,
     cell: ({ row }) => (
       <Group justify="center">
         <ActionIcon

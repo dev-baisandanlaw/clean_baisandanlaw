@@ -1,6 +1,7 @@
 import BasicCard from "@/components/Common/BasicCard";
 import DetailField from "@/components/Common/DetailField";
-import { Client } from "@/types/user";
+import AppModal from "@/components/Common/modal/AppModal";
+import { ClientRow } from "@/components/data-table/columns/Clientcolumns";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { appNotifications } from "@/utils/notifications/notifications";
 import {
@@ -9,7 +10,6 @@ import {
   em,
   Flex,
   Group,
-  Modal,
   Paper,
   SimpleGrid,
   Stack,
@@ -33,8 +33,7 @@ import { useEffect, useState } from "react";
 interface UpgradeSubscriptionModalProps {
   opened: boolean;
   onClose: () => void;
-  clientDetails: Client | null;
-  setDataChanged: React.Dispatch<React.SetStateAction<boolean>>;
+  clientDetails: ClientRow | null;
 }
 
 const minDate = dayjs().add(2, "day").toDate();
@@ -43,7 +42,6 @@ export default function UpgradeSubscriptionModal({
   opened,
   onClose,
   clientDetails,
-  setDataChanged,
 }: UpgradeSubscriptionModalProps) {
   const isMobile = useMediaQuery(`(max-width: ${em(750)})`);
   const theme = useMantineTheme();
@@ -64,10 +62,9 @@ export default function UpgradeSubscriptionModal({
       await axios.patch("/api/clerk/user/update-user-metadata", {
         userId: clientDetails?.id,
         unsafe_metadata: {
-          ...clientDetails?.unsafe_metadata,
+          ...clientDetails?.metadata,
           subscription: {
-            count:
-              (clientDetails?.unsafe_metadata?.subscription?.count || 0) + 1,
+            count: (clientDetails?.metadata?.subscription?.count || 0) + 1,
             isSubscribed: true,
             subscribedStartDate: dayjs().toDate(),
             subscribedEndDate: subscriptionEndDate
@@ -81,7 +78,6 @@ export default function UpgradeSubscriptionModal({
         title: "Subscription Upgraded",
         message: "The subscription has been upgraded successfully.",
       });
-      setDataChanged((prev) => !prev);
       onClose();
     } catch (error) {
       console.error(error);
@@ -93,14 +89,13 @@ export default function UpgradeSubscriptionModal({
   if (!clientDetails) return null;
 
   return (
-    <Modal
+    <AppModal
       opened={opened}
       onClose={onClose}
       title="Upgrade Subscription"
-      centered
-      transitionProps={{ transition: "pop" }}
+      type="success"
       size="xl"
-      withCloseButton={!isLoading}
+      closable={!isLoading}
     >
       <Stack>
         <Text>
@@ -112,26 +107,13 @@ export default function UpgradeSubscriptionModal({
         </Text>
 
         <BasicCard title="Client's Information">
-          <SimpleGrid cols={{ base: 2, xs: 3 }}>
-            <DetailField
-              title="Client Name"
-              value={`${clientDetails.first_name} ${clientDetails.last_name}`}
-            />
-            <DetailField
-              title="Email"
-              value={clientDetails.email_addresses[0].email_address}
-            />
-            <DetailField
-              title="Phone Number"
-              value={clientDetails.unsafe_metadata?.phoneNumber || "-"}
-            />
-            <DetailField
-              title="Member Since"
-              value={getDateFormatDisplay(clientDetails.created_at, true)}
-            />
+          <SimpleGrid cols={2}>
+            <DetailField title="Client Name" value={clientDetails?.fullname} />
+            <DetailField title="Email" value={clientDetails?.email} />
+            <DetailField title="Phone Number" value={clientDetails?.phone} />
             <DetailField
               title="Total Subscriptions"
-              value={clientDetails.unsafe_metadata?.subscription?.count || "0"}
+              value={clientDetails?.metadata?.subscription?.count || "0"}
             />
           </SimpleGrid>
         </BasicCard>
@@ -255,6 +237,6 @@ export default function UpgradeSubscriptionModal({
           </Stack>
         </Flex>
       </Stack>
-    </Modal>
+    </AppModal>
   );
 }

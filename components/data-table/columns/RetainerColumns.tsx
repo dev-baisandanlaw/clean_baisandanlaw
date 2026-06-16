@@ -76,6 +76,7 @@ export const retiainerColumns: ColumnDef<RetainerRow>[] = [
   {
     id: "actions",
     header: "",
+    size: 80,
     cell: ({ row }) => (
       <Group justify="center">
         <ActionIcon

@@ -86,6 +86,7 @@ export const matterColumns: ColumnDef<MatterRow>[] = [
   {
     id: "actions",
     header: "",
+    size: 80,
     cell: ({ row }) => (
       <Group justify="center">
         <ActionIcon

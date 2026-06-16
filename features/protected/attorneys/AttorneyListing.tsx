@@ -88,7 +88,6 @@ export default function AttorneyListing() {
           useQuery={useGetUsersQuery}
           queryArgs={{
             organization_id: "attorney",
-            page: 1,
             search: debouncedSearch,
             banned: statusTab === "Active" ? "false" : "true",
           }}

@@ -13,11 +13,13 @@ interface AppModalProps extends ModalProps {
   title: string;
   children: ReactNode;
   type: "success" | "danger" | "secondary";
+  closable?: boolean;
 }
 export default function AppModal({
   title,
   children,
   type = "success",
+  closable = false,
   ...props
 }: AppModalProps) {
   const theme = useMantineTheme();
@@ -41,7 +43,7 @@ export default function AppModal({
       centered
       closeOnClickOutside={false}
       withCloseButton={false}
-      transitionProps={{ transition: "pop" }}
+      transitionProps={{ transition: "fade-down" }}
       overlayProps={{
         backgroundOpacity: 0.55,
         blur: 2,
@@ -61,9 +63,16 @@ export default function AppModal({
             {title}
           </Text>
 
-          <ActionIcon variant="transparent" color="white" size="sm">
-            <IconX />
-          </ActionIcon>
+          {closable && (
+            <ActionIcon
+              variant="transparent"
+              color="white"
+              size="sm"
+              onClick={props.onClose}
+            >
+              <IconX />
+            </ActionIcon>
+          )}
         </Group>
       }
       {...props}
