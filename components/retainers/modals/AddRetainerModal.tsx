@@ -2,9 +2,7 @@ import { useEffect } from "react";
 
 import {
   Button,
-  Divider,
   Group,
-  Modal,
   NumberInput,
   Radio,
   SimpleGrid,
@@ -24,6 +22,7 @@ import { appNotifications } from "@/utils/notifications/notifications";
 import { useCreateRetainerMutation } from "@/store/services/retainerService";
 import { nanoid } from "nanoid";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
+import AppModal from "@/components/Common/modal/AppModal";
 
 interface AddRetainerModalProps {
   opened: boolean;
@@ -58,7 +57,8 @@ export default function AddRetainerModal({
     validate: {
       clientName: (value) => (!value.length ? "Client name is required" : null),
       contactPerson: {
-        fullname: (value) => (!value.length ? "Full name is required" : null),
+        fullname: (value) =>
+          !value.length ? "Contact Person Full name is required" : null,
         email: (value) =>
           !value?.length
             ? "Email is required"
@@ -130,19 +130,17 @@ export default function AddRetainerModal({
   }, [opened]);
 
   return (
-    <Modal
+    <AppModal
       opened={opened}
       onClose={onClose}
-      title="Add Retainer Client"
-      centered
-      transitionProps={{ transition: "pop" }}
+      title="New Retainer"
       size="lg"
-      withCloseButton={!isSubmitting}
+      closable={!isSubmitting}
+      type="success"
     >
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack gap="md">
           <Stack gap="xs" mb="xs">
-            <Divider label="Client" color="blue" />
             <TextInput
               withAsterisk
               label="Client Name"
@@ -163,14 +161,13 @@ export default function AddRetainerModal({
           </Stack>
 
           <Stack gap="xs" mb="xs">
-            <Divider label="Contact Person" color="blue" />
             <SimpleGrid
               cols={shrink ? 1 : 2}
               verticalSpacing={shrink ? "2px" : "md"}
             >
               <TextInput
                 withAsterisk
-                label="Full Name"
+                label="Contact Person"
                 placeholder="Jane Doe"
                 {...form.getInputProps("contactPerson.fullname")}
               />
@@ -207,7 +204,6 @@ export default function AddRetainerModal({
           </Stack>
 
           <Stack gap="xs" mb="xs">
-            <Divider label="Other Details" color="blue" />
             <DatePickerInput
               withAsterisk
               label="Retainer Since"
@@ -257,6 +253,6 @@ export default function AddRetainerModal({
           </Group>
         </Stack>
       </form>
-    </Modal>
+    </AppModal>
   );
 }

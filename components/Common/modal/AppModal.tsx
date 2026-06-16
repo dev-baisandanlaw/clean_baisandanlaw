@@ -3,6 +3,7 @@ import {
   Group,
   Modal,
   ModalProps,
+  ScrollArea,
   Text,
   useMantineTheme,
 } from "@mantine/core";
@@ -77,7 +78,9 @@ export default function AppModal({
       }
       {...props}
     >
-      {children}
+      <ScrollArea.Autosize mah="calc(100vh - 165px)">
+        {children}
+      </ScrollArea.Autosize>
     </Modal>
   );
 }

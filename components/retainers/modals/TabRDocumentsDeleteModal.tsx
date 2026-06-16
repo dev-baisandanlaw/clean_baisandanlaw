@@ -1,8 +1,9 @@
-import { Button, Modal, Text } from "@mantine/core";
+import { Button, Text } from "@mantine/core";
 import { IconTrash } from "@tabler/icons-react";
 import { appNotifications } from "@/utils/notifications/notifications";
 import { Document } from "@/types/document";
 import { useDeleteRetainerDocumentMutation } from "@/store/services/retainerService";
+import AppModal from "@/components/Common/modal/AppModal";
 
 interface TabRDocumentsDeleteModalProps {
   opened: boolean;
@@ -40,13 +41,12 @@ export default function TabRDocumentsDeleteModal({
   };
 
   return (
-    <Modal
+    <AppModal
       opened={opened}
       onClose={onClose}
       title="Delete Document"
-      centered
-      transitionProps={{ transition: "pop" }}
-      withCloseButton={!isDeletingDocument}
+      closable={!isDeletingDocument}
+      type="danger"
     >
       <Text mb="md">
         Are you sure you want to delete <strong>{document?.name}</strong>? Once
@@ -56,12 +56,12 @@ export default function TabRDocumentsDeleteModal({
       <Button
         onClick={handleDeleteFile}
         loading={isDeletingDocument}
-        color="red"
+        color="red.7"
         fullWidth
         leftSection={<IconTrash />}
       >
         I Understand
       </Button>
-    </Modal>
+    </AppModal>
   );
 }

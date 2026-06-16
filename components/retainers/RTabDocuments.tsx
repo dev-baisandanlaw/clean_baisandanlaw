@@ -1,28 +1,15 @@
 import {
-  ActionIcon,
   Button,
   Flex,
-  Group,
   SimpleGrid,
-  Stack,
-  Table,
   TableScrollContainer,
   Tabs,
-  Text,
-  Tooltip,
 } from "@mantine/core";
-import { getMimeTypeIcon } from "@/utils/getMimeTypeIcon";
-import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
-import {
-  IconFileDownload,
-  IconFileUpload,
-  IconTrash,
-} from "@tabler/icons-react";
+import { IconFileUpload } from "@tabler/icons-react";
 import TabRDocumentsDeleteModal from "./modals/TabRDocumentsDeleteModal";
 import { useDisclosure } from "@mantine/hooks";
 import { useState, useMemo } from "react";
 import TabRDocumentsUploadFileModal from "./modals/TabRDocumentsUploadFileModal";
-import EmptyTableComponent from "../EmptyTableComponent";
 import axios from "axios";
 import { appNotifications } from "@/utils/notifications/notifications";
 import { Retainer } from "@/types/retainer-new";
@@ -30,6 +17,8 @@ import { Document } from "@/types/document";
 import BasicCard from "../Common/BasicCard";
 import DetailField from "../Common/DetailField";
 import { useUser } from "@clerk/nextjs";
+import { createRetainerDocumentColumns } from "../data-table/columns-no-pagination/RetainerDocumentsColumn";
+import DataTableNoPagination from "../data-table/DataTableNoPagination";
 
 interface RTabDocumentsProps {
   retainerData: Retainer;
@@ -38,6 +27,7 @@ interface RTabDocumentsProps {
 export default function RTabDocuments({ retainerData }: RTabDocumentsProps) {
   const { user } = useUser();
   const [selectedDocument, setSelectedDocument] = useState<Document>();
+  const [activeTab, setActiveTab] = useState<string>("all");
 
   const [
     isDeleteModalFileOpen,
@@ -48,8 +38,6 @@ export default function RTabDocuments({ retainerData }: RTabDocumentsProps) {
     isUploadModalFileOpen,
     { open: openUploadModalFile, close: closeUploadModalFile },
   ] = useDisclosure(false);
-
-  const [activeTab, setActiveTab] = useState<string>("all");
 
   const filteredDocuments = useMemo(() => {
     if (!retainerData.documents) return [];
@@ -99,7 +87,6 @@ export default function RTabDocuments({ retainerData }: RTabDocumentsProps) {
       a.href = url;
       a.download = filename;
       a.style.display = "none";
-
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -114,11 +101,26 @@ export default function RTabDocuments({ retainerData }: RTabDocumentsProps) {
 
   const canDelete = (doc: Document) => {
     if (!user) return false;
-
     return (
       user.unsafeMetadata?.role !== "client" || user.id === doc.uploadedBy.id
     );
   };
+
+  const columns = useMemo(
+    () =>
+      createRetainerDocumentColumns({
+        onDownload: handleDownload,
+        onDelete: (doc) => {
+          setSelectedDocument(doc);
+          openDeleteModalFile();
+        },
+        canDelete,
+        userId: user?.id,
+        userRole: user?.unsafeMetadata?.role as string | undefined,
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [user, openDeleteModalFile],
+  );
 
   return (
     <>
@@ -141,7 +143,6 @@ export default function RTabDocuments({ retainerData }: RTabDocumentsProps) {
               title="Files"
               value={retainerData.documents?.length || "0"}
             />
-
             <DetailField
               title="Size"
               value={`${
@@ -150,7 +151,6 @@ export default function RTabDocuments({ retainerData }: RTabDocumentsProps) {
                   .toFixed(2) || "0"
               } MB`}
             />
-
             <DetailField
               title="Images"
               value={
@@ -159,7 +159,6 @@ export default function RTabDocuments({ retainerData }: RTabDocumentsProps) {
                 ).length || "0"
               }
             />
-
             <DetailField
               title="PDFs"
               value={
@@ -183,82 +182,11 @@ export default function RTabDocuments({ retainerData }: RTabDocumentsProps) {
         </Tabs>
 
         <TableScrollContainer minWidth={500} h={"calc(100vh - 380px)"}>
-          <Table stickyHeader stickyHeaderOffset={0} verticalSpacing="xs">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Name</Table.Th>
-                <Table.Th>Size</Table.Th>
-                <Table.Th>Type</Table.Th>
-                <Table.Th>Upload Details</Table.Th>
-                <Table.Th>Actions</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-
-            <Table.Tbody>
-              {filteredDocuments.length > 0 &&
-                filteredDocuments.map((doc) => (
-                  <Table.Tr key={doc.id}>
-                    <Table.Td>
-                      <Tooltip label={doc?.name || "-"} position="top">
-                        <Text truncate maw="200px" size="sm" fw={600} c="green">
-                          {doc?.name || "-"}
-                        </Text>
-                      </Tooltip>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm" fw={600} c="green">
-                        {doc.sizeInMb} MB
-                      </Text>
-                    </Table.Td>
-                    <Table.Td>{getMimeTypeIcon(doc.mimeType)}</Table.Td>
-                    <Table.Td>
-                      <Stack gap={0}>
-                        <Text size="sm" fw={600} c="green">
-                          {doc.uploadedBy?.fullname || "-"}
-                        </Text>
-                        <Text size="xs" c="black" opacity={0.8}>
-                          {getDateFormatDisplay(doc.uploadedAt, true)}
-                        </Text>
-                      </Stack>
-                    </Table.Td>
-                    <Table.Td>
-                      <Group gap={6}>
-                        <ActionIcon
-                          size="sm"
-                          variant="subtle"
-                          onClick={() => handleDownload(doc.googleDriveId)}
-                        >
-                          <IconFileDownload size={24} />
-                        </ActionIcon>
-
-                        {canDelete(doc) && (
-                          <ActionIcon
-                            variant="subtle"
-                            size="sm"
-                            color="red"
-                            onClick={() => {
-                              setSelectedDocument(doc);
-                              openDeleteModalFile();
-                            }}
-                            disabled={
-                              user?.unsafeMetadata?.role === "client"
-                                ? doc.uploadedBy.id !== user.id
-                                : false
-                            }
-                          >
-                            <IconTrash />
-                          </ActionIcon>
-                        )}
-                      </Group>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-
-              {filteredDocuments.length === 0 && (
-                <EmptyTableComponent colspan={5} message="No documents found" />
-              )}
-            </Table.Tbody>
-          </Table>
+          <DataTableNoPagination
+            columns={columns}
+            data={filteredDocuments}
+            emptyText="No documents found."
+          />
         </TableScrollContainer>
       </Flex>
 

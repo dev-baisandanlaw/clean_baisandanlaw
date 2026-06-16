@@ -151,7 +151,7 @@ export default function RootLayout({
         className={`${openSans.variable}`}
         style={{ margin: 0, padding: 0 }}
       >
-        <NextTopLoader />
+        <NextTopLoader color="green" />
         <ToastContainer position="top-center" autoClose={2000} />
         <Providers>
           <MantineProvider theme={theme}>

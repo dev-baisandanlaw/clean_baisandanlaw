@@ -5,7 +5,6 @@ import {
   Flex,
   Group,
   Image,
-  Modal,
   Paper,
   SimpleGrid,
   Stack,
@@ -28,6 +27,7 @@ import {
 } from "@tabler/icons-react";
 import { appNotifications } from "@/utils/notifications/notifications";
 import { useUploadRetainerDocumentsMutation } from "@/store/services/retainerService";
+import AppModal from "@/components/Common/modal/AppModal";
 
 interface TabRDocumentsUploadFileModalProps {
   opened: boolean;
@@ -190,14 +190,13 @@ export default function TabRDocumentsUploadFileModal({
   }, [opened]);
 
   return (
-    <Modal
+    <AppModal
       opened={opened}
       onClose={onClose}
       size="xl"
       title="Upload Document"
-      transitionProps={{ transition: "pop" }}
-      withCloseButton={!isUploadingDocument}
-      centered
+      closable={!isUploadingDocument}
+      type="success"
     >
       {rejectedFiles.length > 0 && (
         <Alert
@@ -288,6 +287,6 @@ export default function TabRDocumentsUploadFileModal({
           Upload
         </Button>
       </Group>
-    </Modal>
+    </AppModal>
   );
 }

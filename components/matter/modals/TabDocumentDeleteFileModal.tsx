@@ -56,7 +56,7 @@ export default function TabDocumentDeleteFileModal({
       <Button
         onClick={handleDeleteFile}
         loading={isDeletingDocument}
-        color="red.5"
+        color="red.7"
         fullWidth
         leftSection={<IconTrash />}
       >
