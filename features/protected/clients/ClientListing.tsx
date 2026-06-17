@@ -15,6 +15,7 @@ import {
 } from "@/components/data-table/columns/Clientcolumns";
 import dayjs from "dayjs";
 import DowngradeSubscriptionModal from "@/components/clients/modals/DowngradeSubscriptionModal";
+import DeleteUserModal from "@/components/Common/modal/DeleteUserModal";
 
 export default function ClientListing() {
   const [selectedClient, setSelectedClient] = useState<ClientRow | null>(null);
@@ -24,9 +25,15 @@ export default function ClientListing() {
 
   const [upgradeModal, { open: openUpgradeModal, close: closeUpgradeModal }] =
     useDisclosure(false);
+
   const [
     downgradeModal,
     { open: openDowngradeModal, close: closeDowngradeModal },
+  ] = useDisclosure(false);
+
+  const [
+    isDeleteUserModalOpen,
+    { open: openDeleteUserModal, close: closeDeleteUserModal },
   ] = useDisclosure(false);
 
   const handleActionClick = (client: ClientRow) => {
@@ -43,7 +50,15 @@ export default function ClientListing() {
     else openUpgradeModal();
   };
 
-  const clientColumns = createClientColumns(handleActionClick);
+  const handleOnDeleteclick = (client: ClientRow) => {
+    setSelectedClient(client);
+    openDeleteUserModal();
+  };
+
+  const clientColumns = createClientColumns(
+    handleActionClick,
+    handleOnDeleteclick,
+  );
 
   return (
     <>
@@ -87,12 +102,11 @@ export default function ClientListing() {
         clientDetails={selectedClient}
       />
 
-      {/* <DeleteClientModal
-        opened={deleteClientModal}
-        onClose={closeDeleteClientModal}
-        clientDetails={selectedClient}
-        setDataChanged={setDataChanged}
-      /> */}
+      <DeleteUserModal
+        opened={isDeleteUserModalOpen}
+        user={selectedClient}
+        onClose={closeDeleteUserModal}
+      />
     </>
   );
 }

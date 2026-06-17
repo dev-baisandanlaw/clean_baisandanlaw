@@ -1,7 +1,11 @@
 import { type ColumnDef } from "@tanstack/react-table";
-import { Button, Group, Text } from "@mantine/core";
+import { ActionIcon, Group, Text } from "@mantine/core";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
-import { IconArrowBadgeDown, IconArrowBadgeUp } from "@tabler/icons-react";
+import {
+  IconChevronsDown,
+  IconChevronsUp,
+  IconTrash,
+} from "@tabler/icons-react";
 import TableUserField from "@/components/Common/TableUserField";
 import { UserReference } from "@/types/user-reference";
 import dayjs from "dayjs";
@@ -12,6 +16,7 @@ export type ClientRow = UserReference & { metadata: any };
 
 export const createClientColumns = (
   onActionClick: (client: ClientRow) => void,
+  onDeleteClick: (client: ClientRow) => void,
 ): ColumnDef<ClientRow>[] => [
   {
     accessorKey: "fullname",
@@ -62,7 +67,8 @@ export const createClientColumns = (
     header: "",
     size: 80,
     cell: ({ row }) => {
-      const subscription = row.original.metadata.subscription;
+      const client = row.original;
+      const subscription = client.metadata.subscription;
       const subscriptionEndDate = subscription?.subscribedEndDate;
 
       const isSubscribed =
@@ -70,23 +76,37 @@ export const createClientColumns = (
         dayjs(subscriptionEndDate).endOf("day").isAfter(dayjs());
 
       return (
-        <Group justify="center">
-          <Button
-            size="compact-sm"
-            color={isSubscribed ? "red" : "green"}
-            onClick={() => onActionClick(row.original)}
-            variant="filled"
-            leftSection={
-              isSubscribed ? (
-                <IconArrowBadgeDown size={16} />
-              ) : (
-                <IconArrowBadgeUp size={16} />
-              )
-            }
-            styles={{ label: { fontSize: "12px", marginLeft: -8 } }}
+        <Group justify="center" wrap="nowrap" gap={2}>
+          {isSubscribed && (
+            <ActionIcon
+              size="sm"
+              variant="subtle"
+              color="red"
+              onClick={() => onActionClick(client)}
+            >
+              <IconChevronsDown size={24} />
+            </ActionIcon>
+          )}
+
+          {!isSubscribed && (
+            <ActionIcon
+              size="sm"
+              variant="subtle"
+              color="green"
+              onClick={() => onActionClick(client)}
+            >
+              <IconChevronsUp size={24} />
+            </ActionIcon>
+          )}
+
+          <ActionIcon
+            size="sm"
+            variant="subtle"
+            color="red"
+            onClick={() => onDeleteClick(client)}
           >
-            {isSubscribed ? "Cancel" : "Upgrade"}
-          </Button>
+            <IconTrash size={24} />
+          </ActionIcon>
         </Group>
       );
     },

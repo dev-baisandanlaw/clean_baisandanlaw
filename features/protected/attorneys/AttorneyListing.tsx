@@ -17,6 +17,7 @@ import {
 import { AddAttorneyModal } from "@/components/attorneys/modals/AddAttorneyModal";
 import BanAttorneyModal from "@/components/attorneys/modals/BanAttorneyModal";
 import UnbanAttorneyModal from "@/components/attorneys/modals/UnbanAttorneyModal";
+import DeleteUserModal from "@/components/Common/modal/DeleteUserModal";
 
 export default function AttorneyListing() {
   const shrink = useMediaQuery("(max-width: 768px)");
@@ -25,9 +26,6 @@ export default function AttorneyListing() {
 
   const [search, setSearch] = useState("");
   const [debouncedSearch] = useDebouncedValue(search, 500);
-
-  // type StatusTab = "Active" | "Banned";
-  // const [statusTab, setStatusTab] = useState<StatusTab>("Active");
 
   const [
     isAddAttorneyModalOpen,
@@ -44,6 +42,11 @@ export default function AttorneyListing() {
     { open: openUnbanAttorneyModal, close: closeUnbanAttorneyModal },
   ] = useDisclosure(false);
 
+  const [
+    isDeleteUserModalOpen,
+    { open: openDeleteUserModal, close: closeDeleteUserModal },
+  ] = useDisclosure(false);
+
   const handleOnBanClick = (row: AttorneyRow) => {
     setSelectedAtty(row);
     if (row?.metadata?.banned) openUnbanAttorneyModal();
@@ -54,7 +57,16 @@ export default function AttorneyListing() {
     setSelectedAtty(row);
   };
 
-  const columns = createAttorneyColumns(handleOnBanClick, handleOnUpdateClick);
+  const handleOnDeleteClick = (row: AttorneyRow) => {
+    setSelectedAtty(row);
+    openDeleteUserModal();
+  };
+
+  const columns = createAttorneyColumns(
+    handleOnBanClick,
+    handleOnUpdateClick,
+    handleOnDeleteClick,
+  );
 
   return (
     <>
@@ -114,6 +126,12 @@ export default function AttorneyListing() {
         opened={isUnbanAttorneyModalOpen}
         userDetails={selectedAtty}
         onClose={closeUnbanAttorneyModal}
+      />
+
+      <DeleteUserModal
+        opened={isDeleteUserModalOpen}
+        user={selectedAtty}
+        onClose={closeDeleteUserModal}
       />
     </>
   );

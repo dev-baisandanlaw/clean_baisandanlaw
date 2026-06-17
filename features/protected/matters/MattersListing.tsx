@@ -47,7 +47,7 @@ export default function MattersListing() {
           w="100%"
         >
           <TextInput
-            placeholder="Search matter number, attorney, client, or matter type"
+            placeholder="Search matter number, attorney, client, areas"
             flex={1}
             leftSectionPointerEvents="none"
             leftSection={<IconSearch />}

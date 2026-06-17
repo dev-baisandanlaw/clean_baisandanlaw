@@ -90,6 +90,14 @@ export const userService = createApi({
       }),
       invalidatesTags: ["Users"],
     }),
+
+    deleteUser: builder.mutation<{ message: string }, { id: string }>({
+      query: ({ id }) => ({
+        url: `/users/user/delete/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Users"],
+    }),
   }),
 });
 
@@ -99,4 +107,5 @@ export const {
   useAddNewAttorneyMutation,
   useBanAttorneyMutation,
   useUnBanAttorneyMutation,
+  useDeleteUserMutation,
 } = userService;

@@ -2,7 +2,12 @@ import { type ColumnDef } from "@tanstack/react-table";
 import { ActionIcon, Group, Text } from "@mantine/core";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { AreaBadge } from "@/components/Common/BadgeComp";
-import { IconBan, IconPencil, IconRestore } from "@tabler/icons-react";
+import {
+  IconBan,
+  IconPencil,
+  IconRestore,
+  IconTrash,
+} from "@tabler/icons-react";
 import TableUserField from "@/components/Common/TableUserField";
 import { UserReference } from "@/types/user-reference";
 
@@ -12,6 +17,7 @@ export type AttorneyRow = UserReference & { metadata: any };
 export const createAttorneyColumns = (
   onBanToggleClick: (attorney: AttorneyRow) => void,
   onUpdateClick: (attorney: AttorneyRow) => void,
+  onDeleteClick: (attorney: AttorneyRow) => void,
 ): ColumnDef<AttorneyRow>[] => [
   {
     accessorKey: "fullname",
@@ -83,7 +89,7 @@ export const createAttorneyColumns = (
       const isBanned = attorney?.metadata?.banned;
 
       return (
-        <Group justify="center" gap="xs" wrap="nowrap">
+        <Group justify="center" gap={2} wrap="nowrap">
           {!isBanned && (
             <ActionIcon
               size="sm"
@@ -113,6 +119,15 @@ export const createAttorneyColumns = (
             onClick={() => onUpdateClick(attorney)}
           >
             <IconPencil size={24} />
+          </ActionIcon>
+
+          <ActionIcon
+            size="sm"
+            variant="subtle"
+            color="red"
+            onClick={() => onDeleteClick(attorney)}
+          >
+            <IconTrash size={24} />
           </ActionIcon>
         </Group>
       );

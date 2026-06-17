@@ -45,7 +45,7 @@ export default function RetainerListing() {
           w="100%"
         >
           <TextInput
-            placeholder="Search client, contact person, or matter type"
+            placeholder="Search client, contact person"
             flex={1}
             leftSectionPointerEvents="none"
             leftSection={<IconSearch />}
