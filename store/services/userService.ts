@@ -98,6 +98,23 @@ export const userService = createApi({
       }),
       invalidatesTags: ["Users"],
     }),
+
+    updateUser: builder.mutation<
+      { message: string },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      { id: string; firstName?: string; lastName?: string; metadata: any }
+    >({
+      query: ({ id, firstName, lastName, metadata }) => ({
+        url: `/users/user/update/${id}`,
+        method: "PATCH",
+        body: {
+          firstName,
+          lastName,
+          metadata,
+        },
+      }),
+      invalidatesTags: ["Users"],
+    }),
   }),
 });
 
@@ -108,4 +125,5 @@ export const {
   useBanAttorneyMutation,
   useUnBanAttorneyMutation,
   useDeleteUserMutation,
+  useUpdateUserMutation,
 } = userService;

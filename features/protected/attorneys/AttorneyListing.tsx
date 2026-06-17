@@ -18,6 +18,7 @@ import { AddAttorneyModal } from "@/components/attorneys/modals/AddAttorneyModal
 import BanAttorneyModal from "@/components/attorneys/modals/BanAttorneyModal";
 import UnbanAttorneyModal from "@/components/attorneys/modals/UnbanAttorneyModal";
 import DeleteUserModal from "@/components/Common/modal/DeleteUserModal";
+import { UpdateAttorneyModal } from "@/components/attorneys/modals/UpdateAttorneyModal";
 
 export default function AttorneyListing() {
   const shrink = useMediaQuery("(max-width: 768px)");
@@ -43,6 +44,11 @@ export default function AttorneyListing() {
   ] = useDisclosure(false);
 
   const [
+    isUpdateAttorneyModalOpen,
+    { open: openUpdateAttorneyModal, close: closeUpdateAttorneyModal },
+  ] = useDisclosure(false);
+
+  const [
     isDeleteUserModalOpen,
     { open: openDeleteUserModal, close: closeDeleteUserModal },
   ] = useDisclosure(false);
@@ -55,6 +61,7 @@ export default function AttorneyListing() {
 
   const handleOnUpdateClick = (row: AttorneyRow) => {
     setSelectedAtty(row);
+    openUpdateAttorneyModal();
   };
 
   const handleOnDeleteClick = (row: AttorneyRow) => {
@@ -126,6 +133,12 @@ export default function AttorneyListing() {
         opened={isUnbanAttorneyModalOpen}
         userDetails={selectedAtty}
         onClose={closeUnbanAttorneyModal}
+      />
+
+      <UpdateAttorneyModal
+        opened={isUpdateAttorneyModalOpen}
+        user={selectedAtty}
+        onClose={closeUpdateAttorneyModal}
       />
 
       <DeleteUserModal
