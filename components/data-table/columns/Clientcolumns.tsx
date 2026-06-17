@@ -84,7 +84,7 @@ export const createClientColumns = (
               color="red"
               onClick={() => onActionClick(client)}
             >
-              <IconChevronsDown size={24} />
+              <IconChevronsDown size={18} />
             </ActionIcon>
           )}
 
@@ -95,7 +95,7 @@ export const createClientColumns = (
               color="green"
               onClick={() => onActionClick(client)}
             >
-              <IconChevronsUp size={24} />
+              <IconChevronsUp size={18} />
             </ActionIcon>
           )}
 
@@ -105,7 +105,7 @@ export const createClientColumns = (
             color="red"
             onClick={() => onDeleteClick(client)}
           >
-            <IconTrash size={24} />
+            <IconTrash size={18} />
           </ActionIcon>
         </Group>
       );

@@ -74,7 +74,7 @@ export const createMatterDocumentColumns = ({
             variant="subtle"
             onClick={() => onDownload(doc.googleDriveId ?? "")}
           >
-            <IconFileDownload size={24} />
+            <IconFileDownload size={18} />
           </ActionIcon>
 
           {canDelete(doc) && (
@@ -87,7 +87,7 @@ export const createMatterDocumentColumns = ({
                 userRole === "client" ? doc.uploadedBy?.id !== userId : false
               }
             >
-              <IconTrash />
+              <IconTrash size={18} />
             </ActionIcon>
           )}
         </Group>

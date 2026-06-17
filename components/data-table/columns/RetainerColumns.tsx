@@ -1,7 +1,7 @@
 import { type ColumnDef } from "@tanstack/react-table";
 import { ActionIcon, Group, Text } from "@mantine/core";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
-import { IconBuilding, IconEye, IconUser } from "@tabler/icons-react";
+import { IconBuilding, IconPointer2, IconUser } from "@tabler/icons-react";
 import { type RetainerListingResponse } from "@/store/service-types/type-retainer-service";
 import TableUserField from "@/components/Common/TableUserField";
 import { AreaBadge } from "@/components/Common/BadgeComp";
@@ -85,7 +85,7 @@ export const retiainerColumns: ColumnDef<RetainerRow>[] = [
           component="a"
           href={`/retainers/${row.original.id}`}
         >
-          <IconEye size={24} />
+          <IconPointer2 size={18} style={{ rotate: "90deg" }} />
         </ActionIcon>
       </Group>
     ),

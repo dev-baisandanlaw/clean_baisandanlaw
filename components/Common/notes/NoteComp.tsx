@@ -54,7 +54,7 @@ export default function NoteComp({
                 onClick={() => setEditingId(note.id)}
                 disabled={!!editingId}
               >
-                <IconPencil size={16} />
+                <IconPencil size={18} />
               </ActionIcon>
               <ActionIcon
                 variant="subtle"
@@ -63,7 +63,7 @@ export default function NoteComp({
                 onClick={handleClickDelete}
                 disabled={!!editingId}
               >
-                <IconTrash size={16} />
+                <IconTrash size={18} />
               </ActionIcon>
             </Group>
           )}

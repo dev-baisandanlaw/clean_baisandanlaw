@@ -12,7 +12,7 @@ import UpgradeSubscriptionModal from "@/components/clients/modals/UpgradeSubscri
 import {
   ClientRow,
   createClientColumns,
-} from "@/components/data-table/columns/Clientcolumns";
+} from "@/components/data-table/columns/ClientColumns";
 import dayjs from "dayjs";
 import DowngradeSubscriptionModal from "@/components/clients/modals/DowngradeSubscriptionModal";
 import DeleteUserModal from "@/components/Common/modal/DeleteUserModal";

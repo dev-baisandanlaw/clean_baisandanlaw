@@ -3,7 +3,7 @@ import { ActionIcon, Group, Text, Tooltip } from "@mantine/core";
 import { type MatterListingResponse } from "@/store/service-types/type-matter-service";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { AreaBadge } from "@/components/Common/BadgeComp";
-import { IconEye } from "@tabler/icons-react";
+import { IconPointer2 } from "@tabler/icons-react";
 import TableUserField from "@/components/Common/TableUserField";
 
 type MatterRow = MatterListingResponse["data"][number];
@@ -95,7 +95,7 @@ export const matterColumns: ColumnDef<MatterRow>[] = [
           component="a"
           href={`/matters/${row.original.id}`}
         >
-          <IconEye size={24} />
+          <IconPointer2 size={18} style={{ rotate: "90deg" }} />
         </ActionIcon>
       </Group>
     ),

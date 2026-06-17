@@ -74,7 +74,7 @@ export const createMatterTaskColumns = ({
       return (
         <Group gap={6}>
           <ActionIcon size="sm" variant="subtle" onClick={() => onView(task)}>
-            <IconEye size={24} />
+            <IconEye size={18} />
           </ActionIcon>
 
           {userRole !== "client" && task.status !== "Complete" && (
@@ -84,7 +84,7 @@ export const createMatterTaskColumns = ({
               c="red"
               onClick={() => onDelete(task)}
             >
-              <IconTrash size={24} />
+              <IconTrash size={18} />
             </ActionIcon>
           )}
         </Group>

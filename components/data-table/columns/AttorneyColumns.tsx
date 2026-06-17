@@ -97,7 +97,7 @@ export const createAttorneyColumns = (
               color="red.7"
               onClick={() => onBanToggleClick(attorney)}
             >
-              <IconBan size={24} />
+              <IconBan size={18} />
             </ActionIcon>
           )}
 
@@ -108,7 +108,7 @@ export const createAttorneyColumns = (
               color="green.7"
               onClick={() => onBanToggleClick(attorney)}
             >
-              <IconRestore size={24} />
+              <IconRestore size={18} />
             </ActionIcon>
           )}
 
@@ -118,7 +118,7 @@ export const createAttorneyColumns = (
             color="#D4AF37"
             onClick={() => onUpdateClick(attorney)}
           >
-            <IconPencil size={24} />
+            <IconPencil size={18} />
           </ActionIcon>
 
           <ActionIcon
@@ -127,7 +127,7 @@ export const createAttorneyColumns = (
             color="red"
             onClick={() => onDeleteClick(attorney)}
           >
-            <IconTrash size={24} />
+            <IconTrash size={18} />
           </ActionIcon>
         </Group>
       );

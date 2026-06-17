@@ -1,7 +1,7 @@
 import BasicCard from "@/components/Common/BasicCard";
 import DetailField from "@/components/Common/DetailField";
 import AppModal from "@/components/Common/modal/AppModal";
-import { ClientRow } from "@/components/data-table/columns/Clientcolumns";
+import { ClientRow } from "@/components/data-table/columns/ClientColumns";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { appNotifications } from "@/utils/notifications/notifications";
 import {
