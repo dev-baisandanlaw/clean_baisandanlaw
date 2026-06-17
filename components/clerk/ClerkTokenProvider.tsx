@@ -9,7 +9,7 @@ export function ClerkTokenProvider() {
 
   useEffect(() => {
     if (isLoaded && isSignedIn) {
-      setClerkGetToken(getToken);
+      setClerkGetToken(() => getToken({ skipCache: true }));
     } else {
       setClerkGetToken(null);
     }

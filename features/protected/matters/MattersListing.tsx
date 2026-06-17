@@ -66,13 +66,14 @@ export default function MattersListing() {
           )}
         </Flex>
 
-        {isLoaded && isSignedIn && (
-          <DataTable
-            columns={matterColumns}
-            useQuery={useGetAllMattersQuery}
-            queryArgs={{ search: debouncedSearch }}
-          />
-        )}
+        <DataTable
+          columns={matterColumns}
+          useQuery={useGetAllMattersQuery}
+          queryArgs={{ search: debouncedSearch }}
+          queryOptions={{
+            skip: !isLoaded || !isSignedIn,
+          }}
+        />
       </Flex>
 
       <AddMatterModal

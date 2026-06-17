@@ -25,7 +25,15 @@ import { useEffect, useState } from "react";
 
 const INITIAL_PAGE = 1;
 
-type UseQueryHook<TData> = (args: any) => {
+interface DataTableQueryOptions {
+  skip?: boolean;
+  pollingInterval?: number;
+}
+
+type UseQueryHook<TData> = (
+  args: any,
+  options?: any,
+) => {
   data?: GenericPaginatedResponse<TData>;
   isLoading: boolean;
   isFetching: boolean;
@@ -35,6 +43,7 @@ type UseQueryHook<TData> = (args: any) => {
 interface DataTableProps<TData> {
   columns: ColumnDef<TData, any>[];
   useQuery: UseQueryHook<TData>;
+  queryOptions?: DataTableQueryOptions;
   queryArgs?: Record<string, any>;
   addListingButton?: React.ReactNode;
   emptyText?: string;
@@ -45,6 +54,7 @@ const DataTable = <TData,>({
   columns,
   useQuery,
   queryArgs,
+  queryOptions,
   addListingButton,
   emptyText = "No data found.",
   maxHeight = "calc(100vh - 205px)",
@@ -53,11 +63,18 @@ const DataTable = <TData,>({
 
   const [page, setPage] = useState(INITIAL_PAGE);
 
-  const { data, isLoading, isFetching, isError } = useQuery({
-    page,
-    limit: 25,
-    ...queryArgs,
-  });
+  const { data, isLoading, isFetching, isError } = useQuery(
+    {
+      page,
+      limit: 25,
+      ...queryArgs,
+    },
+    {
+      ...queryOptions,
+      refetchOnReconnect: true,
+      refetchOnMountOrArgChange: true,
+    },
+  );
 
   useEffect(() => {
     setPage(INITIAL_PAGE);

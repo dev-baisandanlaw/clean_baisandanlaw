@@ -64,13 +64,12 @@ export default function RetainerListing() {
           )}
         </Flex>
 
-        {isLoaded && isSignedIn && (
-          <DataTable
-            columns={retiainerColumns}
-            useQuery={useGetAllRetainersQuery}
-            queryArgs={{ search: debouncedSearch }}
-          />
-        )}
+        <DataTable
+          columns={retiainerColumns}
+          useQuery={useGetAllRetainersQuery}
+          queryArgs={{ search: debouncedSearch }}
+          queryOptions={{ skip: !isLoaded || !isSignedIn }}
+        />
       </Flex>
 
       <AddRetainerModal opened={retainerModal} onClose={closeRetainerModal} />
