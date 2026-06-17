@@ -78,7 +78,7 @@ export default function AppModal({
       }
       {...props}
     >
-      <ScrollArea.Autosize mah="calc(100vh - 165px)">
+      <ScrollArea.Autosize mah="calc(100vh - 165px)" offsetScrollbars>
         {children}
       </ScrollArea.Autosize>
     </Modal>

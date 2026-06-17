@@ -1,6 +1,7 @@
 /* eslint-disable */
 "use client";
 
+import classes from "./TableScroll.module.css";
 import type { GenericPaginatedResponse } from "@/types/pagination";
 import {
   Center,
@@ -13,6 +14,7 @@ import {
   Table,
   Text,
 } from "@mantine/core";
+import { useResizeObserver } from "@mantine/hooks";
 import {
   flexRender,
   getCoreRowModel,
@@ -36,6 +38,7 @@ interface DataTableProps<TData> {
   queryArgs?: Record<string, any>;
   addListingButton?: React.ReactNode;
   emptyText?: string;
+  maxHeight?: string | number;
 }
 
 const DataTable = <TData,>({
@@ -44,7 +47,10 @@ const DataTable = <TData,>({
   queryArgs,
   addListingButton,
   emptyText = "No data found.",
+  maxHeight = "calc(100vh - 205px)",
 }: DataTableProps<TData>) => {
+  const [theadRef, theadRect] = useResizeObserver<HTMLTableSectionElement>();
+
   const [page, setPage] = useState(INITIAL_PAGE);
 
   const { data, isLoading, isFetching, isError } = useQuery({
@@ -95,13 +101,33 @@ const DataTable = <TData,>({
           />
         )}
 
-        <Table.ScrollContainer minWidth={500} mb={-12}>
-          <Table highlightOnHover={false} pb={0}>
-            <Table.Thead>
+        <Table.ScrollContainer
+          minWidth={500}
+          mb={-12}
+          maxHeight={maxHeight}
+          mih={data && data?.metadata?.total > 0 ? undefined : 200}
+          type="scrollarea"
+          style={
+            {
+              "--header-height": `${theadRect.height}px`,
+            } as React.CSSProperties
+          }
+          scrollAreaProps={{
+            offsetScrollbars: "x",
+            classNames: { scrollbar: classes.scrollbar },
+          }}
+        >
+          <Table
+            highlightOnHover={false}
+            pb={0}
+            stickyHeader
+            stickyHeaderOffset={0}
+          >
+            <Table.Thead ref={theadRef}>
               {table.getHeaderGroups().map((headerGroup) => (
                 <Table.Tr key={headerGroup.id} bg="gray.3">
                   {headerGroup.headers.map((header) => (
-                    <Table.Th key={header.id} p="sm">
+                    <Table.Th key={header.id} p="sm" bg="gray.3" c="green">
                       {header.isPlaceholder
                         ? null
                         : flexRender(

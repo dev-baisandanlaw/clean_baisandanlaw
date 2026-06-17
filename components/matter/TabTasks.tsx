@@ -1,5 +1,5 @@
 import { useUser } from "@clerk/nextjs";
-import { Button, SimpleGrid, Stack } from "@mantine/core";
+import { Button, ScrollArea, SimpleGrid, Stack } from "@mantine/core";
 import { useMemo, useState } from "react";
 import { IconCirclePlus } from "@tabler/icons-react";
 import { useDisclosure } from "@mantine/hooks";
@@ -63,50 +63,56 @@ export default function TabTasks({ matterData }: MatterTabTasksProps) {
 
   return (
     <>
-      <Stack gap="xl">
-        <BasicCard
-          title="Tasks"
-          actionButton={
-            user?.unsafeMetadata?.role !== "client" && (
-              <Button
-                leftSection={<IconCirclePlus size={18} />}
-                size="xs"
-                variant="outline"
-                onClick={openAddTaskModal}
-              >
-                Add Task
-              </Button>
-            )
-          }
-        >
-          <SimpleGrid cols={{ base: 2, xs: 3, sm: 3, md: 3 }}>
-            <DetailField title="All" value={matterData?.tasks?.length || "0"} />
-            <DetailField
-              title="Pending"
-              value={
-                matterData?.tasks?.filter((i) => i.status === "Pending")
-                  .length || "0"
-              }
-            />
-            <DetailField
-              title="Complete"
-              value={
-                matterData?.tasks?.filter((i) => i.status === "Complete")
-                  .length || "0"
-              }
-            />
-            <DetailField title="Attorney" value={taskSummary("Attorney")} />
-            <DetailField title="Client" value={taskSummary("Client")} />
-            <DetailField title="Staff" value={taskSummary("Staff")} />
-          </SimpleGrid>
-        </BasicCard>
+      <ScrollArea.Autosize offsetScrollbars>
+        <Stack>
+          <BasicCard
+            title="Tasks"
+            actionButton={
+              user?.unsafeMetadata?.role !== "client" && (
+                <Button
+                  leftSection={<IconCirclePlus size={18} />}
+                  size="xs"
+                  variant="outline"
+                  onClick={openAddTaskModal}
+                >
+                  Add Task
+                </Button>
+              )
+            }
+          >
+            <SimpleGrid cols={{ base: 2, xs: 3, sm: 3, md: 3 }}>
+              <DetailField
+                title="All"
+                value={matterData?.tasks?.length || "0"}
+              />
+              <DetailField
+                title="Pending"
+                value={
+                  matterData?.tasks?.filter((i) => i.status === "Pending")
+                    .length || "0"
+                }
+              />
+              <DetailField
+                title="Complete"
+                value={
+                  matterData?.tasks?.filter((i) => i.status === "Complete")
+                    .length || "0"
+                }
+              />
+              <DetailField title="Attorney" value={taskSummary("Attorney")} />
+              <DetailField title="Client" value={taskSummary("Client")} />
+              <DetailField title="Staff" value={taskSummary("Staff")} />
+            </SimpleGrid>
+          </BasicCard>
 
-        <DataTableNoPagination
-          columns={columns}
-          data={matterData?.tasks ?? []}
-          emptyText="No tasks found."
-        />
-      </Stack>
+          <DataTableNoPagination
+            columns={columns}
+            data={matterData?.tasks ?? []}
+            emptyText="No tasks found."
+            maxHeight="calc(100vh - 385px)"
+          />
+        </Stack>
+      </ScrollArea.Autosize>
 
       <TabTasksAddTaskModal
         opened={isAddTaskModalOpen}

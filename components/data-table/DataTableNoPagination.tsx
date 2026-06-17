@@ -1,7 +1,9 @@
 /* eslint-disable */
 "use client";
 
+import classes from "./TableScroll.module.css";
 import { Center, Paper, Stack, Table, Text } from "@mantine/core";
+import { useResizeObserver } from "@mantine/hooks";
 import {
   flexRender,
   getCoreRowModel,
@@ -14,6 +16,7 @@ interface DataTableNoPaginationProps<TData> {
   data: TData[];
   addListingButton?: React.ReactNode;
   emptyText?: string;
+  maxHeight?: string | number;
 }
 
 const DataTableNoPagination = <TData,>({
@@ -21,7 +24,10 @@ const DataTableNoPagination = <TData,>({
   data,
   addListingButton,
   emptyText = "No data found.",
+  maxHeight = "40vh",
 }: DataTableNoPaginationProps<TData>) => {
+  const [theadRef, theadRect] = useResizeObserver<HTMLTableSectionElement>();
+
   const table = useReactTable({
     data,
     columns,
@@ -31,13 +37,32 @@ const DataTableNoPagination = <TData,>({
   return (
     <Stack>
       <Paper p={0} style={{ overflow: "hidden" }} radius={6} withBorder>
-        <Table.ScrollContainer minWidth={500} mb={-12}>
-          <Table highlightOnHover={false} pb={0}>
-            <Table.Thead>
+        <Table.ScrollContainer
+          minWidth={500}
+          mb={-12}
+          maxHeight={maxHeight}
+          type="scrollarea"
+          style={
+            {
+              "--header-height": `${theadRect.height}px`,
+            } as React.CSSProperties
+          }
+          scrollAreaProps={{
+            offsetScrollbars: "x",
+            classNames: { scrollbar: classes.scrollbar },
+          }}
+        >
+          <Table
+            highlightOnHover={false}
+            pb={0}
+            stickyHeader
+            stickyHeaderOffset={0}
+          >
+            <Table.Thead ref={theadRef}>
               {table.getHeaderGroups().map((headerGroup) => (
                 <Table.Tr key={headerGroup.id} bg="gray.3">
                   {headerGroup.headers.map((header) => (
-                    <Table.Th key={header.id} p="sm">
+                    <Table.Th key={header.id} p="sm" bg="gray.3" c="green">
                       {header.isPlaceholder
                         ? null
                         : flexRender(
