@@ -5,4 +5,7 @@ export interface UserReference {
   division?: string | null | undefined;
 
   phone?: string | undefined;
+
+  birthday?: string | undefined | null;
+  fullAddres?: string | undefined | null;
 }

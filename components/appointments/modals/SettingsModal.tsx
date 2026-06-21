@@ -1,4 +1,4 @@
-import { COLLECTIONS, WORK_SCHEDULE } from "@/constants/constants";
+import { WORK_SCHEDULE } from "@/constants/constants";
 import {
   REGULAR_HOLIDAYS,
   SPECIAL_HOLIDAYS,
@@ -10,7 +10,6 @@ import {
   em,
   Flex,
   Group,
-  Modal,
   NumberInput,
   Paper,
   Select,
@@ -21,7 +20,7 @@ import {
   Text,
   TextInput,
 } from "@mantine/core";
-import { Dispatch, SetStateAction, useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import SettingsSection from "./SettingsSection";
 import { useForm } from "@mantine/form";
 import {
@@ -37,45 +36,55 @@ import {
   IconPlus,
   IconTrash,
 } from "@tabler/icons-react";
-import { doc, setDoc } from "firebase/firestore";
-import { db } from "@/firebase/config";
-import { GlobalSched } from "@/types/global-sched";
 import dayjs from "dayjs";
 import { useMediaQuery } from "@mantine/hooks";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
+import AppModal from "@/components/Common/modal/AppModal";
+import {
+  type BookingSettings,
+  type HolidaySetting,
+  type PaymentChannelSetting,
+  type UpdateBookingSettingsDto,
+} from "@/types/bookingSettings";
+import { useUpdateBookingSettingsMutation } from "@/store/services/bookingService";
 
-const timeSlots = getTimeRange({
-  startTime: "08:00",
-  endTime: "16:00",
-  interval: "01:00",
-});
+const toHolidayRecord = (holidays: HolidaySetting[] = []) =>
+  Object.fromEntries(holidays.map((holiday) => [holiday.id, holiday.enabled]));
 
-const toMinutes = (time: string) => {
-  const [h, m] = time.split(":").map(Number);
-  return h * 60 + m;
+const toHolidayItems = (holidays: HolidaySetting[] = []) =>
+  holidays.map((holiday) => ({
+    id: holiday.id,
+    name: holiday.name,
+    date: holiday.date.replace("-", "/"),
+  }));
+
+const timeToMinutes = (time: string) => {
+  const [hours, minutes] = time.split(":").map(Number);
+
+  return hours * 60 + minutes;
 };
+
+const getPaymentChannelId = () =>
+  typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `payment-channel-${Date.now()}`;
 
 interface SettingsModalProps {
   opened: boolean;
   onClose: () => void;
-  globalSched: GlobalSched | null;
-  setDataChanged: Dispatch<SetStateAction<boolean>>;
+  bookingSettings?: BookingSettings;
 }
 
 export default function SettingsModal({
   opened,
   onClose,
-  globalSched,
-  setDataChanged,
+  bookingSettings,
 }: SettingsModalProps) {
   const isMobile = useMediaQuery(`(max-width: ${em(600)})`);
+  const [updateBookingSettings, { isLoading: isSaving }] =
+    useUpdateBookingSettingsMutation();
 
   const [acc, setAcc] = useState<string[]>([]);
-
-  const [isSavingHolidays, setIsSavingHolidays] = useState(false);
-  const [isSavingBlockedSchedules, setIsSavingBlockedSchedules] =
-    useState(false);
-  const [isSavingPayments, setIsSavingPayments] = useState(false);
 
   const handleAccordion = (key: string) => {
     setAcc((prev) =>
@@ -85,24 +94,8 @@ export default function SettingsModal({
 
   const holidaysForm = useForm({
     initialValues: {
-      regularHolidays: {
-        "new-year": false,
-        kagitingan: false,
-        "labor-day": false,
-        "independence-day": false,
-        "bonifacio-day": false,
-        "christmas-day": false,
-        "rizal-day": false,
-      },
-      specialHolidays: {
-        edsa: false,
-        ninoy: false,
-        "all-saints-eve": false,
-        "all-saints": false,
-        "immaculate-conception": false,
-        "christmas-eve": false,
-        "last-day": false,
-      },
+      regularHolidays: {} as Record<string, boolean>,
+      specialHolidays: {} as Record<string, boolean>,
       officeHours: {
         officeStart: "08:00",
         officeEnd: "17:00",
@@ -124,200 +117,203 @@ export default function SettingsModal({
     initialValues: {
       selectedDate: dayjs().format("YYYY-MM-DD"),
       selectedTimeSlots: [] as string[],
-      isWholeDay: false,
     },
   });
 
   const paymentsForm = useForm({
     initialValues: {
-      appointmentPerHour: 0,
-      paymentChannels: [] as GlobalSched["fees"]["paymentChannels"],
+      appointmentFeePerHour: 0,
+      paymentChannels: [] as PaymentChannelSetting[],
     },
   });
 
+  const timeSlots = useMemo(
+    () =>
+      getTimeRange({
+        startTime: holidaysForm.values.officeHours.officeStart,
+        endTime: holidaysForm.values.officeHours.officeEnd,
+        interval: holidaysForm.values.officeHours.bookingInterval,
+      }),
+    [
+      holidaysForm.values.officeHours.bookingInterval,
+      holidaysForm.values.officeHours.officeEnd,
+      holidaysForm.values.officeHours.officeStart,
+    ],
+  );
+
+  const regularHolidayItems = useMemo(
+    () =>
+      bookingSettings?.regularHolidays.length
+        ? toHolidayItems(bookingSettings.regularHolidays)
+        : REGULAR_HOLIDAYS,
+    [bookingSettings],
+  );
+
+  const specialHolidayItems = useMemo(
+    () =>
+      bookingSettings?.specialHolidays.length
+        ? toHolidayItems(bookingSettings.specialHolidays)
+        : SPECIAL_HOLIDAYS,
+    [bookingSettings],
+  );
+
   useEffect(() => {
-    if (!globalSched || !opened) return;
+    if (!bookingSettings || !opened) return;
 
-    const {
-      regularHolidays,
-      specialHolidays,
-      workSchedule,
-      officeHours,
-      fees,
-    } = globalSched;
+    holidaysForm.setValues({
+      regularHolidays: toHolidayRecord(bookingSettings.regularHolidays),
+      specialHolidays: toHolidayRecord(bookingSettings.specialHolidays),
+      workSchedule: { ...bookingSettings.workSchedule },
+      officeHours: {
+        officeStart: bookingSettings.officeHourStart,
+        officeEnd: bookingSettings.officeHourEnd,
+        bookingInterval: bookingSettings.bookingIntervalMinutes,
+      },
+    });
 
-    if (regularHolidays && specialHolidays && workSchedule) {
-      holidaysForm.setValues({
-        regularHolidays,
-        specialHolidays,
-        workSchedule,
-        officeHours,
-      });
-    }
-
-    if (fees) {
-      paymentsForm.setValues({
-        appointmentPerHour: fees.appointmentPerHour,
-        paymentChannels: fees.paymentChannels,
-      });
-    }
+    paymentsForm.setValues({
+      appointmentFeePerHour: Number(bookingSettings.appointmentFeePerHour),
+      paymentChannels: bookingSettings.paymentChannels.map((channel) => ({
+        ...channel,
+      })),
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [globalSched, opened]);
+  }, [bookingSettings, opened]);
 
   useEffect(() => {
-    if (globalSched?.blockedDates?.[blockedDatesForm.values.selectedDate]) {
-      blockedDatesForm.setFieldValue(
-        "selectedTimeSlots",
-        globalSched.blockedDates[blockedDatesForm.values.selectedDate],
-      );
-    } else {
-      blockedDatesForm.setFieldValue("selectedTimeSlots", []);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blockedDatesForm.values.selectedDate, globalSched]);
+    const blockedSchedule = bookingSettings?.blockedSchedules.find(
+      (schedule) => schedule.date === blockedDatesForm.values.selectedDate,
+    );
 
-  const regularHolidaysCount = `${Object?.values(holidaysForm.values.regularHolidays)?.filter(Boolean).length}/${REGULAR_HOLIDAYS.length}`;
-  const specialHolidaysCount = `${Object?.values(holidaysForm.values.specialHolidays)?.filter(Boolean).length}/${SPECIAL_HOLIDAYS.length}`;
+    blockedDatesForm.setValues({
+      selectedDate: blockedDatesForm.values.selectedDate,
+      selectedTimeSlots: blockedSchedule ? [...blockedSchedule.timeSlots] : [],
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blockedDatesForm.values.selectedDate, bookingSettings]);
+
+  const regularHolidaysCount = `${Object?.values(holidaysForm.values.regularHolidays)?.filter(Boolean).length}/${regularHolidayItems.length}`;
+  const specialHolidaysCount = `${Object?.values(holidaysForm.values.specialHolidays)?.filter(Boolean).length}/${specialHolidayItems.length}`;
   const workScheduleCount = `${Object?.values(holidaysForm.values.workSchedule)?.filter(Boolean).length}/${WORK_SCHEDULE.length}`;
 
-  const handleSaveHolidays = async () => {
+  const buildHolidayPayload = (
+    holidays: HolidaySetting[] = [],
+    checkedValues: Record<string, boolean>,
+  ) =>
+    holidays.map((holiday) => ({
+      ...holiday,
+      enabled: !!checkedValues[holiday.id],
+    }));
+
+  const buildBlockedSchedulesPayload = () => {
+    const existingSchedule = bookingSettings?.blockedSchedules.find(
+      (schedule) => schedule.date === blockedDatesForm.values.selectedDate,
+    );
+    const otherSchedules =
+      bookingSettings?.blockedSchedules.filter(
+        (schedule) => schedule.date !== blockedDatesForm.values.selectedDate,
+      ) ?? [];
+
+    if (blockedDatesForm.values.selectedTimeSlots.length) {
+      return [
+        ...otherSchedules,
+        {
+          id:
+            existingSchedule?.id ??
+            `blocked-${blockedDatesForm.values.selectedDate}`,
+          date: blockedDatesForm.values.selectedDate,
+          timeSlots: [...blockedDatesForm.values.selectedTimeSlots].sort(),
+          reason: existingSchedule?.reason,
+        },
+      ];
+    }
+
+    return otherSchedules;
+  };
+
+  const handleSaveSettings = async ({
+    closeAfterSave = true,
+  }: {
+    closeAfterSave?: boolean;
+  } = {}) => {
+    if (!bookingSettings) return;
+
     const { officeStart, officeEnd } = holidaysForm.values.officeHours;
 
-    if (toMinutes(officeStart) >= toMinutes(officeEnd)) {
+    if (timeToMinutes(officeStart) >= timeToMinutes(officeEnd)) {
       appNotifications.error({
-        title: "An error occurred",
+        title: "Failed to save settings",
         message: "Office Start Time should be less than Office End Time",
       });
       return;
     }
 
-    setIsSavingHolidays(true);
-
-    try {
-      await setDoc(
-        doc(
-          db,
-          COLLECTIONS.GLOBAL_SCHED,
-          process.env.NEXT_PUBLIC_FIREBASE_HOLIDAYS_BLOCKED_SCHED_ID!,
-        ),
-        {
-          ...holidaysForm.values,
-        },
-        { merge: true },
-      );
-
-      appNotifications.success({
-        title: "Settings saved successfully",
-        message:
-          "The holidays, work schedule, and Office hour settings have been saved successfully",
-      });
-      setDataChanged((prev) => !prev);
-      onClose();
-    } catch {
-      appNotifications.error({
-        title: "Failed to save settings",
-        message:
-          "The holidays, work schedule, and office hours could not be saved. Please try again.",
-      });
-    } finally {
-      setIsSavingHolidays(false);
-    }
-  };
-
-  const handleSaveBlockedSchedules = async () => {
-    setIsSavingBlockedSchedules(true);
-
-    try {
-      const blockedDates = { ...globalSched?.blockedDates };
-      if (blockedDatesForm.values.selectedTimeSlots.length) {
-        blockedDates[blockedDatesForm.values.selectedDate] =
-          blockedDatesForm.values.selectedTimeSlots;
-      } else {
-        delete blockedDates[blockedDatesForm.values.selectedDate];
-      }
-
-      await setDoc(
-        doc(
-          db,
-          COLLECTIONS.GLOBAL_SCHED,
-          process.env.NEXT_PUBLIC_FIREBASE_HOLIDAYS_BLOCKED_SCHED_ID!,
-        ),
-        {
-          ...(globalSched ?? {}),
-          blockedDates,
-        },
-      );
-      appNotifications.success({
-        title: "Blocked schedules saved successfully",
-        message: "The blocked schedules have been saved successfully",
-      });
-      setDataChanged((prev) => !prev);
-    } catch {
-      appNotifications.error({
-        title: "Failed to save blocked schedules",
-        message: "The blocked schedules could not be saved. Please try again.",
-      });
-    } finally {
-      setIsSavingBlockedSchedules(false);
-    }
-  };
-
-  const handleSavePayments = async () => {
     if (
-      (paymentsForm.values.paymentChannels.length > 0 &&
-        paymentsForm.values.paymentChannels.some(
-          (i) => !i.accountName || !i.accountNumber || !i.channelName,
-        )) ||
-      !paymentsForm.values.appointmentPerHour
+      !paymentsForm.values.appointmentFeePerHour ||
+      paymentsForm.values.paymentChannels.some(
+        (channel) =>
+          !channel.name || !channel.accountName || !channel.accountNumber,
+      )
     ) {
       appNotifications.error({
         title: "Error saving payment settings",
-        message: !paymentsForm.values.appointmentPerHour
+        message: !paymentsForm.values.appointmentFeePerHour
           ? "Appointment fee must be at least 1"
-          : "There should be at least 1 payment channel",
+          : "Payment channels should include a name, account name, and account number",
       });
+      return;
     }
-    setIsSavingPayments(true);
+
+    const payload: UpdateBookingSettingsDto = {
+      regularHolidays: buildHolidayPayload(
+        bookingSettings.regularHolidays,
+        holidaysForm.values.regularHolidays,
+      ),
+      specialHolidays: buildHolidayPayload(
+        bookingSettings.specialHolidays,
+        holidaysForm.values.specialHolidays,
+      ),
+      workSchedule: holidaysForm.values.workSchedule,
+      officeHourStart: officeStart,
+      officeHourEnd: officeEnd,
+      bookingIntervalMinutes: holidaysForm.values.officeHours.bookingInterval,
+
+      blockedSchedules: buildBlockedSchedulesPayload(),
+      appointmentFeePerHour: Number(paymentsForm.values.appointmentFeePerHour),
+      paymentChannels: paymentsForm.values.paymentChannels.map((channel) => ({
+        ...channel,
+        name: channel.name.trim(),
+        accountName: channel.accountName.trim(),
+        accountNumber: channel.accountNumber.trim(),
+        enabled: channel.enabled ?? true,
+      })),
+    };
 
     try {
-      const fees = { ...paymentsForm.values };
-      await setDoc(
-        doc(
-          db,
-          COLLECTIONS.GLOBAL_SCHED,
-          process.env.NEXT_PUBLIC_FIREBASE_HOLIDAYS_BLOCKED_SCHED_ID!,
-        ),
-        {
-          fees,
-        },
-        { merge: true },
-      );
+      await updateBookingSettings(payload).unwrap();
+
       appNotifications.success({
-        title: "Payment Settings saved successfully",
-        message: "The payment settings have been saved successfully",
+        title: "Settings saved successfully",
+        message: "The calendar and payment settings have been saved.",
       });
-      setDataChanged((prev) => !prev);
-      onClose();
+
+      if (closeAfterSave) onClose();
     } catch {
       appNotifications.error({
-        title: "Failed to save payment settings",
-        message: "The Payment settings can't be saved. Please try again.",
+        title: "Failed to save settings",
+        message: "The settings could not be saved. Please try again.",
       });
-    } finally {
-      setIsSavingPayments(false);
     }
   };
 
   return (
-    <Modal
+    <AppModal
       opened={opened}
       onClose={onClose}
       title="Calendar Settings"
-      centered
       size="xl"
-      withCloseButton={
-        !isSavingHolidays && !isSavingBlockedSchedules && !isSavingPayments
-      }
+      closable={!isSaving}
+      type="success"
     >
       <Tabs defaultValue="holidays-work-sched">
         <Tabs.List>
@@ -340,7 +336,7 @@ export default function SettingsModal({
               accordionKey="regularHolidays"
               isOpen={acc.includes("regularHolidays")}
               onToggle={handleAccordion}
-              items={REGULAR_HOLIDAYS}
+              items={regularHolidayItems}
               checkedValues={holidaysForm.values.regularHolidays}
               onCheckboxChange={(id, checked) => {
                 holidaysForm.setFieldValue(`regularHolidays.${id}`, checked);
@@ -353,7 +349,7 @@ export default function SettingsModal({
               accordionKey="specialHolidays"
               isOpen={acc.includes("specialHolidays")}
               onToggle={handleAccordion}
-              items={SPECIAL_HOLIDAYS}
+              items={specialHolidayItems}
               checkedValues={holidaysForm.values.specialHolidays}
               onCheckboxChange={(id, checked) => {
                 holidaysForm.setFieldValue(`specialHolidays.${id}`, checked);
@@ -443,14 +439,14 @@ export default function SettingsModal({
                 variant="default"
                 size="sm"
                 onClick={onClose}
-                disabled={isSavingHolidays}
+                disabled={isSaving}
               >
                 Cancel
               </Button>
               <Button
                 size="sm"
-                onClick={handleSaveHolidays}
-                loading={isSavingHolidays}
+                onClick={() => handleSaveSettings()}
+                loading={isSaving}
                 disabled={
                   !holidaysForm.values.officeHours.officeStart ||
                   !holidaysForm.values.officeHours.officeEnd
@@ -504,8 +500,8 @@ export default function SettingsModal({
               <Button
                 fullWidth
                 size="xs"
-                onClick={handleSaveBlockedSchedules}
-                loading={isSavingBlockedSchedules}
+                onClick={() => handleSaveSettings({ closeAfterSave: false })}
+                loading={isSaving}
               >
                 Save
               </Button>
@@ -516,11 +512,9 @@ export default function SettingsModal({
                     key={slot}
                     size="compact-sm"
                     style={{
-                      userSelect: isSavingBlockedSchedules ? "none" : "auto",
-                      pointerEvents: isSavingBlockedSchedules ? "none" : "auto",
-                      cursor: isSavingBlockedSchedules
-                        ? "not-allowed"
-                        : "pointer",
+                      userSelect: isSaving ? "none" : "auto",
+                      pointerEvents: isSaving ? "none" : "auto",
+                      cursor: isSaving ? "not-allowed" : "pointer",
                     }}
                     variant={
                       blockedDatesForm.values.selectedTimeSlots?.includes(slot)
@@ -567,20 +561,21 @@ export default function SettingsModal({
               data={{
                 head: ["Date", "Time Slots"],
                 body: [
-                  ...Object.entries(globalSched?.blockedDates || {})
-                    .sort((a, b) => a[0].localeCompare(b[0]))
-                    .filter(([date]) =>
-                      dayjs(date).isSameOrAfter(dayjs(), "day"),
+                  ...[...(bookingSettings?.blockedSchedules ?? [])]
+                    .sort((a, b) => a.date.localeCompare(b.date))
+                    .filter((schedule) =>
+                      dayjs(schedule.date).isSameOrAfter(dayjs(), "day"),
                     )
-                    .map(([date, timeSlots]) => [
-                      getDateFormatDisplay(date),
-                      <Group key={date} gap="2">
-                        {timeSlots
+                    .filter((schedule) => schedule.timeSlots.length > 0)
+                    .map((schedule) => [
+                      getDateFormatDisplay(schedule.date),
+                      <Group key={schedule.id} gap="2">
+                        {[...schedule.timeSlots]
                           .sort((a, b) => a.localeCompare(b))
                           .map((s, i) => (
                             <Text key={s} size="xs" mr={2}>
                               <TimeValue value={s} format="12h" />
-                              {i !== timeSlots.length - 1 && ","}
+                              {i !== schedule.timeSlots.length - 1 && ","}
                             </Text>
                           ))}
                       </Group>,
@@ -617,7 +612,7 @@ export default function SettingsModal({
                 thousandSeparator=","
                 decimalScale={2}
                 placeholder="Enter appointment fee per hour"
-                {...paymentsForm.getInputProps("appointmentPerHour")}
+                {...paymentsForm.getInputProps("appointmentFeePerHour")}
               />
             </Paper>
 
@@ -631,12 +626,14 @@ export default function SettingsModal({
                   size="sm"
                   onClick={() => {
                     paymentsForm.insertListItem("paymentChannels", {
+                      id: getPaymentChannelId(),
+                      name: "",
                       accountName: "",
                       accountNumber: "",
-                      channelName: "",
+                      enabled: true,
                     });
                   }}
-                  disabled={isSavingPayments}
+                  disabled={isSaving}
                 >
                   <IconPlus />
                 </ActionIcon>
@@ -653,7 +650,7 @@ export default function SettingsModal({
                         label="Payment Channel Name"
                         placeholder="Gcash, Metrobank, etc."
                         {...paymentsForm.getInputProps(
-                          `paymentChannels.${idx}.channelName`,
+                          `paymentChannels.${idx}.name`,
                         )}
                       />
                       <TextInput
@@ -679,7 +676,7 @@ export default function SettingsModal({
                       <ActionIcon
                         disabled={
                           paymentsForm.values.paymentChannels.length <= 1 ||
-                          isSavingPayments
+                          isSaving
                         }
                         color="red"
                         size="sm"
@@ -702,21 +699,20 @@ export default function SettingsModal({
                 variant="default"
                 size="sm"
                 onClick={onClose}
-                disabled={isSavingPayments}
+                disabled={isSaving}
               >
                 Cancel
               </Button>
               <Button
                 size="sm"
-                onClick={handleSavePayments}
-                loading={isSavingPayments}
+                onClick={() => handleSaveSettings()}
+                loading={isSaving}
                 disabled={
-                  !paymentsForm.values.appointmentPerHour ||
+                  !paymentsForm.values.appointmentFeePerHour ||
                   (paymentsForm.values.paymentChannels &&
                     paymentsForm.values.paymentChannels.length > 0 &&
                     paymentsForm.values.paymentChannels.some(
-                      (i) =>
-                        !i.accountName || !i.accountNumber || !i.channelName,
+                      (i) => !i.accountName || !i.accountNumber || !i.name,
                     ))
                 }
               >
@@ -726,6 +722,6 @@ export default function SettingsModal({
           </Stack>
         </Tabs.Panel>
       </Tabs>
-    </Modal>
+    </AppModal>
   );
 }

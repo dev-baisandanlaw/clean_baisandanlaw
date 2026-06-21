@@ -4,6 +4,7 @@ import { matterService } from "./services/matterService";
 import { userService } from "./services/userService";
 import { noteService } from "./services/noteService";
 import { retainerService } from "./services/retainerService";
+import { bookingService } from "./services/bookingService";
 
 export const store = configureStore({
   reducer: {
@@ -12,6 +13,7 @@ export const store = configureStore({
     [retainerService.reducerPath]: retainerService.reducer,
     [userService.reducerPath]: userService.reducer,
     [noteService.reducerPath]: noteService.reducer,
+    [bookingService.reducerPath]: bookingService.reducer,
   },
 
   middleware: (getDefaultMiddleware) =>
@@ -21,6 +23,7 @@ export const store = configureStore({
       retainerService.middleware,
       userService.middleware,
       noteService.middleware,
+      bookingService.middleware,
     ),
 });
 

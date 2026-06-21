@@ -1,7 +1,6 @@
 "use client";
 
 import logo from "@/public/images/logo.png";
-import BookingModal from "@/components/booking/BookingModal";
 import { useUser } from "@clerk/nextjs";
 import {
   Alert,
@@ -19,49 +18,34 @@ import { useDebouncedValue, useDisclosure } from "@mantine/hooks";
 import { IconHome, IconRocket } from "@tabler/icons-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import styles from "@/components/Appshell.module.css";
 import classes from "./Booking.module.css";
 
-import {
-  collection,
-  getDoc,
-  doc,
-  onSnapshot,
-  query,
-  where,
-} from "firebase/firestore";
-import { db } from "@/firebase/config";
-import { Booking } from "@/types/booking";
-import { GlobalSched } from "@/types/global-sched";
-import { CLERK_ORG_IDS, COLLECTIONS } from "@/constants/constants";
 import dayjs from "dayjs";
-import { SPECIAL_HOLIDAYS } from "@/constants/constants";
-import { REGULAR_HOLIDAYS } from "@/constants/constants";
-import { appNotifications } from "@/utils/notifications/notifications";
-import axios from "axios";
-import { WORK_SCHEDULE } from "@/constants/non-working-sched";
+import RevampedBookingModal from "@/components/booking/RevampedBookingModal";
+import {
+  useGetBookingSettingsQuery,
+  useGetPublicBookingsByMonthQuery,
+} from "@/store/services/bookingService";
+
+const WORK_DAY_VALUES = {
+  sunday: 0,
+  monday: 1,
+  tuesday: 2,
+  wednesday: 3,
+  thursday: 4,
+  friday: 5,
+  saturday: 6,
+};
 
 export default function BookingPage() {
   const { user, isLoaded } = useUser();
-
-  const [timeSlots, setTimeSlots] = useState<string[]>([]);
-
-  const [isFetchingGlobalSched, setIsFetchingGlobalSched] = useState(false);
-
-  const [attorneyCount, setAttorneyCount] = useState(0);
-  const [isFetchingAttorneyCount, setIsFetchingAttorneyCount] = useState(false);
+  const { data: bookingSettings, isFetching: isFetchingBookingSettings } =
+    useGetBookingSettingsQuery();
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [bookings, setBookings] = useState<Booking[]>([]);
-
-  const [validHolidays, setValidHolidays] = useState<string[]>([]);
-  const [workDays, setWorkDays] = useState<number[]>([]);
-  const [blockedDates, setBlockedDates] = useState<Record<string, string[]>>(
-    {},
-  );
-  const [globalSched, setGlobalSched] = useState<GlobalSched | null>(null);
 
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -70,130 +54,75 @@ export default function BookingPage() {
   );
 
   const [debounced] = useDebouncedValue(currentDate, 500);
+  const { data: bookings = [], isFetching: isFetchingBookings } =
+    useGetPublicBookingsByMonthQuery({ month: debounced });
 
   const [
     isBookingModalOpen,
     { open: openBookingModal, close: closeBookingModal },
   ] = useDisclosure();
 
-  const fetchGlobalSched = async () => {
-    setIsFetchingGlobalSched(true);
-    try {
-      const snap = await getDoc(
-        doc(
-          db,
-          COLLECTIONS.GLOBAL_SCHED,
-          process.env.NEXT_PUBLIC_FIREBASE_HOLIDAYS_BLOCKED_SCHED_ID!,
-        ),
-      );
-      if (!snap.exists()) return;
+  const validHolidays = useMemo(() => {
+    if (!bookingSettings) return [];
 
-      const d = snap.data();
+    return [
+      ...bookingSettings.regularHolidays,
+      ...bookingSettings.specialHolidays,
+    ]
+      .filter((holiday) => holiday.enabled)
+      .map((holiday) => holiday.date);
+  }, [bookingSettings]);
 
-      const getValidKeys = (o: Record<string, boolean>) =>
-        Object.keys(o).filter((key) => o[key]);
+  const workDays = useMemo(() => {
+    if (!bookingSettings) return [];
 
-      const validHolidayIds = [
-        ...getValidKeys(d.regularHolidays),
-        ...getValidKeys(d.specialHolidays),
-      ];
+    return Object.entries(bookingSettings.workSchedule)
+      .filter(([, isEnabled]) => isEnabled)
+      .map(([day]) => WORK_DAY_VALUES[day as keyof typeof WORK_DAY_VALUES]);
+  }, [bookingSettings]);
 
-      const holidayMap = Object.fromEntries([
-        ...REGULAR_HOLIDAYS.map((h) => [h.id, h.date]),
-        ...SPECIAL_HOLIDAYS.map((h) => [h.id, h.date]),
-      ]);
+  const timeSlots = useMemo(() => {
+    if (!bookingSettings) return [];
 
-      const timeHours = getTimeRange({
-        startTime: d.officeHours.officeStart,
-        endTime: d.officeHours.officeEnd,
-        interval: d.officeHours.bookingInterval,
-      });
+    return getTimeRange({
+      startTime: bookingSettings.officeHourStart,
+      endTime: bookingSettings.officeHourEnd,
+      interval: `${bookingSettings.bookingIntervalMinutes}:00`,
+    });
+  }, [bookingSettings]);
 
-      const workDays = Object.keys(d.workSchedule)
-        .filter((key) => d.workSchedule[key])
-        .map((key) => WORK_SCHEDULE.find((w) => w.name === key)?.value);
+  const attorneyCount = bookingSettings?.attorneyCount ?? 0;
 
-      const blockedDatesMap = d?.blockedDates;
+  const bookingCountBySlot = useMemo(
+    () =>
+      bookings.reduce(
+        (map, booking) =>
+          map.set(
+            `${booking.date}-${booking.time}`,
+            (map.get(`${booking.date}-${booking.time}`) ?? 0) + 1,
+          ),
+        new Map<string, number>(),
+      ),
+    [bookings],
+  );
 
-      setValidHolidays(
-        validHolidayIds.map((id) => holidayMap[id]).filter(Boolean),
-      );
-      setWorkDays(workDays as number[]);
-      setTimeSlots(timeHours);
-      setBlockedDates(blockedDatesMap);
-      setGlobalSched(d as GlobalSched);
-    } finally {
-      setIsFetchingGlobalSched(false);
-    }
+  const isTimeUnavailable = (date: string, time: string) => {
+    const timeSlot = dayjs(`${date} ${time}`);
+    const blockedSchedule = bookingSettings?.blockedSchedules.find(
+      (schedule) => schedule.date === date,
+    );
+    const bookingCount = bookingCountBySlot.get(`${date}-${time}`) ?? 0;
+
+    if (timeSlot.isBefore(dayjs().add(1, "day"))) return true;
+    if (blockedSchedule?.timeSlots.includes(time)) return true;
+    if (attorneyCount > 0 && bookingCount >= attorneyCount) return true;
+
+    return false;
   };
-
-  const fetchAttorneyCount = async (searchTerm: string) => {
-    setIsFetchingAttorneyCount(true);
-
-    try {
-      const { data } = await axios.get("/api/clerk/fetch-total-count", {
-        params: {
-          organization_id: CLERK_ORG_IDS.attorney,
-          search: searchTerm.trim(),
-        },
-      });
-
-      setAttorneyCount(data?.total_count);
-    } finally {
-      setIsFetchingAttorneyCount(false);
-    }
-  };
-
-  const successCallback = () => {
-    setSelectedDate(null);
-    setSelectedTime(null);
-    setIsSuccess(true);
-    setCurrentDate(dayjs().format("YYYY-MM-DD"));
-  };
-
-  useEffect(() => {
-    if (!isLoaded) return;
-
-    fetchGlobalSched();
-    fetchAttorneyCount("");
-  }, [isLoaded]);
 
   useEffect(() => {
     setSelectedTime(null);
   }, [selectedDate]);
-
-  useEffect(() => {
-    const startOfMonth = dayjs(debounced).startOf("month").format("YYYY-MM-DD");
-    const endOfMonth = dayjs(debounced).endOf("month").format("YYYY-MM-DD");
-
-    const ref = collection(db, COLLECTIONS.BOOKINGS);
-    const q = query(
-      ref,
-      where("date", ">=", startOfMonth),
-      where("date", "<=", endOfMonth),
-    );
-
-    const unsub = onSnapshot(
-      q,
-      (snapshot) => {
-        const results: Booking[] = snapshot.docs.map((doc) => ({
-          ...doc.data(),
-          id: doc.id,
-        })) as Booking[];
-
-        setBookings(results);
-      },
-      () => {
-        appNotifications.error({
-          title: "Failed to get bookings",
-          message: "The bookings could not be fetched. Please try again.",
-          autoClose: false,
-        });
-      },
-    );
-
-    return () => unsub();
-  }, [debounced]);
 
   useEffect(() => {
     setSelectedDate(null);
@@ -293,7 +222,7 @@ export default function BookingPage() {
           >
             <LoadingOverlay
               visible={
-                isFetchingGlobalSched || isFetchingAttorneyCount || !isLoaded
+                isFetchingBookingSettings || isFetchingBookings || !isLoaded
               }
             />
             <Image
@@ -317,35 +246,6 @@ export default function BookingPage() {
               <Text ta="center" fw={700} fz={24} c="#2B4E45">
                 Book an appointment
               </Text>
-              {/* <Tooltip
-                bg="transparent"
-                multiline
-                w={220}
-                transitionProps={{ duration: 200 }}
-                events={{ hover: true, focus: true, touch: true }}
-                label={
-                  <Alert
-                    variant="filled"
-                    color="#2B4E45"
-                    title="Office Hours and Booking Rules"
-                    styles={(theme) => ({
-                      title: { textAlign: "center", fontSize: 14 },
-                      body: { textAlign: "center" },
-                      root: {
-                        backgroundColor: theme.colors.green[6],
-                        boxShadow: theme.other.customBoxShadow,
-                        borderRadius: 10,
-                      },
-                    })}
-                  >
-                    <Text size="xs">
-                      There is a booking fee of ₱1,300. You need to settle this first 
-                    </Text>
-                  </Alert>
-                }
-              >
-                <IconInfoCircle style={{ cursor: "pointer" }} color="#2B4E45" />
-              </Tooltip> */}
             </Flex>
 
             <Flex
@@ -369,13 +269,22 @@ export default function BookingPage() {
                     setCurrentDate(dayjs(date).format("YYYY-MM-DD"))
                   }
                   excludeDate={(date) => {
-                    const truncatedDate = dayjs(date).format("MM/DD");
+                    const selectedDate = dayjs(date).format("YYYY-MM-DD");
+                    const monthDay = dayjs(date).format("MM-DD");
 
                     // if holiday, return true
-                    if (validHolidays.includes(truncatedDate)) return true;
+                    if (validHolidays.includes(monthDay)) return true;
 
                     // if it's not a work day, return true
                     if (!workDays.includes(dayjs(date).day())) return true;
+
+                    if (
+                      timeSlots.length > 0 &&
+                      timeSlots.every((time) =>
+                        isTimeUnavailable(selectedDate, time),
+                      )
+                    )
+                      return true;
 
                     return false;
                   }}
@@ -396,26 +305,9 @@ export default function BookingPage() {
                   disabled={!selectedDate}
                   data={timeSlots}
                   disableTime={(time) => {
-                    const timeSlot = dayjs(`${selectedDate} ${time}`);
-                    const selectedDateBookings = bookings.filter(
-                      (booking) =>
-                        booking.date === selectedDate && booking.time === time,
-                    );
+                    if (!selectedDate) return true;
 
-                    // 1 day before is before 5PM, return true
-                    if (timeSlot.isBefore(dayjs().add(1, "day"))) return true;
-
-                    // if time is in blocked dates
-                    if (
-                      selectedDate &&
-                      blockedDates?.[selectedDate]?.includes(time)
-                    )
-                      return true;
-
-                    if (selectedDateBookings.length >= attorneyCount)
-                      return true;
-
-                    return false;
+                    return isTimeUnavailable(selectedDate, time);
                   }}
                   allowDeselect
                   format="12h"
@@ -438,15 +330,11 @@ export default function BookingPage() {
         )}
       </Flex>
 
-      <BookingModal
+      <RevampedBookingModal
         opened={isBookingModalOpen}
         onClose={closeBookingModal}
-        selectedDate={selectedDate}
-        selectedTime={selectedTime}
-        user={user ?? null}
-        successCallback={successCallback}
-        attorneyCount={attorneyCount || 0}
-        globalSched={globalSched}
+        selectedDate={selectedDate || ""}
+        selectedTime={selectedTime || ""}
       />
     </Container>
   );

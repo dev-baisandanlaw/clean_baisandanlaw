@@ -45,6 +45,7 @@ import { GlobalSched } from "@/types/global-sched";
 import { appNotifications } from "@/utils/notifications/notifications";
 import { useRouter } from "nextjs-toploader/app";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
+import { useGetBookingSettingsQuery } from "@/store/services/bookingService";
 
 dayjs.extend(isSameOrAfter);
 
@@ -55,6 +56,10 @@ export default function AppointmentsFeature() {
 
   const { user, isLoaded } = useUser();
   const router = useRouter();
+  const { data: bookingSettings, isFetching: isFetchingBookingSettings } =
+    useGetBookingSettingsQuery(undefined, {
+      skip: user?.unsafeMetadata?.role !== "admin",
+    });
 
   const [dataChanged, setDataChanged] = useState(false);
   const [globalSched, setGlobalSched] = useState<GlobalSched | null>(null);
@@ -173,7 +178,7 @@ export default function AppointmentsFeature() {
     if (user?.unsafeMetadata?.role === "client") {
       constraints.push(where("client.id", "==", user?.id));
     } else if (user?.unsafeMetadata?.role === "attorney") {
-      constraints.push(where("attorney.id", "==", user?.id)); // TODO: Automate attorney assignment when booking is created
+      constraints.push(where("attorney.id", "==", user?.id));
     }
 
     const q = query(ref, ...constraints);
@@ -280,7 +285,7 @@ export default function AppointmentsFeature() {
                 <Button
                   leftSection={<IconSettings />}
                   size="sm"
-                  loading={isFetchingGlobalSched}
+                  loading={isFetchingGlobalSched || isFetchingBookingSettings}
                   variant="outline"
                   onClick={openSettingsModal}
                 >
@@ -337,8 +342,7 @@ export default function AppointmentsFeature() {
       <SettingsModal
         opened={settingsModalOpened}
         onClose={closeSettingsModal}
-        globalSched={globalSched}
-        setDataChanged={setDataChanged}
+        bookingSettings={bookingSettings}
       />
 
       <ReceiptPreviewModal
