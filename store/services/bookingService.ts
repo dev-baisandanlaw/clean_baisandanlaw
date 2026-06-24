@@ -1,6 +1,7 @@
 import { baseQueryWithAuth } from "@/lib/baseQuery";
 import { createApi } from "@reduxjs/toolkit/query/react";
 import { type CreateBookingDto } from "../service-types/type-booking-service";
+import { type Booking } from "@/types/booking";
 import {
   type BookingSettings,
   type UpdateBookingSettingsDto,
@@ -31,6 +32,26 @@ export const bookingService = createApi({
       providesTags: ["Booking"],
     }),
 
+    getBookingsByMonth: builder.query<Booking[], { month: string }>({
+      query: ({ month }) => ({
+        url: "/bookings",
+        method: "GET",
+        params: { month },
+      }),
+      providesTags: ["Booking"],
+    }),
+
+    getPendingAttorneyAssignmentBookings: builder.query<
+      Pick<Booking, "id" | "date" | "time">[],
+      void
+    >({
+      query: () => ({
+        url: "/bookings/pending-attorney-assignment",
+        method: "GET",
+      }),
+      providesTags: ["Booking"],
+    }),
+
     updateBookingSettings: builder.mutation<
       { message: string },
       UpdateBookingSettingsDto
@@ -56,6 +77,49 @@ export const bookingService = createApi({
       },
     ),
 
+    manualBookNewAppointment: builder.mutation<
+      { message: string },
+      CreateBookingDto
+    >({
+      query: (payload) => ({
+        url: "/bookings/book/manual",
+        method: "POST",
+        body: payload,
+      }),
+      invalidatesTags: ["Booking"],
+    }),
+
+    manualUpdateBooking: builder.mutation<
+      { message: string },
+      Partial<CreateBookingDto> & { id: string }
+    >({
+      query: ({ id, ...payload }) => ({
+        url: `/bookings/book/manual/${id}`,
+        method: "PATCH",
+        body: payload,
+      }),
+      invalidatesTags: ["Booking"],
+    }),
+
+    approveBookingReceipt: builder.mutation<
+      { message: string },
+      { id: string }
+    >({
+      query: ({ id }) => ({
+        url: `/bookings/receipt/approve/${id}`,
+        method: "PATCH",
+      }),
+      invalidatesTags: ["Booking"],
+    }),
+
+    deleteBooking: builder.mutation<{ message: string }, { id: string }>({
+      query: ({ id }) => ({
+        url: `/bookings/delete/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Booking"],
+    }),
+
     uploadBookingReceipt: builder.mutation<
       { fileId: string },
       { file: File; filename: string }
@@ -75,9 +139,15 @@ export const bookingService = createApi({
 });
 
 export const {
+  useGetBookingsByMonthQuery,
   useGetBookingSettingsQuery,
+  useGetPendingAttorneyAssignmentBookingsQuery,
   useGetPublicBookingsByMonthQuery,
   useUpdateBookingSettingsMutation,
   useBookNewAppointmentMutation,
+  useManualBookNewAppointmentMutation,
+  useManualUpdateBookingMutation,
+  useApproveBookingReceiptMutation,
+  useDeleteBookingMutation,
   useUploadBookingReceiptMutation,
 } = bookingService;

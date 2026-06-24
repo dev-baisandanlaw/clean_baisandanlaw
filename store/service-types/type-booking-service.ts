@@ -17,8 +17,10 @@ export interface CreateBookingDto {
   adverseParty?: string;
   areas: string[];
   attorneyDetails?: UserReference;
+  attorneyId?: string;
   clientDetails: UserReference;
   existingClient?: boolean;
+  representedByPreviousLawyer?: boolean;
   consultationMode: string;
   branch?: string;
   date: string;

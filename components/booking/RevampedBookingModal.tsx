@@ -12,6 +12,7 @@ import {
   useUploadBookingReceiptMutation,
 } from "@/store/services/bookingService";
 import { appNotifications } from "@/utils/notifications/notifications";
+import { useUser } from "@clerk/nextjs";
 
 interface RevampedBookingModalProps {
   opened: boolean;
@@ -41,6 +42,7 @@ export default function RevampedBookingModal({
   selectedDate,
   selectedTime,
 }: RevampedBookingModalProps) {
+  const { user } = useUser();
   const [bookAppointmentFn, { isLoading: isBooking }] =
     useBookNewAppointmentMutation();
   const [uploadDocumentFn, { isLoading: isUploading }] =
@@ -128,6 +130,7 @@ export default function RevampedBookingModal({
                 : undefined,
             },
             existingClient: false,
+            representedByPreviousLawyer: values.representedByPreviousLawyer,
             consultationMode: values.consultationType,
             branch:
               values.consultationType === "in-person"
@@ -179,6 +182,30 @@ export default function RevampedBookingModal({
   useEffect(() => {
     topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [step]);
+
+  useEffect(() => {
+    if (!opened || !user) return;
+
+    const unsafeAddress =
+      (user.unsafeMetadata?.fullAddress as string | undefined) ||
+      (user.unsafeMetadata?.fullAddres as string | undefined);
+    const unsafeBirthday = user.unsafeMetadata?.birthday as string | undefined;
+    const unsafePhoneNumber = user.unsafeMetadata?.phoneNumber as
+      | string
+      | undefined;
+
+    form.setValues({
+      firstname: user.firstName || "",
+      lastname: user.lastName || "",
+      email: user.primaryEmailAddress?.emailAddress || "",
+      phone: unsafePhoneNumber || "",
+      fullAddress: unsafeAddress || "",
+      birthday: unsafeBirthday
+        ? dayjs(unsafeBirthday, "YYYY-MM-DD").toDate()
+        : null,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opened, user]);
 
   if (!selectedDate || !selectedTime) return null;
 

@@ -1,165 +1,159 @@
 import { Booking } from "@/types/booking";
-import {
-  ActionIcon,
-  Group,
-  Stack,
-  Table,
-  TableScrollContainer,
-  Text,
-} from "@mantine/core";
+import { ActionIcon, Group, Text } from "@mantine/core";
 import { BookingViaBadge, PaymentBadge } from "../Common/BadgeComp";
-import EmptyTableComponent from "../EmptyTableComponent";
 import dayjs from "dayjs";
-import { IconEye, IconPencil, IconPennant } from "@tabler/icons-react";
-import { useUser } from "@clerk/nextjs";
+import DataTableNoPagination from "../data-table/DataTableNoPagination";
+import { useMemo } from "react";
+import { type ColumnDef } from "@tanstack/react-table";
+import TableUserField from "../Common/TableUserField";
+import {
+  IconEye,
+  IconPencil,
+  IconPointer2,
+  IconTrash,
+} from "@tabler/icons-react";
 
 interface AppointmentsListProps {
   data: Booking[];
   isLoading: boolean;
   selectedDate: string | null;
-  handleSelectBooking: (
-    booking: Booking,
-    mode: "update" | "delete" | "view" | "add" | "receipt",
-  ) => void;
+  onView: (booking: Booking) => void;
+  onEdit: (booking: Booking) => void;
+  onDelete: (booking: Booking) => void;
+  onViewReceipt: (booking: Booking) => void;
+  userRole?: string;
 }
 
 export default function AppointmentsList({
   data,
   isLoading,
   selectedDate,
-  handleSelectBooking,
+  onView,
+  onEdit,
+  onDelete,
+  onViewReceipt,
+  userRole,
 }: AppointmentsListProps) {
-  const { user } = useUser();
+  const appointments = useMemo(
+    () =>
+      data
+        .filter((booking) => booking.date === selectedDate)
+        .sort((a, b) => a.time.localeCompare(b.time)),
+    [data, selectedDate],
+  );
 
-  const todayAppointments = data.filter(
-    (booking) => booking.date === selectedDate,
+  const columns = useMemo<ColumnDef<Booking>[]>(
+    () => [
+      {
+        accessorKey: "time",
+        header: "Time",
+        cell: ({ row }) =>
+          dayjs(`${row.original.date} ${row.original.time}`).format("h:mm A"),
+      },
+      {
+        accessorKey: "clientDetails",
+        header: "Client",
+        cell: ({ row }) => (
+          <TableUserField
+            title={row.original.clientDetails.fullname}
+            subTitle={row.original.clientDetails.email}
+          />
+        ),
+      },
+      {
+        accessorKey: "attorneyDetails",
+        header: "Attorney",
+        cell: ({ row }) => row.original.attorneyDetails?.fullname || "-",
+      },
+      {
+        accessorKey: "paymentFields",
+        header: "Payment",
+        cell: ({ row }) => (
+          <Group gap="xs" align="center" wrap="nowrap">
+            <PaymentBadge
+              hasReceiptUploaded={!!row.original.paymentFields?.fileId}
+              isPaid={!!row.original.paymentFields?.isApproved}
+            />
+            {row.original.paymentFields?.fileId && (
+              <ActionIcon
+                size="xs"
+                variant="default"
+                onClick={() => onViewReceipt(row.original)}
+              >
+                <IconEye size={12} />
+              </ActionIcon>
+            )}
+          </Group>
+        ),
+      },
+      {
+        accessorKey: "via",
+        header: "Via",
+        cell: ({ row }) => <BookingViaBadge via={row.original.via} />,
+      },
+      {
+        accessorKey: "consultationMode",
+        header: "Consultation",
+        cell: ({ row }) => (
+          <Text size="sm">
+            {row.original.consultationMode === "in-person"
+              ? row.original.branch || "-"
+              : row.original.consultationMode === "online"
+                ? "Online"
+                : "-"}
+          </Text>
+        ),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        size: 80,
+        cell: ({ row }) => (
+          <Group gap={4} wrap="nowrap">
+            <ActionIcon
+              size="sm"
+              variant="subtle"
+              onClick={() => onView(row.original)}
+            >
+              <IconPointer2 size={18} style={{ rotate: "90deg" }} />
+            </ActionIcon>
+
+            {userRole === "admin" && (
+              <>
+                <ActionIcon
+                  size="sm"
+                  variant="subtle"
+                  onClick={() => onEdit(row.original)}
+                  color="yellow"
+                >
+                  <IconPencil size={18} />
+                </ActionIcon>
+
+                <ActionIcon
+                  size="sm"
+                  variant="subtle"
+                  c="red"
+                  onClick={() => onDelete(row.original)}
+                >
+                  <IconTrash size={18} />
+                </ActionIcon>
+              </>
+            )}
+          </Group>
+        ),
+      },
+    ],
+    [onDelete, onEdit, onView, onViewReceipt, userRole],
   );
 
   return (
-    <TableScrollContainer
-      minWidth={500}
-      h="calc(100vh - 420px)"
-      pos="relative"
-      w="100%"
-    >
-      <Table stickyHeader stickyHeaderOffset={0} verticalSpacing="sm">
-        <Table.Thead>
-          <Table.Tr>
-            <Table.Th>Time</Table.Th>
-            <Table.Th>Client</Table.Th>
-            <Table.Th>Attorney</Table.Th>
-            <Table.Th>Payment</Table.Th>
-            <Table.Th>Via</Table.Th>
-            <Table.Th>Consultation</Table.Th>
-            {user?.unsafeMetadata?.role === "admin" && (
-              <Table.Th ta="center">Actions</Table.Th>
-            )}
-          </Table.Tr>
-        </Table.Thead>
-
-        <Table.Tbody>
-          {!isLoading && todayAppointments.length === 0 && (
-            <EmptyTableComponent colspan={7} />
-          )}
-
-          {!isLoading &&
-            todayAppointments.length > 0 &&
-            data
-              .filter(
-                (booking) =>
-                  booking.date === dayjs(selectedDate!).format("YYYY-MM-DD"),
-              )
-              .sort((a, b) => a.time.localeCompare(b.time))
-              .map((booking) => (
-                <Table.Tr key={booking.id}>
-                  <Table.Td>
-                    {dayjs(`${booking.date} ${booking.time}`).format("h:mm A")}
-                  </Table.Td>
-                  <Table.Td>
-                    <Stack gap="2">
-                      <Text size="sm" fw={600}>
-                        {booking.client.fullname}
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        {booking.client.email}
-                      </Text>
-                    </Stack>
-                  </Table.Td>
-                  <Table.Td>{booking.attorney?.fullname || "-"}</Table.Td>
-                  <Table.Td>
-                    <Group gap="xs" align="center" wrap="nowrap">
-                      <PaymentBadge
-                        hasReceiptUploaded={
-                          !!booking?.paymentFields?.receiptFileId
-                        }
-                        isPaid={booking?.paymentFields?.isPaid}
-                      />
-                      {booking?.paymentFields?.receiptFileId && (
-                        <ActionIcon
-                          size="xs"
-                          variant="default"
-                          onClick={() =>
-                            handleSelectBooking(booking, "receipt")
-                          }
-                        >
-                          <IconEye size={12} />
-                        </ActionIcon>
-                      )}
-                    </Group>
-                  </Table.Td>
-                  <Table.Td>
-                    <BookingViaBadge via={booking.via} />
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="sm">
-                      {booking?.consultationMode === "in-person"
-                        ? booking?.branch || "-"
-                        : booking?.consultationMode === "online"
-                          ? "Online"
-                          : "-"}
-                    </Text>
-                  </Table.Td>
-                  {user?.unsafeMetadata?.role === "admin" && (
-                    <Table.Td ta="center">
-                      <Group gap={6} justify="center">
-                        <ActionIcon
-                          size="sm"
-                          variant="subtle"
-                          onClick={() => handleSelectBooking(booking, "view")}
-                        >
-                          <IconEye />
-                        </ActionIcon>
-
-                        {!dayjs().isAfter(
-                          dayjs(`${booking.date} ${booking.time}`),
-                        ) && (
-                          <ActionIcon
-                            size="sm"
-                            color="yellow"
-                            variant="subtle"
-                            onClick={() =>
-                              handleSelectBooking(booking, "update")
-                            }
-                          >
-                            <IconPencil />
-                          </ActionIcon>
-                        )}
-
-                        <ActionIcon
-                          size="sm"
-                          variant="subtle"
-                          color="red"
-                          onClick={() => handleSelectBooking(booking, "delete")}
-                        >
-                          <IconPennant />
-                        </ActionIcon>
-                      </Group>
-                    </Table.Td>
-                  )}
-                </Table.Tr>
-              ))}
-        </Table.Tbody>
-      </Table>
-    </TableScrollContainer>
+    <DataTableNoPagination
+      columns={columns}
+      data={isLoading ? [] : appointments}
+      emptyText={
+        isLoading ? "Loading appointments..." : "No appointments found."
+      }
+      maxHeight="calc(100vh - 420px)"
+    />
   );
 }

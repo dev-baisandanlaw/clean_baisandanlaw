@@ -1,21 +1,16 @@
-import { useState } from "react";
-
-import axios from "axios";
-
-import { Button, Modal, SimpleGrid, Text } from "@mantine/core";
+import { Button, SimpleGrid, Text } from "@mantine/core";
 import { IconTrash } from "@tabler/icons-react";
-import { deleteDoc, doc } from "firebase/firestore";
 
 import BasicCard from "@/components/Common/BasicCard";
 import DetailField from "@/components/Common/DetailField";
-import { PaymentBadge } from "@/components/Common/BadgeComp";
+import { BookingViaBadge, PaymentBadge } from "@/components/Common/BadgeComp";
 
-import { COLLECTIONS } from "@/constants/constants";
-import { db } from "@/firebase/config";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { appNotifications } from "@/utils/notifications/notifications";
 
 import { Booking } from "@/types/booking";
+import AppModal from "@/components/Common/modal/AppModal";
+import { useDeleteBookingMutation } from "@/store/services/bookingService";
 
 type DeleteDuplicateModalProps = {
   opened: boolean;
@@ -28,25 +23,14 @@ export default function DeleteDuplicateModal({
   onClose,
   booking,
 }: DeleteDuplicateModalProps) {
-  const [isLoading, setIsLoading] = useState(false);
+  const [deleteBookingFn, { isLoading: isDeleting }] =
+    useDeleteBookingMutation();
 
   const handleDeleteDuplicate = async () => {
-    setIsLoading(true);
+    if (!booking) return;
+
     try {
-      // Cancel Google Calendar event if it exists
-      if (booking?.googleCalendar?.eventId) {
-        try {
-          await axios.post("/api/google/calendar/cancel", {
-            eventId: booking.googleCalendar.eventId,
-          });
-        } catch {
-          // Continue with deletion even if calendar cancellation fails
-        }
-      }
-
-      // Delete the appointment from Firebase
-      await deleteDoc(doc(db, COLLECTIONS.BOOKINGS, booking!.id));
-
+      await deleteBookingFn({ id: booking.id }).unwrap();
       appNotifications.success({
         title: "Appointment deleted successfully",
         message: "The appointment has been deleted successfully",
@@ -57,22 +41,19 @@ export default function DeleteDuplicateModal({
         title: "Failed to delete duplicate",
         message: "The appointment could not be deleted. Please try again.",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
   if (!booking) return null;
 
   return (
-    <Modal
+    <AppModal
       opened={opened}
       onClose={onClose}
-      title="Delete Duplicate Appointment"
-      centered
-      size="lg"
-      transitionProps={{ transition: "pop" }}
-      withCloseButton={!isLoading}
+      title="Delete Appointment"
+      size="xl"
+      closable={!isDeleting}
+      type="danger"
     >
       <Text ta="center" mb="md">
         Are you sure you want to flag this appointment as a duplicate? Once
@@ -81,14 +62,17 @@ export default function DeleteDuplicateModal({
 
       <BasicCard title="Appointment Details">
         <SimpleGrid cols={{ base: 2, xs: 3 }}>
-          <DetailField title="Client" value={booking.client.fullname} />
-          <DetailField title="Attorney" value={booking.attorney?.fullname} />
+          <DetailField title="Client" value={booking.clientDetails.fullname} />
+          <DetailField
+            title="Attorney"
+            value={booking.attorneyDetails?.fullname}
+          />
           <DetailField
             title="Payment Status"
             value={
               <PaymentBadge
-                hasReceiptUploaded={!!booking?.paymentFields?.receiptFileId}
-                isPaid={booking?.paymentFields?.isPaid}
+                hasReceiptUploaded={!!booking?.paymentFields?.fileId}
+                isPaid={booking?.paymentFields?.isApproved || false}
               />
             }
           />
@@ -103,26 +87,29 @@ export default function DeleteDuplicateModal({
             title="Consultation"
             value={
               booking?.consultationMode === "in-person"
-                ? booking?.branch || "-"
+                ? booking?.branch ?? undefined
                 : booking?.consultationMode === "online"
                   ? "Online"
-                  : "-"
+                  : undefined
             }
           />
-          <DetailField title="Via" value={booking.via} />
+          <DetailField
+            title="Via"
+            value={<BookingViaBadge via={booking.via} />}
+          />
         </SimpleGrid>
       </BasicCard>
 
       <Button
         onClick={handleDeleteDuplicate}
-        loading={isLoading}
-        color="red"
+        loading={isDeleting}
+        color="red.7"
         fullWidth
         leftSection={<IconTrash />}
         mt="md"
       >
         I Understand
       </Button>
-    </Modal>
+    </AppModal>
   );
 }
