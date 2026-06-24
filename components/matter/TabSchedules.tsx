@@ -12,27 +12,19 @@ import {
   Text,
 } from "@mantine/core";
 import {
-  IconBuildingBank,
   IconCalendar,
   IconCirclePlus,
-  IconClock,
-  IconLabel,
-  IconMap,
   IconMapPin,
-  IconNotes,
   IconPencil,
   IconTrash,
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import EmptyTableComponent from "../EmptyTableComponent";
-import { useDisclosure } from "@mantine/hooks";
-import { useState } from "react";
 import { TimeValue } from "@mantine/dates";
 import { Matter, MatterSchedule } from "@/types/matter";
 import BasicCard from "../Common/BasicCard";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import SpoilerComp from "../Common/SpoilerComp";
-import TabScheduleUpsertModal from "./modals/TabScheduleUpsertModal";
 
 interface TabSchedulesProps {
   matterData: Matter | null;
@@ -40,12 +32,6 @@ interface TabSchedulesProps {
 
 export default function TabSchedules({ matterData }: TabSchedulesProps) {
   const { user } = useUser();
-
-  const [selectedSchedule, setSelectedSchedule] =
-    useState<MatterSchedule | null>(null);
-
-  const [schedModal, { open: openSchedModal, close: closeSchedModal }] =
-    useDisclosure(false);
 
   return (
     <>
@@ -58,7 +44,6 @@ export default function TabSchedules({ matterData }: TabSchedulesProps) {
                 leftSection={<IconCirclePlus size={18} />}
                 size="xs"
                 variant="outline"
-                // onClick={() => handleSelectSchedule(null)}
               >
                 Add Schedule
               </Button>
@@ -81,36 +66,6 @@ export default function TabSchedules({ matterData }: TabSchedulesProps) {
               </Table.Tbody>
             </Table>
           )}
-          {/* <Stack>
-          {matterData.schedules &&
-            matterData.schedules.length > 0 &&
-            matterData.schedules
-              .sort((a, b) => dayjs(a.date).diff(dayjs(b.date)))
-              .map((schedule) => (
-                <ScheduleDetailsCard
-                  key={schedule.scheduleId}
-                  schedule={schedule}
-                />
-              ))}
-        </Stack>
-
-        {(!matterData.schedules || matterData.schedules?.length === 0) && (
-          <Table>
-            <Table.Tbody>
-              <EmptyTableComponent colspan={12} message="No schedules found" />
-            </Table.Tbody>
-          </Table>
-        )}
-      </Card>
-      </Stack>*/}
-
-          {/* <TabScheduleUpsertModal
-            opened={schedModal}
-            onClose={closeSchedModal}
-            schedule={selectedSchedule}
-            setDataChanged={setDataChanged}
-            matterData={matterData}
-          /> */}
         </BasicCard>
       </Stack>
     </>
