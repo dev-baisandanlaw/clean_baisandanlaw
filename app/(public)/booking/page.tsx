@@ -62,6 +62,12 @@ export default function BookingPage() {
     { open: openBookingModal, close: closeBookingModal },
   ] = useDisclosure();
 
+  const handleBookingSuccess = () => {
+    setIsSuccess(true);
+    setSelectedDate(null);
+    setSelectedTime(null);
+  };
+
   const validHolidays = useMemo(() => {
     if (!bookingSettings) return [];
 
@@ -186,7 +192,7 @@ export default function BookingPage() {
               },
             })}
           >
-            Thank you for scheduling with us — we’re excited to speak with you!
+            Thank you for booking with us — we’re excited to speak with you!
             Your appointment has been submitted, and our staff may call you if
             they need any additional information regarding your request.
             <br />
@@ -335,6 +341,8 @@ export default function BookingPage() {
         onClose={closeBookingModal}
         selectedDate={selectedDate || ""}
         selectedTime={selectedTime || ""}
+        bookingSettings={bookingSettings}
+        successCallback={handleBookingSuccess}
       />
     </Container>
   );

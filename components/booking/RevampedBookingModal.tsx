@@ -1,6 +1,6 @@
 import { Button, Group, Progress, ScrollArea, Text } from "@mantine/core";
 import AppModal from "../Common/modal/AppModal";
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
 import { TimeValue } from "@mantine/dates";
 import { useForm } from "@mantine/form";
@@ -13,12 +13,15 @@ import {
 } from "@/store/services/bookingService";
 import { appNotifications } from "@/utils/notifications/notifications";
 import { useUser } from "@clerk/nextjs";
+import { BookingSettings } from "@/types/bookingSettings";
 
 interface RevampedBookingModalProps {
   opened: boolean;
   onClose: () => void;
   selectedDate: string;
   selectedTime: string;
+  bookingSettings?: BookingSettings;
+  successCallback?: () => void;
 }
 
 export type BookingFormTypeValues = {
@@ -41,6 +44,8 @@ export default function RevampedBookingModal({
   onClose,
   selectedDate,
   selectedTime,
+  bookingSettings,
+  successCallback,
 }: RevampedBookingModalProps) {
   const { user } = useUser();
   const [bookAppointmentFn, { isLoading: isBooking }] =
@@ -52,6 +57,14 @@ export default function RevampedBookingModal({
 
   const [step, setStep] = useState(0);
   const [uploadedReceipt, setUploadedReceipt] = useState<File | null>(null);
+
+  const appointmentFee = Number(bookingSettings?.appointmentFeePerHour ?? 0);
+  const paymentChannels = useMemo(
+    () =>
+      bookingSettings?.paymentChannels.filter((channel) => channel.enabled) ??
+      [],
+    [bookingSettings],
+  );
 
   const form = useForm<BookingFormTypeValues>({
     initialValues: {
@@ -95,6 +108,12 @@ export default function RevampedBookingModal({
     validateInputOnChange: true,
   });
 
+  const resetModalState = () => {
+    form.reset();
+    setStep(0);
+    setUploadedReceipt(null);
+  };
+
   const handleSubmit = (values: BookingFormTypeValues) => {
     if (step < 2) {
       setStep((p) => p + 1);
@@ -112,7 +131,6 @@ export default function RevampedBookingModal({
       uploadDocumentFn({ file: uploadedReceipt, filename })
         .unwrap()
         .then((uploadedFile) => {
-          console.log(uploadedFile);
           const normalizedEmail = values.email.trim().toLowerCase();
           const payload = {
             adverseParty: values.adverseParty.trim() || undefined,
@@ -155,7 +173,8 @@ export default function RevampedBookingModal({
                 title: "Booking submitted",
                 message: "Your appointment request has been submitted.",
               });
-              form.reset();
+              resetModalState();
+              successCallback?.();
               onClose();
             })
             .catch((e) => {
@@ -256,16 +275,8 @@ export default function RevampedBookingModal({
             <BookingStepThree
               uploadedReceipt={uploadedReceipt}
               setUploadedReceipt={setUploadedReceipt}
-              fee={1500}
-              paymentChannels={[
-                {
-                  name: "BDO",
-                  accountName: "2084-1013-9202",
-                  accountNumber: "BaisAndanLaw",
-                  enabled: true,
-                  id: "hehe",
-                },
-              ]}
+              fee={appointmentFee}
+              paymentChannels={paymentChannels}
             />
           )}
         </ScrollArea.Autosize>
