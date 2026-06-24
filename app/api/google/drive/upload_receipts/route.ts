@@ -4,11 +4,6 @@ import { Readable } from "node:stream";
 
 export const maxDuration = 60;
 
-// function fileToStream(file: File): Readable {
-//   // Convert Web File to Node Readable stream
-//   return Readable.from(Buffer.from(await file.arrayBuffer()));
-// }
-
 export async function POST(request: Request) {
   try {
     const drive = createDrive(true);

@@ -1,15 +1,18 @@
 import { NextResponse } from "next/server";
 import { createDrive } from "../../createDrive";
 
+type FileRouteContext = {
+  params: Promise<{ fileId: string }>;
+};
+
 export async function GET(
   _request: Request,
-  { params }: { params: { fileId: string } },
+  { params }: FileRouteContext,
 ) {
   try {
     const drive = createDrive(true);
-    const fileId = params.fileId;
+    const { fileId } = await params;
 
-    // Get metadata
     const meta = await drive.files.get({
       fileId,
       fields: "name, mimeType",
@@ -19,7 +22,6 @@ export async function GET(
     const name = meta.data.name || "file";
     const mime = meta.data.mimeType || "application/octet-stream";
 
-    // Stream file content
     const { data } = await drive.files.get(
       { fileId, alt: "media", supportsAllDrives: true },
       { responseType: "stream" },
@@ -30,7 +32,6 @@ export async function GET(
       "Content-Disposition": `attachment; filename="${name}"`,
     });
 
-    // ✅ Wrap Node.js stream into a web Response for Next.js
     const readableStream = new ReadableStream({
       start(controller) {
         data.on("data", (chunk: Buffer) => controller.enqueue(chunk));

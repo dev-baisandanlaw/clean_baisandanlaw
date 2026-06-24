@@ -1,15 +1,18 @@
 import { NextResponse } from "next/server";
 import { createDrive } from "../../createDrive";
 
+type FileRouteContext = {
+  params: Promise<{ fileId: string }>;
+};
+
 export async function DELETE(
   _request: Request,
-  { params }: { params: { fileId: string } }
+  { params }: FileRouteContext,
 ) {
   try {
     const drive = createDrive();
-    const { fileId } = params;
+    const { fileId } = await params;
 
-    // Delete the file
     await drive.files.delete({
       fileId,
       supportsAllDrives: true,
@@ -22,7 +25,7 @@ export async function DELETE(
   } catch {
     return NextResponse.json(
       { error: "Failed to delete file" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
