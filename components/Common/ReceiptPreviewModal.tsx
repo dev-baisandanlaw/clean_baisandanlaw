@@ -8,7 +8,7 @@ import {
 } from "@mantine/core";
 import { appNotifications } from "@/utils/notifications/notifications";
 import { useEffect, useState } from "react";
-import axios from "axios";
+import { useDownloadBookingReceiptMutation } from "@/store/services/bookingService";
 
 interface ReceiptPreviewModalProps {
   opened: boolean;
@@ -33,34 +33,49 @@ export default function ReceiptPreviewModal({
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [previewUrl, setPreviewUrl] = useState("");
 
+  const [downloadBookingReceipt] = useDownloadBookingReceiptMutation();
+
   useEffect(() => {
+    let objectUrl = "";
+    let isActive = true;
+
     const loadPreview = async () => {
       setIsLoadingPreview(true);
       try {
-        const res = await axios.get(
-          `/api/google/drive/download_receipts/${receiptFileId}`,
-          { responseType: "blob" },
-        );
+        const receipt = await downloadBookingReceipt({
+          receiptFileId,
+        }).unwrap();
 
-        const url = URL.createObjectURL(res.data);
-        setPreviewUrl(url);
-      } catch (error) {
-        console.error("Preview failed", error);
+        if (!isActive) {
+          URL.revokeObjectURL(receipt.objectUrl);
+          return;
+        }
+
+        objectUrl = receipt.objectUrl;
+        setPreviewUrl(objectUrl);
+      } catch {
+        appNotifications.error({
+          title: "Failed to load receipt",
+          message: "The receipt preview could not be loaded.",
+        });
       } finally {
-        setIsLoadingPreview(false);
+        if (isActive) {
+          setIsLoadingPreview(false);
+        }
       }
     };
 
     if (receiptFileId && opened) {
       loadPreview();
+    } else {
+      setPreviewUrl("");
     }
 
     return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      isActive = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [receiptFileId, opened]);
+  }, [downloadBookingReceipt, receiptFileId, opened]);
 
   const handleDownload = async () => {
     appNotifications.info({
@@ -69,39 +84,18 @@ export default function ReceiptPreviewModal({
     });
 
     try {
-      const res = await axios.get(
-        `/api/google/drive/download_receipts/${receiptFileId}`,
-        {
-          responseType: "blob",
-        },
-      );
+      const { objectUrl, extension } = await downloadBookingReceipt({
+        receiptFileId,
+      }).unwrap();
+      let filename = filenamePrefix;
 
-      const disposition = res.headers["content-disposition"];
-      const filenameMatch = disposition?.match(
-        /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/,
-      );
-
-      let filename = `${filenamePrefix}-${receiptFileId}`;
-
-      if (filenameMatch?.[1]) {
-        let original = filenameMatch[1].replace(/['"]/g, "");
-
-        try {
-          original = decodeURIComponent(original);
-        } catch {
-          // ignore decode errors
-        }
-
-        const ext = original.split(".").pop();
-        if (ext) {
-          filename += `.${ext}`;
-        }
+      if (extension) {
+        filename += `.${extension}`;
       }
 
-      const url = window.URL.createObjectURL(res.data);
       const a = document.createElement("a");
 
-      a.href = url;
+      a.href = objectUrl;
       a.download = filename;
       a.style.display = "none";
 
@@ -109,7 +103,9 @@ export default function ReceiptPreviewModal({
       a.click();
 
       document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      window.setTimeout(() => {
+        window.URL.revokeObjectURL(objectUrl);
+      }, 1000);
     } catch {
       appNotifications.error({
         title: "Failed to download file",

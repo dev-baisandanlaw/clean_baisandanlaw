@@ -1,9 +1,7 @@
 import { Booking } from "@/types/booking";
 import DataTableNoPagination from "../data-table/DataTableNoPagination";
 import { useMemo } from "react";
-import {
-  createAppointmentColumns,
-} from "../data-table/columns-no-pagination/AppointmentColumns";
+import { createAppointmentColumns } from "../data-table/columns-no-pagination/AppointmentColumns";
 
 interface AppointmentsListProps {
   data: Booking[];
@@ -53,7 +51,7 @@ export default function AppointmentsList({
       emptyText={
         isLoading ? "Loading appointments..." : "No appointments found."
       }
-      maxHeight="calc(100vh - 420px)"
+      maxHeight="100%"
     />
   );
 }

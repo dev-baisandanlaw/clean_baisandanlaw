@@ -7,6 +7,77 @@ import {
   type UpdateBookingSettingsDto,
 } from "@/types/bookingSettings";
 
+type ReceiptFileResponse = {
+  objectUrl: string;
+  filename: string;
+  mimeType: string;
+  extension: string;
+};
+
+const getExtensionFromMimeType = (mimeType: string) => {
+  const mimeToExtension: Record<string, string> = {
+    "application/pdf": "pdf",
+    "image/jpeg": "jpg",
+    "image/jpg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/heic": "heic",
+    "image/heif": "heif",
+  };
+
+  return mimeToExtension[mimeType.toLowerCase().split(";")[0].trim()] || "";
+};
+
+const getExtensionFromFilename = (filename: string) => {
+  const match = filename.toLowerCase().match(/\.([a-z0-9]{1,5})$/);
+  const extension = match?.[1];
+  const knownExtensions = new Set([
+    "pdf",
+    "jpg",
+    "jpeg",
+    "png",
+    "webp",
+    "heic",
+    "heif",
+  ]);
+
+  if (!extension || !knownExtensions.has(extension)) return "";
+
+  return extension === "jpeg" ? "jpg" : extension;
+};
+
+const getExtensionFromFileSignature = async (blob: Blob) => {
+  const bytes = new Uint8Array(await blob.slice(0, 16).arrayBuffer());
+  const ascii = String.fromCharCode(...bytes);
+
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    return "jpg";
+  }
+
+  if (
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47
+  ) {
+    return "png";
+  }
+
+  if (ascii.startsWith("%PDF")) {
+    return "pdf";
+  }
+
+  if (ascii.startsWith("RIFF") && ascii.slice(8, 12) === "WEBP") {
+    return "webp";
+  }
+
+  if (ascii.slice(4, 8) === "ftyp") {
+    return "heic";
+  }
+
+  return "";
+};
+
 export const bookingService = createApi({
   reducerPath: "bookingService",
   baseQuery: baseQueryWithAuth,
@@ -112,6 +183,49 @@ export const bookingService = createApi({
       invalidatesTags: ["Booking"],
     }),
 
+    downloadBookingReceipt: builder.mutation<
+      ReceiptFileResponse,
+      { receiptFileId: string }
+    >({
+      query: ({ receiptFileId }) => ({
+        url: `/bookings/receipt/download/${receiptFileId}`,
+        method: "GET",
+        responseHandler: async (response) => {
+          const disposition = response.headers.get("content-disposition");
+          const blob = await response.blob();
+          const filenameMatch = disposition?.match(
+            /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/,
+          );
+          let filename = receiptFileId;
+
+          if (filenameMatch?.[1]) {
+            filename = filenameMatch[1].replace(/['"]/g, "");
+
+            try {
+              filename = decodeURIComponent(filename);
+            } catch {
+              // Keep the header value as-is when it is not URI encoded.
+            }
+          }
+
+          return {
+            objectUrl: URL.createObjectURL(blob),
+            filename,
+            mimeType:
+              response.headers.get("content-type") ||
+              blob.type ||
+              "application/octet-stream",
+            extension:
+              getExtensionFromFilename(filename) ||
+              getExtensionFromMimeType(
+                response.headers.get("content-type") || blob.type,
+              ) ||
+              (await getExtensionFromFileSignature(blob)),
+          };
+        },
+      }),
+    }),
+
     deleteBooking: builder.mutation<{ message: string }, { id: string }>({
       query: ({ id }) => ({
         url: `/bookings/delete/${id}`,
@@ -126,7 +240,13 @@ export const bookingService = createApi({
     >({
       query: ({ file, filename }) => {
         const formData = new FormData();
-        formData.append("file", file, filename);
+        const extension = file.name.split(".").pop();
+        const uploadFilename =
+          extension && extension !== file.name
+            ? `${filename}.${extension}`
+            : filename;
+
+        formData.append("file", file, uploadFilename);
 
         return {
           method: "POST",
@@ -148,6 +268,7 @@ export const {
   useManualBookNewAppointmentMutation,
   useManualUpdateBookingMutation,
   useApproveBookingReceiptMutation,
+  useDownloadBookingReceiptMutation,
   useDeleteBookingMutation,
   useUploadBookingReceiptMutation,
 } = bookingService;
