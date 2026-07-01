@@ -8,7 +8,7 @@ import { AreaBadge } from "@/components/Common/BadgeComp";
 
 type RetainerRow = RetainerListingResponse["data"][number];
 
-export const retiainerColumns: ColumnDef<RetainerRow>[] = [
+export const retainerColumns: ColumnDef<RetainerRow>[] = [
   {
     accessorKey: "client",
     header: "Client",

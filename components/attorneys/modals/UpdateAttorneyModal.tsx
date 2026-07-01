@@ -94,7 +94,6 @@ export const UpdateAttorneyModal = ({
       form.setFieldValue("lastName", user.metadata?.lastName || "");
       form.setFieldValue("phoneNumber", user?.phone || "");
       form.setFieldValue("practiceAreas", user?.metadata?.practiceAreas || []);
-      console.log(user);
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps

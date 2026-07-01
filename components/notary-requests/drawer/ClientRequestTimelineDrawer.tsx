@@ -12,7 +12,6 @@ import {
   Timeline,
   useMantineTheme,
 } from "@mantine/core";
-import { useEffect } from "react";
 
 interface ClientRequestTimelineDrawerProps {
   opened: boolean;
@@ -34,12 +33,6 @@ export default function ClientRequestTimelineDrawer({
   } = useGetClientRequestTimelineQuery(clientRequestId ?? "", {
     skip: !opened || !clientRequestId,
   });
-
-  useEffect(() => {
-    if (!timeline) return;
-
-    console.log("Client request timeline:", timeline);
-  }, [timeline]);
 
   return (
     <AppDrawer opened={opened} onClose={onClose} title="Timeline">

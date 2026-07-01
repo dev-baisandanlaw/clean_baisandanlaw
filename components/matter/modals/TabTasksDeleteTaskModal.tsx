@@ -29,8 +29,7 @@ export default function TabTasksDeleteTaskModal({
         });
         onClose();
       })
-      .catch((e) => {
-        console.log(e);
+      .catch(() => {
         appNotifications.error({
           title: "Failed to delete task",
           message: "The task could not be deleted. Please try again.",

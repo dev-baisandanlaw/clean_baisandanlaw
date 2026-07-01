@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^6.31.0",
-    "@mantine/charts": "^8.2.4",
     "@mantine/core": "^8.2.4",
     "@mantine/dates": "^8.2.4",
     "@mantine/dropzone": "^8.2.4",
@@ -20,18 +19,13 @@
     "@reduxjs/toolkit": "^2.12.0",
     "@tabler/icons-react": "^3.44.0",
     "@tanstack/react-table": "^8.21.3",
-    "appwrite": "^18.1.1",
     "axios": "^1.11.0",
     "dayjs": "^1.11.13",
-    "firebase": "^12.1.0",
-    "googleapis": "^161.0.0",
     "next": "15.4.8",
     "nextjs-toploader": "^3.9.17",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "react-redux": "^9.3.0",
-    "react-toastify": "^11.0.5",
-    "recharts": "^3.1.2"
+    "react-redux": "^9.3.0"
   },
   "devDependencies": {
     "@clerk/types": "^4.78.0",

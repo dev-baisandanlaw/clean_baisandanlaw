@@ -1,8 +1,3 @@
-import { WORK_SCHEDULE } from "@/constants/constants";
-import {
-  REGULAR_HOLIDAYS,
-  SPECIAL_HOLIDAYS,
-} from "@/constants/non-working-sched";
 import {
   ActionIcon,
   Alert,
@@ -57,6 +52,9 @@ const toHolidayItems = (holidays: HolidaySetting[] = []) =>
     name: holiday.name,
     date: holiday.date.replace("-", "/"),
   }));
+
+const formatWorkDayName = (day: string) =>
+  day.charAt(0).toUpperCase() + day.slice(1);
 
 const timeToMinutes = (time: string) => {
   const [hours, minutes] = time.split(":").map(Number);
@@ -142,18 +140,21 @@ export default function SettingsModal({
   );
 
   const regularHolidayItems = useMemo(
-    () =>
-      bookingSettings?.regularHolidays.length
-        ? toHolidayItems(bookingSettings.regularHolidays)
-        : REGULAR_HOLIDAYS,
+    () => toHolidayItems(bookingSettings?.regularHolidays),
     [bookingSettings],
   );
 
   const specialHolidayItems = useMemo(
+    () => toHolidayItems(bookingSettings?.specialHolidays),
+    [bookingSettings],
+  );
+
+  const workScheduleItems = useMemo(
     () =>
-      bookingSettings?.specialHolidays.length
-        ? toHolidayItems(bookingSettings.specialHolidays)
-        : SPECIAL_HOLIDAYS,
+      Object.keys(bookingSettings?.workSchedule ?? {}).map((day) => ({
+        id: day,
+        name: formatWorkDayName(day),
+      })),
     [bookingSettings],
   );
 
@@ -194,7 +195,7 @@ export default function SettingsModal({
 
   const regularHolidaysCount = `${Object?.values(holidaysForm.values.regularHolidays)?.filter(Boolean).length}/${regularHolidayItems.length}`;
   const specialHolidaysCount = `${Object?.values(holidaysForm.values.specialHolidays)?.filter(Boolean).length}/${specialHolidayItems.length}`;
-  const workScheduleCount = `${Object?.values(holidaysForm.values.workSchedule)?.filter(Boolean).length}/${WORK_SCHEDULE.length}`;
+  const workScheduleCount = `${Object?.values(holidaysForm.values.workSchedule)?.filter(Boolean).length}/${workScheduleItems.length}`;
 
   const buildHolidayPayload = (
     holidays: HolidaySetting[] = [],
@@ -362,7 +363,7 @@ export default function SettingsModal({
               accordionKey="workSchedule"
               isOpen={acc.includes("workSchedule")}
               onToggle={handleAccordion}
-              items={WORK_SCHEDULE}
+              items={workScheduleItems}
               checkedValues={holidaysForm.values.workSchedule}
               onCheckboxChange={(name, checked) => {
                 holidaysForm.setFieldValue(`workSchedule.${name}`, checked);
@@ -640,7 +641,7 @@ export default function SettingsModal({
               </Group>
 
               <Stack my="md">
-                {paymentsForm.values.paymentChannels.map((channel, idx) => {
+                {paymentsForm.values.paymentChannels.map((_, idx) => {
                   return (
                     <Group align="end" key={idx}>
                       <TextInput

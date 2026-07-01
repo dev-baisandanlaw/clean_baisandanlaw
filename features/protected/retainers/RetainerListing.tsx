@@ -15,7 +15,7 @@ import AddRetainerModal from "@/components/retainers/modals/AddRetainerModal";
 
 import { useGetAllRetainersQuery } from "@/store/services/retainerService";
 import DataTable from "@/components/data-table/DataTable";
-import { retiainerColumns } from "@/components/data-table/columns/RetainerColumns";
+import { retainerColumns } from "@/components/data-table/columns/RetainerColumns";
 
 export default function RetainerListing() {
   const shrink = useMediaQuery("(max-width: 768px)");
@@ -65,7 +65,7 @@ export default function RetainerListing() {
         </Flex>
 
         <DataTable
-          columns={retiainerColumns}
+          columns={retainerColumns}
           useQuery={useGetAllRetainersQuery}
           queryArgs={{ search: debouncedSearch }}
           queryOptions={{ skip: !isLoaded || !isSignedIn }}

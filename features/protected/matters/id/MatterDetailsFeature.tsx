@@ -11,7 +11,6 @@ import {
   IconFolder,
   IconCalendarWeek,
 } from "@tabler/icons-react";
-import { createContext } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useGetSingleMatterQuery } from "@/store/services/matterService";
 
@@ -25,8 +24,6 @@ const tabs = [
   { value: "tasks", label: "Tasks", icon: IconChecklist },
   { value: "schedules", label: "Schedules", icon: IconCalendarWeek },
 ];
-
-export const DataChangedContext = createContext(false);
 
 export default function MatterDetailsFeature({
   matterId,

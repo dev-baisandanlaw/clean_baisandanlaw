@@ -1,6 +1,5 @@
 import "@mantine/core/styles.css";
 import "@mantine/dates/styles.css";
-import "@mantine/charts/styles.css";
 import "@mantine/dropzone/styles.css";
 
 import "./globals.css";
@@ -16,7 +15,6 @@ import type { Metadata } from "next";
 import { Open_Sans } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 // import AppShellComponent from "@/components/AppShellComponent";
-import { ToastContainer } from "react-toastify";
 import { Notifications } from "@mantine/notifications";
 import NextTopLoader from "nextjs-toploader";
 import { Providers } from "./providers";
@@ -152,7 +150,6 @@ export default function RootLayout({
         style={{ margin: 0, padding: 0 }}
       >
         <NextTopLoader color="green" />
-        <ToastContainer position="top-center" autoClose={2000} />
         <Providers>
           <MantineProvider theme={theme}>
             <Notifications position="top-center" />

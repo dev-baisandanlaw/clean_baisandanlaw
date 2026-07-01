@@ -199,7 +199,7 @@ export default function BookingPage() {
             <br />
             You can view all your bookings and their details anytime through
             your appointments dashboard. If you don&apos;t have an account, you
-            can create one by clicking this <Link href={`/sign-in}`}>link</Link>
+            can create one by clicking this <Link href="/sign-in">link</Link>
             . Just make sure to use the same email address you used to book the
             appointment.
             <Group mt={16} justify="end">

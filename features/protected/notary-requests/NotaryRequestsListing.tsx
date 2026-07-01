@@ -28,31 +28,6 @@ import { IconCirclePlus, IconSearch } from "@tabler/icons-react";
 import classes from "@/app/custom-css/TabsCustomCss.module.css";
 import ClientRequestPaymentModal from "@/components/notary-requests/modals/ClientRequestPaymentModal";
 
-/*
- * Legacy modals parked while Client Requests is being moved to the API-backed
- * flow. Re-enable these as each workflow action is rebuilt.
- *
- * import { NS1ClientModal } from "@/components/notary-requests/modals/NS1ClientModal";
- * import NS2AdminModal from "@/components/notary-requests/modals/NS2AdminModal";
- * import NS1_5AdminModal from "@/components/notary-requests/modals/NS1_5AdminModal";
- * import NS2_5ClientModal from "@/components/notary-requests/modals/NS2_5ClientModal";
- * import NS4AdminModal from "@/components/notary-requests/modals/NS4AdminModal";
- * import NS5ClientModal from "@/components/notary-requests/modals/NS5ClientModal";
- * import NS6AdminModal from "@/components/notary-requests/modals/NS6AdminModal";
- * import NSCancelAdminModal from "@/components/notary-requests/modals/NSCancelAdminModal";
- * import { ViewNotaryRequestDrawer } from "@/components/notary-requests/drawer/ViewNotaryRequestDrawer";
- *
- * <NS1ClientModal />
- * <NS2AdminModal />
- * <NS1_5AdminModal />
- * <NS2_5ClientModal />
- * <NS4AdminModal />
- * <NS5ClientModal />
- * <NS6AdminModal />
- * <NSCancelAdminModal />
- * <ViewNotaryRequestDrawer />
- */
-
 type StatusFilter = "all" | ClientRequestStatus;
 type ClientRequestModalName =
   | "upsert-client-request"

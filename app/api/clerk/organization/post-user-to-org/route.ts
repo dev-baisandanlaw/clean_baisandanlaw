@@ -14,15 +14,24 @@ export async function POST(req: Request) {
     const response = await axios.post(
       `${CLERK_API_CONFIG.baseUrl}/organizations/${organization_id}/memberships`,
       { role: "org:member", user_id },
-      { headers: CLERK_API_CONFIG.headers }
+      { headers: CLERK_API_CONFIG.headers },
     );
 
     return NextResponse.json(response.data);
-  } catch (error: any) {
-    console.error(error.response?.data || error.message);
+  } catch (error: unknown) {
+    const isAxiosError = axios.isAxiosError(error);
+    const status = isAxiosError ? error.response?.status : undefined;
+    const errorDetails = isAxiosError
+      ? error.response?.data || error.message
+      : error instanceof Error
+        ? error.message
+        : error;
+
+    console.error(errorDetails);
+
     return NextResponse.json(
       { error: "Failed to post user to org" },
-      { status: error.response?.status || 500 }
+      { status: status || 500 },
     );
   }
 }
