@@ -1,23 +1,21 @@
-import {
-  Modal,
-  Button,
-  Group,
-  Image,
-  LoadingOverlay,
-  Center,
-} from "@mantine/core";
+import { Button, Group, Image, LoadingOverlay, Center } from "@mantine/core";
 import { appNotifications } from "@/utils/notifications/notifications";
 import { useEffect, useState } from "react";
-import { useDownloadBookingReceiptMutation } from "@/store/services/bookingService";
+import {
+  type DocumentDownloadSource,
+  useDownloadDocumentMutation,
+} from "@/store/services/documentService";
+import { useUser } from "@clerk/nextjs";
+import AppModal from "./modal/AppModal";
 
 interface ReceiptPreviewModalProps {
   opened: boolean;
   onClose: () => void;
   receiptFileId: string;
   isPaid: boolean;
-  onApprove: () => Promise<void>;
-  isDownloadOnly?: boolean;
+  onApprove?: () => Promise<void>;
   filenamePrefix?: string;
+  source: DocumentDownloadSource;
 }
 
 export default function ReceiptPreviewModal({
@@ -26,14 +24,17 @@ export default function ReceiptPreviewModal({
   receiptFileId,
   isPaid,
   onApprove,
-  isDownloadOnly = false,
   filenamePrefix = "receipt",
+  source,
 }: ReceiptPreviewModalProps) {
+  const { user } = useUser();
+  const isAdmin = user?.unsafeMetadata?.role === "admin";
+
   const [isApproving, setIsApproving] = useState(false);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [previewUrl, setPreviewUrl] = useState("");
 
-  const [downloadBookingReceipt] = useDownloadBookingReceiptMutation();
+  const [downloadDocument] = useDownloadDocumentMutation();
 
   useEffect(() => {
     let objectUrl = "";
@@ -42,8 +43,9 @@ export default function ReceiptPreviewModal({
     const loadPreview = async () => {
       setIsLoadingPreview(true);
       try {
-        const receipt = await downloadBookingReceipt({
-          receiptFileId,
+        const receipt = await downloadDocument({
+          fileId: receiptFileId,
+          source,
         }).unwrap();
 
         if (!isActive) {
@@ -75,7 +77,7 @@ export default function ReceiptPreviewModal({
       isActive = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [downloadBookingReceipt, receiptFileId, opened]);
+  }, [downloadDocument, receiptFileId, opened, source]);
 
   const handleDownload = async () => {
     appNotifications.info({
@@ -84,8 +86,9 @@ export default function ReceiptPreviewModal({
     });
 
     try {
-      const { objectUrl, extension } = await downloadBookingReceipt({
-        receiptFileId,
+      const { objectUrl, extension } = await downloadDocument({
+        fileId: receiptFileId,
+        source,
       }).unwrap();
       let filename = filenamePrefix;
 
@@ -117,7 +120,7 @@ export default function ReceiptPreviewModal({
   const handleApprove = async () => {
     setIsApproving(true);
     try {
-      await onApprove();
+      await onApprove?.();
       onClose();
     } catch {
       appNotifications.error({
@@ -130,12 +133,13 @@ export default function ReceiptPreviewModal({
   };
 
   return (
-    <Modal
+    <AppModal
       opened={opened}
       onClose={onClose}
       title="Receipt Preview"
       size="lg"
-      withCloseButton={!isApproving}
+      closable={!isApproving}
+      type="success"
     >
       {isLoadingPreview && (
         <Center h={400}>
@@ -160,12 +164,12 @@ export default function ReceiptPreviewModal({
         <Button onClick={handleDownload} variant="outline">
           Download
         </Button>
-        {!isPaid && !isDownloadOnly && (
+        {!isPaid && isAdmin && onApprove && (
           <Button onClick={handleApprove} color="green" loading={isApproving}>
             Approve
           </Button>
         )}
       </Group>
-    </Modal>
+    </AppModal>
   );
 }

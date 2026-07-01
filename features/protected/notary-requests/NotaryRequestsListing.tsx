@@ -1,418 +1,306 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
-import { useRouter, useSearchParams } from "next/navigation";
-
-import {
-  Flex,
-  TextInput,
-  TableScrollContainer,
-  Table,
-  Button,
-  Stack,
-  Text,
-  ActionIcon,
-  Menu,
-  Paper,
-  Progress,
-  Pagination,
-  Tabs,
-  Group,
-} from "@mantine/core";
-import {
-  useDebouncedValue,
-  useDisclosure,
-  useMediaQuery,
-} from "@mantine/hooks";
-import {
-  IconBan,
-  IconCash,
-  IconCheck,
-  IconCirclePlus,
-  IconDots,
-  IconDownload,
-  IconEye,
-  IconFileCheck,
-  IconPencil,
-  IconRubberStamp,
-  IconSearch,
-  IconTextScan2,
-  IconX,
-} from "@tabler/icons-react";
-import { useUser } from "@clerk/nextjs";
-import axios from "axios";
-import {
-  collection,
-  getDocs,
-  orderBy,
-  query,
-  where,
-  doc,
-  setDoc,
-} from "firebase/firestore";
-
-import { COLLECTIONS } from "@/constants/constants";
-import { db } from "@/firebase/config";
-import { appNotifications } from "@/utils/notifications/notifications";
-import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
-import dayjs from "dayjs";
-import { nanoid } from "nanoid";
-import { NotaryStatusBadge, PaymentBadge } from "@/components/Common/BadgeComp";
-import EmptyTableComponent from "@/components/EmptyTableComponent";
-import { NS1ClientModal } from "@/components/notary-requests/modals/NS1ClientModal";
-import NS2AdminModal from "@/components/notary-requests/modals/NS2AdminModal";
-import NS1_5AdminModal from "@/components/notary-requests/modals/NS1_5AdminModal";
-import NS2_5ClientModal from "@/components/notary-requests/modals/NS2_5ClientModal";
-import NS4AdminModal from "@/components/notary-requests/modals/NS4AdminModal";
-import NS5ClientModal from "@/components/notary-requests/modals/NS5ClientModal";
-import NS6AdminModal from "@/components/notary-requests/modals/NS6AdminModal";
-import NSCancelAdminModal from "@/components/notary-requests/modals/NSCancelAdminModal";
-
-import { ViewNotaryRequestDrawer } from "@/components/notary-requests/drawer/ViewNotaryRequestDrawer";
+import DataTable from "@/components/data-table/DataTable";
+import { getClientRequestColumns } from "@/components/data-table/columns/ClientRequestColumns";
 import ReceiptPreviewModal from "@/components/Common/ReceiptPreviewModal";
-
-import classes from "@/app/custom-css/TabsCustomCss.module.css";
-
+import ClientRequestTimelineDrawer from "@/components/notary-requests/drawer/ClientRequestTimelineDrawer";
+import AdminApproveRejectModal from "@/components/notary-requests/modals/AdminApproveRejectModal";
+import AdminCancelModal from "@/components/notary-requests/modals/AdminCancelModal";
+import AdminCompletionModal from "@/components/notary-requests/modals/AdminCompletionModal";
+import AdminFinishedFileUploadModal from "@/components/notary-requests/modals/AdminFinishedFileUploadModal";
+import ClientApproveRejectModal from "@/components/notary-requests/modals/ClientApproveRejectModal";
+import UpsertClientRequestModal from "@/components/notary-requests/modals/UpsertClientRequestModal";
+import ViewClientRequestModal from "@/components/notary-requests/modals/ViewClientRequestModal";
 import {
-  NotaryRequest,
-  NotaryRequestLabel,
-  NotaryRequestStatus,
-} from "@/types/notary-requests";
+  useApproveClientRequestPaymentMutation,
+  useGetClientRequestsListingQuery,
+  useProcessAgainClientRequestMutation,
+} from "@/store/services/clientRequestService";
+import { useDownloadDocumentMutation } from "@/store/services/documentService";
+import { type ClientRequestStatus } from "@/types/clientRequest";
+import { appNotifications } from "@/utils/notifications/notifications";
+import { useUser } from "@clerk/nextjs";
+import { Button, Flex, ScrollArea, Tabs, TextInput } from "@mantine/core";
+import { useDebouncedValue, useMediaQuery } from "@mantine/hooks";
+import { IconCirclePlus, IconSearch } from "@tabler/icons-react";
+import classes from "@/app/custom-css/TabsCustomCss.module.css";
+import ClientRequestPaymentModal from "@/components/notary-requests/modals/ClientRequestPaymentModal";
 
-/**
- * Returns the set of visible actions for a notary request based on status and user role.
- * Admin/attorney see admin actions; client sees client actions.
+/*
+ * Legacy modals parked while Client Requests is being moved to the API-backed
+ * flow. Re-enable these as each workflow action is rebuilt.
+ *
+ * import { NS1ClientModal } from "@/components/notary-requests/modals/NS1ClientModal";
+ * import NS2AdminModal from "@/components/notary-requests/modals/NS2AdminModal";
+ * import NS1_5AdminModal from "@/components/notary-requests/modals/NS1_5AdminModal";
+ * import NS2_5ClientModal from "@/components/notary-requests/modals/NS2_5ClientModal";
+ * import NS4AdminModal from "@/components/notary-requests/modals/NS4AdminModal";
+ * import NS5ClientModal from "@/components/notary-requests/modals/NS5ClientModal";
+ * import NS6AdminModal from "@/components/notary-requests/modals/NS6AdminModal";
+ * import NSCancelAdminModal from "@/components/notary-requests/modals/NSCancelAdminModal";
+ * import { ViewNotaryRequestDrawer } from "@/components/notary-requests/drawer/ViewNotaryRequestDrawer";
+ *
+ * <NS1ClientModal />
+ * <NS2AdminModal />
+ * <NS1_5AdminModal />
+ * <NS2_5ClientModal />
+ * <NS4AdminModal />
+ * <NS5ClientModal />
+ * <NS6AdminModal />
+ * <NSCancelAdminModal />
+ * <ViewNotaryRequestDrawer />
  */
-export function getVisibleActions(
-  status: NotaryRequestStatus,
-  role: string | undefined,
-): string[] {
-  const isAdmin = role === "admin" || role === "attorney";
-  const isClient = role === "client";
 
-  switch (status) {
-    case NotaryRequestStatus.SUBMITTED:
-      return isAdmin
-        ? ["confirm", "reject", "cancel"]
-        : isClient
-          ? ["edit"]
-          : [];
+type StatusFilter = "all" | ClientRequestStatus;
+type ClientRequestModalName =
+  | "upsert-client-request"
+  | "view-client-request"
+  | "admin-approve-reject"
+  | "admin-cancel"
+  | "admin-completion"
+  | "admin-upload-finished-file"
+  | "client-approve-reject"
+  | "client-upload-payment"
+  | "receipt-preview";
+type ClientRequestDrawerName = "client-request-timeline";
 
-    case NotaryRequestStatus.NEEDS_CLIENT_REVISION:
-      return isClient ? ["edit"] : [];
-
-    case NotaryRequestStatus.PAYMENT_PENDING:
-      if (isClient) return ["pay"];
-      if (isAdmin) return ["cancel"];
-      return [];
-
-    case NotaryRequestStatus.FOR_ADMIN_PAYMENT_VERIFICATION:
-      return [];
-
-    case NotaryRequestStatus.PROCESSING:
-      return isAdmin ? ["upload_finished_doc", "cancel"] : [];
-
-    case NotaryRequestStatus.FOR_CLIENT_REVIEW:
-      return isClient ? ["review"] : [];
-
-    case NotaryRequestStatus.NEEDS_ATTORNEY_REVISION:
-      return isAdmin ? ["upload_finished_doc"] : [];
-
-    case NotaryRequestStatus.CLIENT_APPROVED:
-      return isAdmin ? ["complete"] : [];
-
-    case NotaryRequestStatus.COMPLETED:
-    case NotaryRequestStatus.CANCELLED:
-      return [];
-
-    default:
-      return [];
-  }
-}
-
-const PAGE_SIZE = 25;
+const statusFilters: { value: StatusFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "submitted", label: "Submitted" },
+  { value: "needs_client_revision", label: "Revision" },
+  { value: "payment_pending", label: "Payment" },
+  { value: "for_payment_verification", label: "Verification" },
+  { value: "processing", label: "Processing" },
+  { value: "for_client_review", label: "Review" },
+  { value: "client_rejected", label: "Rejected" },
+  { value: "client_approved", label: "Approved" },
+  { value: "completed", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
+];
 
 export default function NotaryRequestsListing() {
   const shrink = useMediaQuery("(max-width: 768px)");
-
   const { user, isLoaded } = useUser();
-  const router = useRouter();
-  const searchParams = useSearchParams();
 
-  const idFromSearchParams = searchParams.get("id");
-
-  const tabsListRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = tabsListRef.current;
-    if (!el) return;
-
-    const onWheel = (e: WheelEvent) => {
-      if (e.deltaY === 0) return;
-      e.preventDefault();
-      el.scrollLeft += e.deltaY;
-    };
-
-    el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
-  }, []);
-
-  useEffect(() => {
-    if (isLoaded && idFromSearchParams) {
-      setSearch(idFromSearchParams);
-      router.replace("/notary-requests");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded, idFromSearchParams]);
-
-  // All notary requests fetched from Firebase
-  const [allNotaryRequests, setAllNotaryRequests] = useState<NotaryRequest[]>(
-    [],
-  );
-  const [selectedNotaryRequest, setSelectedNotaryRequest] =
-    useState<NotaryRequest | null>(null);
-
-  const [dataChanged, setDataChanged] = useState(false);
-  const [isFetching, setIsFetching] = useState(false);
-
-  const [activeTab, setActiveTab] = useState<NotaryRequestStatus | "All">(
-    "All",
-  );
   const [search, setSearch] = useState("");
   const [debouncedSearch] = useDebouncedValue(search, 500);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
-  // --- Modal disclosures ---
+  const [activeModal, setActiveModal] = useState<ClientRequestModalName | null>(
+    null,
+  );
+  const [activeDrawer, setActiveDrawer] =
+    useState<ClientRequestDrawerName | null>(null);
 
-  const [
-    isUpsertNotaryRequestModalOpen,
-    {
-      open: openUpsertNotaryRequestModal,
-      close: closeUpsertNotaryRequestModal,
+  const [selectedClientRequestId, setSelectedClientRequestId] = useState<
+    string | null
+  >(null);
+  const [fee, setFee] = useState<number>(0);
+  const [selectedReceipt, setSelectedReceipt] = useState<{
+    clientRequestId: string;
+    fileId: string;
+    isPaid: boolean;
+  } | null>(null);
+  const [approveClientRequestPaymentFn] =
+    useApproveClientRequestPaymentMutation();
+  const [processAgainClientRequestFn] = useProcessAgainClientRequestMutation();
+  const [downloadDocument] = useDownloadDocumentMutation();
+
+  const openModal = useCallback(
+    (name: ClientRequestModalName, clientRequestId: string | null = null) => {
+      setSelectedClientRequestId(clientRequestId);
+      setActiveModal(name);
     },
-  ] = useDisclosure(false);
+    [],
+  );
 
-  const [
-    isAdminConfirmModalOpen,
-    { open: openAdminConfirmModal, close: closeAdminConfirmModal },
-  ] = useDisclosure(false);
+  const closeModal = useCallback(() => {
+    setActiveModal(null);
+    setSelectedClientRequestId(null);
+    setFee(0);
+    setSelectedReceipt(null);
+  }, []);
 
-  const [
-    isRejectNotaryRequestModalOpen,
-    {
-      open: openRejectNotaryRequestModal,
-      close: closeRejectNotaryRequestModal,
+  const openAdminApproveRejectModal = useCallback((clientRequestId: string) => {
+    setSelectedClientRequestId(clientRequestId);
+    setActiveModal("admin-approve-reject");
+  }, []);
+
+  const openAdminFinishedFileUploadModal = useCallback(
+    (clientRequestId: string) => {
+      setSelectedClientRequestId(clientRequestId);
+      setActiveModal("admin-upload-finished-file");
     },
-  ] = useDisclosure(false);
+    [],
+  );
 
-  const [
-    isPaymentModalOpen,
-    { open: openPaymentModal, close: closePaymentModal },
-  ] = useDisclosure(false);
+  const openAdminCompletionModal = useCallback((clientRequestId: string) => {
+    setSelectedClientRequestId(clientRequestId);
+    setActiveModal("admin-completion");
+  }, []);
 
-  const [
-    isApproveNotaryRequestModalOpen,
-    {
-      open: openApproveNotaryRequestModal,
-      close: closeApproveNotaryRequestModal,
+  const openAdminCancelModal = useCallback((clientRequestId: string) => {
+    setSelectedClientRequestId(clientRequestId);
+    setActiveModal("admin-cancel");
+  }, []);
+
+  const openClientUploadPaymentModal = useCallback(
+    (clientRequestId: string, fee: number) => {
+      setSelectedClientRequestId(clientRequestId);
+      setActiveModal("client-upload-payment");
+      setFee(Number(fee));
     },
-  ] = useDisclosure(false);
+    [],
+  );
 
-  const [
-    isClientReviewModalOpen,
-    { open: openClientReviewModal, close: closeClientReviewModal },
-  ] = useDisclosure(false);
+  const openClientApproveRejectModal = useCallback(
+    (clientRequestId: string) => {
+      setSelectedClientRequestId(clientRequestId);
+      setActiveModal("client-approve-reject");
+    },
+    [],
+  );
 
-  const [
-    isConfirmationModalOpen,
-    { open: openConfirmationModal, close: closeConfirmationModal },
-  ] = useDisclosure(false);
+  const openReceiptPreviewModal = useCallback(
+    (clientRequestId: string, receiptFileId: string, isPaid: boolean) => {
+      setSelectedReceipt({ clientRequestId, fileId: receiptFileId, isPaid });
+      setActiveModal("receipt-preview");
+    },
+    [],
+  );
 
-  const [
-    isCancelModalOpen,
-    { open: openCancelModal, close: closeCancelModal },
-  ] = useDisclosure(false);
+  const handleApproveReceipt = useCallback(async () => {
+    if (!selectedReceipt?.clientRequestId) return;
 
-  const [
-    isViewNotaryRequestDrawerOpen,
-    { open: openViewNotaryRequestDrawer, close: closeViewNotaryRequestDrawer },
-  ] = useDisclosure(false);
+    await approveClientRequestPaymentFn({
+      id: selectedReceipt.clientRequestId,
+    }).unwrap();
 
-  const [
-    isReceiptPreviewModalOpen,
-    { open: openReceiptPreviewModal, close: closeReceiptPreviewModal },
-  ] = useDisclosure(false);
-
-  // --- Data fetching from Firebase ---
-
-  const fetchNotaryRequests = async () => {
-    if (!user) return;
-
-    setIsFetching(true);
-    try {
-      const userRole = user.unsafeMetadata?.role;
-      const colRef = collection(db, COLLECTIONS.NOTARY_REQUESTS);
-
-      let q;
-      if (userRole === "client") {
-        q = query(
-          colRef,
-          where("requestor.id", "==", user.id),
-          orderBy("createdAt", "desc"),
-        );
-      } else {
-        q = query(colRef, orderBy("createdAt", "desc"));
-      }
-
-      const snapshot = await getDocs(q);
-      const docs: NotaryRequest[] = snapshot.docs.map((d) => ({
-        ...(d.data() as NotaryRequest),
-        id: d.id,
-      }));
-
-      setAllNotaryRequests(docs);
-    } catch (eeee) {
-      console.log(eeee);
-      appNotifications.error({
-        title: "Failed to fetch requests",
-        message: "Could not load requests. Please try again.",
-      });
-    } finally {
-      setIsFetching(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchNotaryRequests();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, dataChanged]);
-
-  // --- Local filtering, search, and pagination ---
-
-  const filteredRequests = useMemo(() => {
-    let result = allNotaryRequests;
-
-    // Filter by status tab
-    if (activeTab !== "All") {
-      result = result.filter((r) => r.status === activeTab);
-    }
-
-    // Filter by search term (ID, requestor name/email)
-    if (debouncedSearch.trim()) {
-      const term = debouncedSearch.toLowerCase().trim();
-      result = result.filter((r) => {
-        const searchable = [
-          r.id,
-          r.requestor?.fullname,
-          r.requestor?.email,
-          r.description,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-        return searchable.includes(term);
-      });
-    }
-
-    return result;
-  }, [allNotaryRequests, activeTab, debouncedSearch]);
-
-  const totalCount = filteredRequests.length;
-  const totalPages = Math.ceil(totalCount / PAGE_SIZE) || 1;
-
-  const paginatedRequests = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
-    return filteredRequests.slice(start, start + PAGE_SIZE);
-  }, [filteredRequests, currentPage]);
-
-  // Reset page when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [debouncedSearch, activeTab]);
-
-  const handleDownloadFile = async (fileId: string) => {
-    appNotifications.info({
-      title: "Downloading file",
-      message: "The file is being downloaded. Please wait...",
+    appNotifications.success({
+      title: "Payment approved",
+      message: "The client request payment receipt has been approved.",
     });
+  }, [approveClientRequestPaymentFn, selectedReceipt]);
 
-    const res = await axios.get(`/api/google/drive/download/${fileId}`, {
-      responseType: "blob",
-    });
+  const handleProcessAgain = useCallback(
+    async (clientRequestId: string) => {
+      appNotifications.info({
+        title: "Resuming processing",
+        message: "The request is being moved back to processing.",
+      });
 
-    const disposition = res.headers["content-disposition"];
-    const filenameMatch = disposition?.match(
-      /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/,
-    );
-
-    let filename = "download";
-    if (filenameMatch?.[1]) {
-      filename = filenameMatch[1].replace(/['"]/g, "");
       try {
-        filename = decodeURIComponent(filename);
+        await processAgainClientRequestFn({ id: clientRequestId }).unwrap();
+
+        appNotifications.success({
+          title: "Request processing resumed",
+          message: "The client request has been moved back to processing.",
+        });
       } catch {
-        /* Empty */
+        appNotifications.error({
+          title: "Failed to resume processing",
+          message: "Please check the request and try again.",
+        });
       }
-    }
+    },
+    [processAgainClientRequestFn],
+  );
 
-    const url = window.URL.createObjectURL(res.data);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.style.display = "none";
-
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-  };
-
-  const handlePaymentVerification = async () => {
-    if (!selectedNotaryRequest?.id) return;
-
-    try {
-      await setDoc(
-        doc(db, COLLECTIONS.NOTARY_REQUESTS, selectedNotaryRequest.id),
-        {
-          status: NotaryRequestStatus.PROCESSING,
-          updatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-          paymentFields: {
-            ...selectedNotaryRequest.paymentFields,
-            isPaid: true,
-          },
-          timeline: [
-            ...(selectedNotaryRequest.timeline || []),
-            {
-              id: nanoid(8),
-              title: "PROCESSING",
-              description: "Payment verified and approved",
-              dateAndTime: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-              status: NotaryRequestStatus.PROCESSING,
-              user: {
-                id: user!.id,
-                fullname: user!.firstName + " " + user!.lastName,
-                email: user!.primaryEmailAddress!.emailAddress,
-              },
-            },
-          ],
-        },
-        { merge: true },
-      );
-
-      appNotifications.success({
-        title: "Payment approved",
-        message:
-          "The payment has been verified. The request is now being processed.",
+  const downloadClientRequestFile = useCallback(
+    async (fileId: string) => {
+      appNotifications.info({
+        title: "Downloading file",
+        message: "The file is being downloaded. Please wait...",
       });
-      setDataChanged((prev) => !prev);
-    } catch {
-      appNotifications.error({
-        title: "Failed to approve payment",
-        message: "The payment could not be approved. Please try again.",
-      });
-    }
-  };
+
+      try {
+        const file = await downloadDocument({
+          fileId,
+          source: "client-requests",
+        }).unwrap();
+        const a = document.createElement("a");
+
+        a.href = file.objectUrl;
+        a.download = file.filename;
+        a.style.display = "none";
+
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.setTimeout(() => {
+          window.URL.revokeObjectURL(file.objectUrl);
+        }, 1000);
+      } catch {
+        appNotifications.error({
+          title: "Failed to download file",
+          message: "The file could not be downloaded. Please try again.",
+        });
+      }
+    },
+    [downloadDocument],
+  );
+
+  const openDrawer = useCallback(
+    (name: ClientRequestDrawerName, clientRequestId: string) => {
+      setSelectedClientRequestId(clientRequestId);
+      setActiveDrawer(name);
+    },
+    [],
+  );
+
+  const closeDrawer = useCallback(() => {
+    setActiveDrawer(null);
+    setSelectedClientRequestId(null);
+  }, []);
+
+  const queryArgs = useMemo(
+    () => ({
+      search: debouncedSearch.trim(),
+      status: statusFilter === "all" ? undefined : statusFilter,
+    }),
+    [debouncedSearch, statusFilter],
+  );
+
+  const columns = useMemo(
+    () =>
+      getClientRequestColumns({
+        // general actions
+
+        onView: (clientRequestId) =>
+          openModal("view-client-request", clientRequestId),
+        onTimeline: (clientRequestId) =>
+          openDrawer("client-request-timeline", clientRequestId),
+        onDownloadInitialFile: downloadClientRequestFile,
+        onDownloadFinishedFile: downloadClientRequestFile,
+        onViewReceipt: openReceiptPreviewModal,
+
+        onEdit: (clientRequestId) =>
+          openModal("upsert-client-request", clientRequestId),
+        onAdminAction: openAdminApproveRejectModal,
+        onAdminUploadFinishedFile: openAdminFinishedFileUploadModal,
+        onAdminComplete: openAdminCompletionModal,
+        onAdminCancel: openAdminCancelModal,
+        onAdminProcessAgain: handleProcessAgain,
+        onClientPayment: openClientUploadPaymentModal,
+        onClientReviewAction: openClientApproveRejectModal,
+      }),
+    [
+      openModal,
+      openDrawer,
+      downloadClientRequestFile,
+      openReceiptPreviewModal,
+
+      openClientUploadPaymentModal,
+      openClientApproveRejectModal,
+      openAdminApproveRejectModal,
+      openAdminFinishedFileUploadModal,
+      openAdminCompletionModal,
+      openAdminCancelModal,
+      handleProcessAgain,
+    ],
+  );
 
   const userRole = user?.unsafeMetadata?.role as string | undefined;
 
@@ -432,465 +320,118 @@ export default function NotaryRequestsListing() {
           w="100%"
         >
           <TextInput
-            placeholder="Search ID, or requestor"
+            placeholder="Search ID, description, requestor, or pickup method"
             flex={1}
             leftSectionPointerEvents="none"
             leftSection={<IconSearch />}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(event) => setSearch(event.currentTarget.value)}
           />
 
           {userRole === "client" && (
             <Button
               size="sm"
               leftSection={<IconCirclePlus />}
-              onClick={() => {
-                setSelectedNotaryRequest(null);
-                openUpsertNotaryRequestModal();
-              }}
+              onClick={() => openModal("upsert-client-request")}
             >
               New Request
             </Button>
           )}
         </Flex>
 
-        <Tabs
-          value={activeTab}
-          onChange={(value) =>
-            setActiveTab(value as NotaryRequestStatus | "All")
-          }
-          styles={{
-            list: {
-              flexWrap: "nowrap",
-              overflowX: "auto",
-              scrollbarWidth: "none",
-            },
-          }}
-          classNames={{
-            list: classes.tabsListCustom,
-            tab: classes.tabsTabCustom,
-          }}
-        >
-          <Tabs.List ref={tabsListRef}>
-            <Tabs.Tab value="All">All</Tabs.Tab>
-            {Object.values(NotaryRequestStatus).map((status) => (
-              <Tabs.Tab key={status} value={status}>
-                {NotaryRequestLabel[status]}
-              </Tabs.Tab>
-            ))}
-          </Tabs.List>
-        </Tabs>
-
-        <Paper withBorder shadow="sm" px={16} py={8} pos="relative">
-          {isFetching && (
-            <Progress
-              value={100}
-              animated
-              pos="absolute"
-              top={0}
-              left={0}
-              right={0}
-              radius="xs"
-            />
-          )}
-
-          <TableScrollContainer
-            minWidth={800}
-            h="calc(100vh - 252px)"
-            pos="relative"
+        <ScrollArea type="hover" offsetScrollbars="x" scrollbarSize={4}>
+          <Tabs
+            value={statusFilter}
+            onChange={(value) =>
+              setStatusFilter((value as StatusFilter) ?? "all")
+            }
+            classNames={{
+              list: classes.tabsListCustom,
+              tab: classes.tabsTabCustom,
+            }}
           >
-            <Table stickyHeader stickyHeaderOffset={0} verticalSpacing="sm">
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th w={shrink ? 50 : "auto"}>ID</Table.Th>
-                  {userRole !== "client" && <Table.Th>Requestor</Table.Th>}
-                  <Table.Th>Created At</Table.Th>
-                  <Table.Th>Pickup</Table.Th>
-                  <Table.Th>Status</Table.Th>
-                  <Table.Th>Payment</Table.Th>
-                  <Table.Th ta="center">Actions</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
+            <Tabs.List style={{ flexWrap: "nowrap" }}>
+              {statusFilters.map((filter) => (
+                <Tabs.Tab key={filter.value} value={filter.value}>
+                  {filter.label}
+                </Tabs.Tab>
+              ))}
+            </Tabs.List>
+          </Tabs>
+        </ScrollArea>
 
-              <Table.Tbody>
-                {!paginatedRequests?.length && (
-                  <EmptyTableComponent
-                    colspan={userRole === "client" ? 7 : 8}
-                    message="No client requests found"
-                  />
-                )}
-
-                {paginatedRequests.map((notaryRequest) => {
-                  const actions = getVisibleActions(
-                    notaryRequest.status,
-                    userRole,
-                  );
-
-                  return (
-                    <Table.Tr key={notaryRequest.id}>
-                      <Table.Td w={100}>
-                        <Text truncate maw={100} size="sm" fw={600} c="green">
-                          {notaryRequest.id}
-                        </Text>
-                      </Table.Td>
-                      {userRole !== "client" && (
-                        <Table.Td>
-                          <Stack gap={0}>
-                            <Text size="sm" fw={600} c="green">
-                              {notaryRequest.requestor?.fullname}
-                            </Text>
-                            <Text size="xs" c="dimmed">
-                              {notaryRequest.requestor?.email}
-                            </Text>
-                          </Stack>
-                        </Table.Td>
-                      )}
-
-                      <Table.Td>
-                        {getDateFormatDisplay(notaryRequest.createdAt, true)}
-                      </Table.Td>
-                      <Table.Td>
-                        {notaryRequest?.pickupBranch ? (
-                          <Stack gap="2">
-                            <Text size="sm">{notaryRequest.pickupBranch}</Text>
-                            {notaryRequest?.pickupBranch !== "Soft copy only" &&
-                              notaryRequest?.pickupDate && (
-                                <Text size="xs">
-                                  {getDateFormatDisplay(
-                                    notaryRequest?.pickupTime
-                                      ? dayjs(
-                                          `${notaryRequest.pickupDate} ${notaryRequest.pickupTime}`,
-                                        ).format("YYYY-MM-DD HH:mm")
-                                      : (notaryRequest.pickupDate as string),
-                                    notaryRequest?.pickupTime ? true : false,
-                                  )}
-                                </Text>
-                              )}
-                          </Stack>
-                        ) : (
-                          "-"
-                        )}
-                      </Table.Td>
-                      <Table.Td>
-                        <NotaryStatusBadge status={notaryRequest.status} />
-                      </Table.Td>
-
-                      <Table.Td>
-                        <Group gap="xs" align="center" wrap="nowrap">
-                          <PaymentBadge
-                            hasReceiptUploaded={
-                              !!notaryRequest?.paymentFields?.receiptFileId
-                            }
-                            isPaid={!!notaryRequest?.paymentFields?.isPaid}
-                          />
-                          {notaryRequest?.paymentFields?.receiptFileId && (
-                            <ActionIcon
-                              size="xs"
-                              variant="default"
-                              onClick={() => {
-                                setSelectedNotaryRequest(notaryRequest);
-                                openReceiptPreviewModal();
-                              }}
-                            >
-                              <IconEye size={12} />
-                            </ActionIcon>
-                          )}
-                        </Group>
-                      </Table.Td>
-
-                      <Table.Td ta="center">
-                        <Menu
-                          width={200}
-                          shadow="lg"
-                          withArrow
-                          styles={{ dropdown: { fontWeight: 600 } }}
-                        >
-                          <Menu.Target>
-                            <ActionIcon variant="outline" size={24}>
-                              <IconDots size={24} />
-                            </ActionIcon>
-                          </Menu.Target>
-
-                          <Menu.Dropdown>
-                            {/* Download sub-menu — always visible */}
-                            <Menu.Sub>
-                              <Menu.Sub.Target>
-                                <Menu.Sub.Item
-                                  leftSection={<IconDownload size={16} />}
-                                  disabled={
-                                    !notaryRequest.documents?.initialFile?.id &&
-                                    !notaryRequest.documents?.finishedFile?.id
-                                  }
-                                >
-                                  Download
-                                </Menu.Sub.Item>
-                              </Menu.Sub.Target>
-
-                              <Menu.Sub.Dropdown>
-                                <Menu.Item
-                                  disabled={
-                                    !notaryRequest.documents?.initialFile?.id
-                                  }
-                                  onClick={() =>
-                                    handleDownloadFile(
-                                      notaryRequest.documents?.initialFile
-                                        ?.id ?? "",
-                                    )
-                                  }
-                                >
-                                  Initial File
-                                </Menu.Item>
-                                <Menu.Item
-                                  disabled={
-                                    !notaryRequest.documents?.finishedFile?.id
-                                  }
-                                  onClick={() =>
-                                    handleDownloadFile(
-                                      notaryRequest.documents?.finishedFile
-                                        ?.id ?? "",
-                                    )
-                                  }
-                                >
-                                  Finished File
-                                </Menu.Item>
-                              </Menu.Sub.Dropdown>
-                            </Menu.Sub>
-
-                            {/* View — always visible */}
-                            <Menu.Item
-                              leftSection={<IconEye size={16} />}
-                              onClick={() => {
-                                setSelectedNotaryRequest(notaryRequest);
-                                openViewNotaryRequestDrawer();
-                              }}
-                            >
-                              View
-                            </Menu.Item>
-
-                            {/* --- Status-based actions --- */}
-
-                            {actions.includes("confirm") && (
-                              <Menu.Item
-                                c="blue.5"
-                                leftSection={<IconCheck size={16} />}
-                                onClick={() => {
-                                  setSelectedNotaryRequest(notaryRequest);
-                                  openAdminConfirmModal();
-                                }}
-                              >
-                                Confirm
-                              </Menu.Item>
-                            )}
-
-                            {actions.includes("reject") && (
-                              <Menu.Item
-                                c="red"
-                                leftSection={<IconX size={16} />}
-                                onClick={() => {
-                                  setSelectedNotaryRequest(notaryRequest);
-                                  openRejectNotaryRequestModal();
-                                }}
-                              >
-                                Reject
-                              </Menu.Item>
-                            )}
-
-                            {actions.includes("edit") && (
-                              <Menu.Item
-                                leftSection={<IconPencil size={16} />}
-                                onClick={() => {
-                                  setSelectedNotaryRequest(notaryRequest);
-                                  openUpsertNotaryRequestModal();
-                                }}
-                              >
-                                Edit
-                              </Menu.Item>
-                            )}
-
-                            {actions.includes("pay") && (
-                              <Menu.Item
-                                c="green"
-                                leftSection={<IconCash size={16} />}
-                                onClick={() => {
-                                  setSelectedNotaryRequest(notaryRequest);
-                                  openPaymentModal();
-                                }}
-                              >
-                                Pay
-                              </Menu.Item>
-                            )}
-
-                            {actions.includes("upload_finished_doc") && (
-                              <Menu.Item
-                                c="green"
-                                leftSection={<IconRubberStamp size={16} />}
-                                onClick={() => {
-                                  setSelectedNotaryRequest(notaryRequest);
-                                  openApproveNotaryRequestModal();
-                                }}
-                              >
-                                Upload Finished Doc
-                              </Menu.Item>
-                            )}
-
-                            {actions.includes("review") && (
-                              <Menu.Item
-                                c="green"
-                                leftSection={<IconTextScan2 size={16} />}
-                                onClick={() => {
-                                  setSelectedNotaryRequest(notaryRequest);
-                                  openClientReviewModal();
-                                }}
-                              >
-                                Review
-                              </Menu.Item>
-                            )}
-
-                            {actions.includes("complete") && (
-                              <Menu.Item
-                                c="green"
-                                leftSection={<IconFileCheck size={16} />}
-                                onClick={() => {
-                                  setSelectedNotaryRequest(notaryRequest);
-                                  openConfirmationModal();
-                                }}
-                              >
-                                Complete
-                              </Menu.Item>
-                            )}
-
-                            {actions.includes("cancel") && (
-                              <Menu.Item
-                                c="red"
-                                leftSection={<IconBan size={16} />}
-                                onClick={() => {
-                                  setSelectedNotaryRequest(notaryRequest);
-                                  openCancelModal();
-                                }}
-                              >
-                                Cancel
-                              </Menu.Item>
-                            )}
-                          </Menu.Dropdown>
-                        </Menu>
-                      </Table.Td>
-                    </Table.Tr>
-                  );
-                })}
-              </Table.Tbody>
-            </Table>
-          </TableScrollContainer>
-
-          <Flex
-            align="center"
-            direction={shrink ? "column" : "row"}
-            gap={16}
-            w="100%"
-          >
-            {totalCount > 0 ? (
-              <Text size="sm">
-                Showing {(currentPage - 1) * PAGE_SIZE + 1}-
-                {Math.min(currentPage * PAGE_SIZE, totalCount)} of {totalCount}{" "}
-                Requests
-              </Text>
-            ) : (
-              <Text size="sm">No requests found</Text>
-            )}
-
-            <Pagination
-              size="sm"
-              ml={shrink ? 0 : "auto"}
-              total={totalPages}
-              value={currentPage}
-              onChange={setCurrentPage}
-            />
-          </Flex>
-        </Paper>
+        <DataTable
+          columns={columns}
+          useQuery={useGetClientRequestsListingQuery}
+          queryArgs={queryArgs}
+          queryOptions={{ skip: !isLoaded || !user }}
+          emptyText="No client requests found."
+        />
       </Flex>
 
-      {/* --- Modals --- */}
-
-      <NS1ClientModal
-        opened={isUpsertNotaryRequestModalOpen}
-        onClose={closeUpsertNotaryRequestModal}
-        notaryRequestId={selectedNotaryRequest?.id ?? ""}
-        setDataChanged={setDataChanged}
+      <ViewClientRequestModal
+        opened={activeModal === "view-client-request"}
+        onClose={closeModal}
+        clientRequestId={selectedClientRequestId}
       />
 
-      <NS2AdminModal
-        opened={isAdminConfirmModalOpen}
-        onClose={closeAdminConfirmModal}
-        notaryRequestId={selectedNotaryRequest?.id ?? ""}
-        setDataChanged={setDataChanged}
-      />
-
-      <NS1_5AdminModal
-        opened={isRejectNotaryRequestModalOpen}
-        onClose={closeRejectNotaryRequestModal}
-        notaryRequestId={selectedNotaryRequest?.id ?? ""}
-        setDataChanged={setDataChanged}
-      />
-
-      <NS2_5ClientModal
-        opened={isPaymentModalOpen}
-        onClose={closePaymentModal}
-        notaryRequestId={selectedNotaryRequest?.id ?? ""}
-        setDataChanged={setDataChanged}
-      />
-
-      <NS5ClientModal
-        opened={isClientReviewModalOpen}
-        onClose={closeClientReviewModal}
-        notaryRequestId={selectedNotaryRequest?.id ?? ""}
-        setDataChanged={setDataChanged}
-      />
-
-      <NS4AdminModal
-        opened={isApproveNotaryRequestModalOpen}
-        onClose={closeApproveNotaryRequestModal}
-        notaryRequestId={selectedNotaryRequest?.id ?? ""}
-        setDataChanged={setDataChanged}
-      />
-
-      <ViewNotaryRequestDrawer
-        opened={isViewNotaryRequestDrawerOpen}
-        onClose={closeViewNotaryRequestDrawer}
-        notaryRequestId={selectedNotaryRequest?.id ?? ""}
-      />
-
-      <NS6AdminModal
-        opened={isConfirmationModalOpen}
-        onClose={closeConfirmationModal}
-        notaryRequestId={selectedNotaryRequest?.id ?? ""}
-        setDataChanged={setDataChanged}
-      />
-
-      <NSCancelAdminModal
-        opened={isCancelModalOpen}
-        onClose={closeCancelModal}
-        notaryRequestId={selectedNotaryRequest?.id ?? ""}
-        setDataChanged={setDataChanged}
+      <ClientRequestTimelineDrawer
+        opened={activeDrawer === "client-request-timeline"}
+        onClose={closeDrawer}
+        clientRequestId={selectedClientRequestId}
       />
 
       <ReceiptPreviewModal
-        opened={isReceiptPreviewModalOpen}
-        onClose={closeReceiptPreviewModal}
-        receiptFileId={
-          selectedNotaryRequest?.paymentFields?.receiptFileId ?? ""
-        }
-        isPaid={selectedNotaryRequest?.paymentFields?.isPaid ?? false}
-        onApprove={
-          selectedNotaryRequest?.status ===
-          NotaryRequestStatus.FOR_ADMIN_PAYMENT_VERIFICATION
-            ? handlePaymentVerification
-            : async () => {}
-        }
-        filenamePrefix="notary-receipt"
-        isDownloadOnly={
-          userRole === "client" &&
-          selectedNotaryRequest?.status !==
-            NotaryRequestStatus.FOR_ADMIN_PAYMENT_VERIFICATION
-        }
+        opened={activeModal === "receipt-preview"}
+        onClose={closeModal}
+        receiptFileId={selectedReceipt?.fileId ?? ""}
+        isPaid={selectedReceipt?.isPaid ?? false}
+        onApprove={handleApproveReceipt}
+        filenamePrefix="client-request-receipt"
+        source="client-requests"
+      />
+
+      <UpsertClientRequestModal
+        opened={activeModal === "upsert-client-request"}
+        onClose={closeModal}
+        clientRequestId={selectedClientRequestId}
+      />
+
+      <AdminApproveRejectModal
+        opened={activeModal === "admin-approve-reject"}
+        onClose={closeModal}
+        clientRequestId={selectedClientRequestId}
+      />
+
+      <ClientRequestPaymentModal
+        opened={activeModal === "client-upload-payment"}
+        onClose={closeModal}
+        clientRequestId={selectedClientRequestId}
+        fee={fee}
+      />
+
+      <AdminFinishedFileUploadModal
+        opened={activeModal === "admin-upload-finished-file"}
+        onClose={closeModal}
+        clientRequestId={selectedClientRequestId}
+      />
+
+      <ClientApproveRejectModal
+        opened={activeModal === "client-approve-reject"}
+        onClose={closeModal}
+        clientRequestId={selectedClientRequestId}
+      />
+
+      <AdminCompletionModal
+        opened={activeModal === "admin-completion"}
+        onClose={closeModal}
+        clientRequestId={selectedClientRequestId}
+      />
+
+      <AdminCancelModal
+        opened={activeModal === "admin-cancel"}
+        onClose={closeModal}
+        clientRequestId={selectedClientRequestId}
       />
     </>
   );

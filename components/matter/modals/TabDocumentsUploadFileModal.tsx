@@ -89,7 +89,7 @@ export default function TabDocumentsUploadFileModal({
       .unwrap()
       .then(({ failedUploads, successfulUploads }) => {
         if (successfulUploads <= 0) {
-          appNotifications.success({
+          appNotifications.error({
             title: "Failed to upload files",
             message: "All files failed to upload",
           });

@@ -51,6 +51,7 @@ export default function AppointmentsList({
       emptyText={
         isLoading ? "Loading appointments..." : "No appointments found."
       }
+      loading={isLoading}
       maxHeight="100%"
     />
   );

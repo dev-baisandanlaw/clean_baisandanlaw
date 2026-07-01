@@ -35,7 +35,7 @@ export default function AppModal({
     }
 
     if (type === "secondary") {
-      return { bg: theme.other.customPumpkin, font: "#936514" };
+      return { bg: theme.other.customPumpkin, font: "#F4F5F9" };
     }
   };
 

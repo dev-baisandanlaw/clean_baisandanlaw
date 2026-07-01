@@ -2,7 +2,7 @@
 "use client";
 
 import classes from "./TableScroll.module.css";
-import { Center, Paper, Stack, Table, Text } from "@mantine/core";
+import { Center, Paper, Progress, Stack, Table, Text } from "@mantine/core";
 import { useResizeObserver } from "@mantine/hooks";
 import {
   flexRender,
@@ -17,6 +17,7 @@ interface DataTableNoPaginationProps<TData> {
   addListingButton?: React.ReactNode;
   emptyText?: string;
   maxHeight?: string | number;
+  loading?: boolean;
 }
 
 const DataTableNoPagination = <TData,>({
@@ -25,6 +26,7 @@ const DataTableNoPagination = <TData,>({
   addListingButton,
   emptyText = "No data found.",
   maxHeight = "40vh",
+  loading = false,
 }: DataTableNoPaginationProps<TData>) => {
   const [theadRef, theadRect] = useResizeObserver<HTMLTableSectionElement>();
 
@@ -37,6 +39,16 @@ const DataTableNoPagination = <TData,>({
   return (
     <Stack>
       <Paper p={0} style={{ overflow: "hidden" }} radius={6} withBorder>
+        {loading && (
+          <Progress
+            value={100}
+            animated
+            color="green"
+            size="md"
+            radius={0}
+            striped
+          />
+        )}
         <Table.ScrollContainer
           minWidth={500}
           mb={-12}

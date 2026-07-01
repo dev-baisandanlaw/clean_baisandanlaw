@@ -4,7 +4,6 @@ import TabRDocumentsDeleteModal from "./modals/TabRDocumentsDeleteModal";
 import { useDisclosure } from "@mantine/hooks";
 import { useState, useMemo } from "react";
 import TabRDocumentsUploadFileModal from "./modals/TabRDocumentsUploadFileModal";
-import axios from "axios";
 import { appNotifications } from "@/utils/notifications/notifications";
 import { Retainer } from "@/types/retainer-new";
 import { Document } from "@/types/document";
@@ -13,6 +12,7 @@ import DetailField from "../Common/DetailField";
 import { useUser } from "@clerk/nextjs";
 import { createRetainerDocumentColumns } from "../data-table/columns-no-pagination/RetainerDocumentsColumn";
 import DataTableNoPagination from "../data-table/DataTableNoPagination";
+import { useDownloadDocumentMutation } from "@/store/services/documentService";
 
 interface RTabDocumentsProps {
   retainerData: Retainer;
@@ -20,6 +20,7 @@ interface RTabDocumentsProps {
 
 export default function RTabDocuments({ retainerData }: RTabDocumentsProps) {
   const { user } = useUser();
+  const [downloadDocument] = useDownloadDocumentMutation();
   const [selectedDocument, setSelectedDocument] = useState<Document>();
   const [activeTab, setActiveTab] = useState<string>("all");
 
@@ -58,33 +59,21 @@ export default function RTabDocuments({ retainerData }: RTabDocumentsProps) {
     });
 
     try {
-      const res = await axios.get(`/api/google/drive/download/${fileId}`, {
-        responseType: "blob",
-      });
-      const disposition = res.headers["content-disposition"];
-      const filenameMatch = disposition?.match(
-        /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/,
-      );
-
-      let filename = "download";
-      if (filenameMatch?.[1]) {
-        filename = filenameMatch[1].replace(/['"]/g, "");
-        try {
-          filename = decodeURIComponent(filename);
-        } catch {
-          /* Empty */
-        }
-      }
-
-      const url = window.URL.createObjectURL(res.data);
+      const file = await downloadDocument({
+        fileId,
+        source: "retainers",
+      }).unwrap();
       const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
+
+      a.href = file.objectUrl;
+      a.download = file.filename;
       a.style.display = "none";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      window.setTimeout(() => {
+        window.URL.revokeObjectURL(file.objectUrl);
+      }, 1000);
     } catch {
       appNotifications.error({
         title: "Failed to download file",

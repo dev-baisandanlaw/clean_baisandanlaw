@@ -263,7 +263,7 @@ export default function AppointmentsFeature() {
         isPaid={selectedBooking?.paymentFields?.isApproved ?? false}
         onApprove={handleApproveReceipt}
         filenamePrefix="booking-receipt"
-        isDownloadOnly={user?.unsafeMetadata?.role !== "admin"}
+        source="appointments"
       />
     </>
   );

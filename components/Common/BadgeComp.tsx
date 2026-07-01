@@ -1,25 +1,33 @@
 import { Badge, useMantineTheme } from "@mantine/core";
-import {
-  NotaryRequestLabel,
-  NotaryRequestStatus,
-} from "@/types/notary-requests";
 
-const notaryStatusColors = {
-  [NotaryRequestStatus.SUBMITTED]: "#D4AF37",
-  [NotaryRequestStatus.NEEDS_CLIENT_REVISION]: "#FF6347",
-  [NotaryRequestStatus.PAYMENT_PENDING]: "#FF8C00",
-  [NotaryRequestStatus.FOR_ADMIN_PAYMENT_VERIFICATION]: "#DAA520",
-  [NotaryRequestStatus.PROCESSING]: "#1E90FF",
-  [NotaryRequestStatus.FOR_CLIENT_REVIEW]: "#FF8C00",
-  [NotaryRequestStatus.NEEDS_ATTORNEY_REVISION]: "#FF6347",
-  [NotaryRequestStatus.CLIENT_APPROVED]: "#32CD32",
-  [NotaryRequestStatus.COMPLETED]: "#228B22",
-  [NotaryRequestStatus.CANCELLED]: "#696969",
-} as const;
-
-const getNotaryStatusColor = (status: NotaryRequestStatus): string => {
-  return notaryStatusColors[status] || "gray";
+const clientRequestStatusLabels: Record<string, string> = {
+  submitted: "Submitted",
+  needs_client_revision: "Needs Revision",
+  payment_pending: "Payment Pending",
+  for_payment_verification: "Payment Verification",
+  processing: "Processing",
+  for_client_review: "Client Review",
+  client_rejected: "Client Rejected",
+  client_approved: "Client Approved",
+  completed: "Completed",
+  cancelled: "Cancelled",
 };
+
+const clientRequestStatusColors: Record<string, string> = {
+  submitted: "teal.7",
+  needs_client_revision: "orange.9",
+  payment_pending: "grape.7",
+  for_payment_verification: "yellow.7",
+  processing: "blue.7",
+  for_client_review: "cyan.7",
+  client_rejected: "red.7",
+  client_approved: "indigo.6",
+  completed: "green.4",
+  cancelled: "red",
+};
+
+const getClientRequestStatusColor = (status: string) =>
+  clientRequestStatusColors[status] ?? "gray";
 
 const AreaBadge = ({ area }: { area: string }) => {
   const theme = useMantineTheme();
@@ -82,12 +90,15 @@ const BookingViaBadge = ({ via }: { via: string }) => {
   );
 };
 
-const NotaryStatusBadge = ({ status }: { status: NotaryRequestStatus }) => {
-  const color = getNotaryStatusColor(status);
-
+const ClientRequestBadge = ({ status }: { status: string }) => {
   return (
-    <Badge size="xs" radius="xs" color={color} variant="light">
-      {NotaryRequestLabel[status]}
+    <Badge
+      color={getClientRequestStatusColor(status)}
+      variant=""
+      size="xs"
+      radius="xs"
+    >
+      {clientRequestStatusLabels[status] ?? status}
     </Badge>
   );
 };
@@ -96,7 +107,6 @@ export {
   AreaBadge,
   PaymentBadge,
   BookingViaBadge,
-  NotaryStatusBadge,
-  getNotaryStatusColor,
-  notaryStatusColors,
+  ClientRequestBadge,
+  getClientRequestStatusColor,
 };

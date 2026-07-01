@@ -4,7 +4,6 @@ import TabDocumentDeleteFileModal from "./modals/TabDocumentDeleteFileModal";
 import { useDisclosure } from "@mantine/hooks";
 import React, { useState, useMemo } from "react";
 import TabDocumentsUploadFileModal from "./modals/TabDocumentsUploadFileModal";
-import axios from "axios";
 import { appNotifications } from "@/utils/notifications/notifications";
 import { Matter } from "@/types/matter";
 import { Document } from "@/types/document";
@@ -13,6 +12,7 @@ import DetailField from "../Common/DetailField";
 import { useUser } from "@clerk/nextjs";
 import DataTableNoPagination from "../data-table/DataTableNoPagination";
 import { createMatterDocumentColumns } from "../data-table/columns-no-pagination/MatterDocumentsColumn";
+import { useDownloadDocumentMutation } from "@/store/services/documentService";
 
 interface MatterTabDocumentsProps {
   matterData: Matter;
@@ -20,6 +20,7 @@ interface MatterTabDocumentsProps {
 
 export default function TabDocuments({ matterData }: MatterTabDocumentsProps) {
   const { user } = useUser();
+  const [downloadDocument] = useDownloadDocumentMutation();
   const [selectedDocument, setSelectedDocument] = useState<Document>();
 
   const [
@@ -60,34 +61,22 @@ export default function TabDocuments({ matterData }: MatterTabDocumentsProps) {
     });
 
     try {
-      const res = await axios.get(`/api/google/drive/download/${fileId}`, {
-        responseType: "blob",
-      });
-      const disposition = res.headers["content-disposition"];
-      const filenameMatch = disposition?.match(
-        /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/,
-      );
-
-      let filename = "download";
-      if (filenameMatch?.[1]) {
-        filename = filenameMatch[1].replace(/['"]/g, "");
-        try {
-          filename = decodeURIComponent(filename);
-        } catch {
-          /* Empty */
-        }
-      } // Create and trigger download
-
-      const url = window.URL.createObjectURL(res.data);
+      const file = await downloadDocument({
+        fileId,
+        source: "matters",
+      }).unwrap();
       const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
+
+      a.href = file.objectUrl;
+      a.download = file.filename;
       a.style.display = "none";
 
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      window.setTimeout(() => {
+        window.URL.revokeObjectURL(file.objectUrl);
+      }, 1000);
     } catch {
       appNotifications.error({
         title: "Failed to download file",
