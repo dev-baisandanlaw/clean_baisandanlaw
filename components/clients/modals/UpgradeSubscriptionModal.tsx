@@ -26,9 +26,9 @@ import {
   IconPackage,
   IconStarFilled,
 } from "@tabler/icons-react";
-import axios from "axios";
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
+import { useSubscribeClientMutation } from "@/store/services/userService";
 
 interface UpgradeSubscriptionModalProps {
   opened: boolean;
@@ -46,7 +46,7 @@ export default function UpgradeSubscriptionModal({
   const isMobile = useMediaQuery(`(max-width: ${em(750)})`);
   const theme = useMantineTheme();
 
-  const [isLoading, setIsLoading] = useState(false);
+  const [subscribeClient, { isLoading }] = useSubscribeClientMutation();
   const [subscriptionEndDate, setSubscriptionEndDate] = useState<Date | null>(
     null,
   );
@@ -56,33 +56,24 @@ export default function UpgradeSubscriptionModal({
   }, [opened]);
 
   const handleUpgradeSubscription = async () => {
-    setIsLoading(true);
+    if (!clientDetails?.email || !subscriptionEndDate) return;
 
     try {
-      await axios.patch("/api/clerk/user/update-user-metadata", {
-        userId: clientDetails?.id,
-        unsafe_metadata: {
-          ...clientDetails?.metadata,
-          subscription: {
-            count: (clientDetails?.metadata?.subscription?.count || 0) + 1,
-            isSubscribed: true,
-            subscribedStartDate: dayjs().toDate(),
-            subscribedEndDate: subscriptionEndDate
-              ? dayjs(subscriptionEndDate).format("YYYY-MM-DD")
-              : null,
-          },
-        },
-      });
+      await subscribeClient({
+        clientEmail: clientDetails.email,
+        endsAt: dayjs(subscriptionEndDate).format("YYYY-MM-DD"),
+      }).unwrap();
 
       appNotifications.success({
         title: "Subscription Upgraded",
         message: "The subscription has been upgraded successfully.",
       });
       onClose();
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsLoading(false);
+    } catch {
+      appNotifications.error({
+        title: "Failed to upgrade subscription",
+        message: "The subscription could not be upgraded. Please try again.",
+      });
     }
   };
 
@@ -191,7 +182,7 @@ export default function UpgradeSubscriptionModal({
                     Subscription Start Date
                   </Table.Th>
                   <Table.Td c="green" fw={600}>
-                    {getDateFormatDisplay(dayjs().toDate(), true)}
+                    {getDateFormatDisplay(dayjs().toDate())}
                   </Table.Td>
                 </Table.Tr>
                 <Table.Tr>
@@ -230,6 +221,7 @@ export default function UpgradeSubscriptionModal({
                 color="green"
                 onClick={handleUpgradeSubscription}
                 loading={isLoading}
+                disabled={!clientDetails.email || !subscriptionEndDate}
               >
                 Upgrade Subscription
               </Button>

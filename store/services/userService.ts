@@ -16,6 +16,21 @@ export type CreateAttorneyResponse = {
   message: string;
 };
 
+export type AddUserToClientOrgPayload = {
+  userId: string;
+};
+
+export type SubscribeClientPayload = {
+  clientEmail: string;
+  startsAt?: string;
+  endsAt: string;
+  plan?: string;
+};
+
+export type UnsubscribeClientPayload = {
+  clientEmail: string;
+};
+
 export const userService = createApi({
   reducerPath: "userService",
   baseQuery: baseQueryWithAuth,
@@ -75,6 +90,18 @@ export const userService = createApi({
       invalidatesTags: ["Users"],
     }),
 
+    addUserToClientOrg: builder.mutation<
+      { message: string },
+      AddUserToClientOrgPayload
+    >({
+      query: (body) => ({
+        url: "/users/client-organization-membership",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Users"],
+    }),
+
     banAttorney: builder.mutation<{ message: string }, { id: string }>({
       query: ({ id }) => ({
         url: `/users/attorneys/ban/${id}`,
@@ -115,6 +142,29 @@ export const userService = createApi({
       }),
       invalidatesTags: ["Users"],
     }),
+
+    subscribeClient: builder.mutation<
+      { message: string },
+      SubscribeClientPayload
+    >({
+      query: ({ clientEmail, ...body }) => ({
+        url: `/subscriptions/clients/${encodeURIComponent(clientEmail)}/subscribe`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Users"],
+    }),
+
+    unsubscribeClient: builder.mutation<
+      { message: string },
+      UnsubscribeClientPayload
+    >({
+      query: ({ clientEmail }) => ({
+        url: `/subscriptions/clients/${encodeURIComponent(clientEmail)}/unsubscribe`,
+        method: "PATCH",
+      }),
+      invalidatesTags: ["Users"],
+    }),
   }),
 });
 
@@ -122,8 +172,11 @@ export const {
   useGetUsersByOrgQuery,
   useGetUsersQuery,
   useAddNewAttorneyMutation,
+  useAddUserToClientOrgMutation,
   useBanAttorneyMutation,
   useUnBanAttorneyMutation,
   useDeleteUserMutation,
   useUpdateUserMutation,
+  useSubscribeClientMutation,
+  useUnsubscribeClientMutation,
 } = userService;

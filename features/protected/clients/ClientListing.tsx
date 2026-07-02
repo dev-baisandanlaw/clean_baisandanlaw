@@ -13,7 +13,6 @@ import {
   ClientRow,
   createClientColumns,
 } from "@/components/data-table/columns/ClientColumns";
-import dayjs from "dayjs";
 import DowngradeSubscriptionModal from "@/components/clients/modals/DowngradeSubscriptionModal";
 import DeleteUserModal from "@/components/Common/modal/DeleteUserModal";
 
@@ -37,16 +36,9 @@ export default function ClientListing() {
   ] = useDisclosure(false);
 
   const handleActionClick = (client: ClientRow) => {
-    const subscription = client?.metadata?.subscription;
-    const subscriptionEndDate = subscription?.subscribedEndDate;
-
-    const isSubscribed =
-      subscriptionEndDate &&
-      dayjs(subscriptionEndDate).endOf("day").isAfter(dayjs());
-
     setSelectedClient(client);
 
-    if (isSubscribed) openDowngradeModal();
+    if (client?.metadata?.subscription?.isSubscribed) openDowngradeModal();
     else openUpgradeModal();
   };
 

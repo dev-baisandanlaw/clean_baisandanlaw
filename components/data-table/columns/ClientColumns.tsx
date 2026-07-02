@@ -8,7 +8,6 @@ import {
 } from "@tabler/icons-react";
 import TableUserField from "@/components/Common/TableUserField";
 import { UserReference } from "@/types/user-reference";
-import dayjs from "dayjs";
 import SubscriptionBadge from "@/components/Common/SubscriptionBadge";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -53,13 +52,8 @@ export const createClientColumns = (
     header: "Subscription",
     cell: ({ row }) => {
       const subscription = row.original.metadata.subscription;
-      const subscriptionEndDate = subscription?.subscribedEndDate;
 
-      const isSubscribed =
-        subscriptionEndDate &&
-        dayjs(subscriptionEndDate).endOf("day").isAfter(dayjs());
-
-      return <SubscriptionBadge isSubscribed={isSubscribed || false} />;
+      return <SubscriptionBadge isSubscribed={!!subscription?.isSubscribed} />;
     },
   },
   {
@@ -69,11 +63,7 @@ export const createClientColumns = (
     cell: ({ row }) => {
       const client = row.original;
       const subscription = client.metadata.subscription;
-      const subscriptionEndDate = subscription?.subscribedEndDate;
-
-      const isSubscribed =
-        subscriptionEndDate &&
-        dayjs(subscriptionEndDate).endOf("day").isAfter(dayjs());
+      const isSubscribed = !!subscription?.isSubscribed;
 
       return (
         <Group justify="center" wrap="nowrap" gap={2}>

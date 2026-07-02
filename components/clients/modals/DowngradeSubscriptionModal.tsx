@@ -24,8 +24,7 @@ import {
   IconPackage,
   IconStar,
 } from "@tabler/icons-react";
-import axios from "axios";
-import { useState } from "react";
+import { useUnsubscribeClientMutation } from "@/store/services/userService";
 
 interface DowngradeSubscriptionModalProps {
   opened: boolean;
@@ -41,24 +40,14 @@ export default function DowngradeSubscriptionModal({
   const isMobile = useMediaQuery(`(max-width: ${em(750)})`);
   const theme = useMantineTheme();
 
-  const [isLoading, setIsLoading] = useState(false);
+  const [unsubscribeClient, { isLoading }] = useUnsubscribeClientMutation();
 
   const handleCancelSubscription = async () => {
-    setIsLoading(true);
+    if (!clientDetails?.email) return;
 
     try {
-      await axios.patch("/api/clerk/user/update-user-metadata", {
-        userId: clientDetails?.id,
-        unsafe_metadata: {
-          ...clientDetails?.metadata,
-          subscription: {
-            ...clientDetails?.metadata?.subscription,
-            isSubscribed: false,
-            subscribedEndDate: null,
-            subscribedStartDate: null,
-          },
-        },
-      });
+      await unsubscribeClient({ clientEmail: clientDetails.email }).unwrap();
+
       appNotifications.success({
         title: "Subscription Canceled",
         message: "The subscription has been canceled successfully.",
@@ -69,8 +58,6 @@ export default function DowngradeSubscriptionModal({
         title: "Failed to cancel subscription",
         message: "The subscription could not be canceled. Please try again.",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -172,6 +159,7 @@ export default function DowngradeSubscriptionModal({
                 color="red.7"
                 onClick={handleCancelSubscription}
                 loading={isLoading}
+                disabled={!clientDetails.email}
               >
                 Cancel Subscription
               </Button>
