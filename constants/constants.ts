@@ -60,11 +60,6 @@ export const COLLECTIONS = {
   RETAINERS: "retainers",
 };
 
-export const CLERK_ORG_IDS = {
-  client: process.env.NEXT_PUBLIC_CLERK_CLIENT_ORG_ID,
-  attorney: process.env.NEXT_PUBLIC_CLERK_ATTY_ORG_ID,
-};
-
 export const CLERK_API_CONFIG = {
   baseUrl: "https://api.clerk.com/v1",
   headers: {

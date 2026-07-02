@@ -27,11 +27,30 @@ import { ClerkAPIError } from "@clerk/types";
 import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
 import { useRouter } from "next/navigation";
 import { useMediaQuery } from "@mantine/hooks";
-import axios from "axios";
-import { CLERK_ORG_IDS } from "@/constants/constants";
 import { appNotifications } from "@/utils/notifications/notifications";
 import { DateInput } from "@mantine/dates";
 import dayjs from "dayjs";
+import { useAddUserToClientOrgMutation } from "@/store/services/userService";
+import AuthErrorAlert from "@/components/Common/alert/AuthErrorAlert";
+
+const getClientPhoneNumber = (phoneNumber: string | number) => {
+  const digits = String(phoneNumber).replace(/\D/g, "");
+  return digits.startsWith("0") ? digits : `0${digits}`;
+};
+
+const getErrorList = (error: unknown, fallbackMessage: string) => {
+  if (isClerkAPIResponseError(error)) {
+    return error.errors;
+  }
+
+  return [
+    {
+      code: "Error",
+      message: fallbackMessage,
+      longMessage: fallbackMessage,
+    },
+  ];
+};
 
 export default function Page() {
   const shrink = useMediaQuery(`(max-width: ${em(576)})`);
@@ -40,6 +59,7 @@ export default function Page() {
   const router = useRouter();
 
   const { isLoaded, signUp, setActive } = useSignUp();
+  const [addUserToClientOrgFn] = useAddUserToClientOrgMutation();
 
   const [code, setCode] = useState("");
   const [errors, setErrors] = useState<ClerkAPIError[]>([]);
@@ -81,22 +101,23 @@ export default function Page() {
   });
 
   const handleSubmit = async (values: typeof form.values) => {
+    if (!isLoaded) return;
+
     setIsLoading(true);
     setErrors([]);
 
-    if (!isLoaded) return;
-
     try {
+      const phoneNumber = getClientPhoneNumber(values.phoneNumber);
+
       await signUp.create({
         firstName: values.firstName,
         lastName: values.lastName,
         emailAddress: values.email,
         password: values.password,
-        phoneNumber: String("0" + values.phoneNumber),
 
         unsafeMetadata: {
           role: "client",
-          phoneNumber: String("0" + values.phoneNumber),
+          phoneNumber,
           fullAddress: values.address,
           birthday: dayjs(values.birthday).format("YYYY-MM-DD"),
 
@@ -127,29 +148,32 @@ export default function Page() {
         ]);
         return;
       }
-      setErrors(isClerkAPIResponseError(err) ? err.errors : []);
+      setErrors(getErrorList(err, "Unable to create account"));
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleVerify = async () => {
+    if (!isLoaded) return;
+
     setIsLoading(true);
     setErrors([]);
-
-    if (!isLoaded) return;
 
     try {
       const completeSignUp = await signUp.attemptEmailAddressVerification({
         code,
       });
 
-      await axios.post("/api/clerk/organization/post-user-to-org", {
-        user_id: completeSignUp.createdUserId,
-        organization_id: CLERK_ORG_IDS.client,
-      });
-
       if (completeSignUp.status === "complete") {
+        if (!completeSignUp.createdUserId) {
+          throw new Error("Unable to create user membership");
+        }
+
+        await addUserToClientOrgFn({
+          userId: completeSignUp.createdUserId,
+        }).unwrap();
+
         await setActive({ session: completeSignUp.createdSessionId });
         appNotifications.success({
           title: "Account created successfully",
@@ -158,7 +182,7 @@ export default function Page() {
         router.push("/");
       }
     } catch (error) {
-      setErrors(isClerkAPIResponseError(error) ? error.errors : []);
+      setErrors(getErrorList(error, "Unable to verify account"));
     } finally {
       setIsLoading(false);
     }
@@ -211,7 +235,10 @@ export default function Page() {
               borderBottomLeftRadius: shrink ? theme.radius.md : 0,
             })}
           >
-            <ScrollArea h="100%" mah={700}>
+            <ScrollArea.Autosize
+              mah={shrink ? "calc(100vh - 200px)" : 750}
+              h="100%"
+            >
               {!isVerifying ? (
                 <Box p={16}>
                   <header>
@@ -222,18 +249,15 @@ export default function Page() {
                       Hello there! Let&apos;s get you started.
                     </Text>
 
-                    {!!errors.length &&
-                      errors.map(({ code, message }) => (
-                        <Alert
-                          key={code}
-                          title={message}
-                          variant="light"
-                          color="red.9"
-                          icon={<IconAlertCircle />}
-                          styles={{ icon: { marginBlock: "auto" } }}
-                          mb={16}
-                        />
-                      ))}
+                    {!!errors.length && (
+                      <AuthErrorAlert
+                        title={
+                          errors[0].message ||
+                          errors[0].longMessage ||
+                          "An error occurred."
+                        }
+                      />
+                    )}
                   </header>
 
                   <form onSubmit={form.onSubmit(handleSubmit)}>
@@ -343,14 +367,14 @@ export default function Page() {
                     </Button>
                   </form>
 
-                  <Text size="xs" mt={16} mx="auto">
+                  <Text size="sm" mt={16} mx="auto">
                     Already have an account?{" "}
                     <Anchor underline="always" href="/sign-in" size="sm">
                       Sign in
                     </Anchor>
                   </Text>
 
-                  <Text size="xs" mt={8}>
+                  <Text size="sm" mt={8}>
                     Want to book an appointment?{" "}
                     <Anchor underline="always" href="/booking" size="sm">
                       Book now
@@ -427,7 +451,7 @@ export default function Page() {
                   </Button>
                 </Flex>
               )}
-            </ScrollArea>
+            </ScrollArea.Autosize>
           </Box>
         </Flex>
       </Flex>
