@@ -31,6 +31,16 @@ export type UnsubscribeClientPayload = {
   clientEmail: string;
 };
 
+export type ClientSubscriptionResponse = {
+  id: string;
+  clientEmail: string;
+  plan: string;
+  startsAt: string;
+  endsAt: string;
+  createdAt: string;
+  updatedAt: string;
+} | null;
+
 export const userService = createApi({
   reducerPath: "userService",
   baseQuery: baseQueryWithAuth,
@@ -165,6 +175,15 @@ export const userService = createApi({
       }),
       invalidatesTags: ["Users"],
     }),
+
+    getCurrentClientSubscription: builder.query<
+      ClientSubscriptionResponse,
+      { clientEmail: string }
+    >({
+      query: ({ clientEmail }) =>
+        `/subscriptions/clients/${encodeURIComponent(clientEmail)}/current`,
+      providesTags: ["Users"],
+    }),
   }),
 });
 
@@ -179,4 +198,5 @@ export const {
   useUpdateUserMutation,
   useSubscribeClientMutation,
   useUnsubscribeClientMutation,
+  useGetCurrentClientSubscriptionQuery,
 } = userService;
