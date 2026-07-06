@@ -1,9 +1,7 @@
-import { Button, Text } from "@mantine/core";
-import { IconTrash } from "@tabler/icons-react";
 import { appNotifications } from "@/utils/notifications/notifications";
 import { MatterTask } from "@/types/matter";
 import { useDeleteMatterTaskMutation } from "@/store/services/matterService";
-import AppModal from "@/components/Common/modal/AppModal";
+import DeleteModal from "@/components/Common/modal/DeleteModal";
 
 interface TabTasksDeleteTaskModalProps {
   opened: boolean;
@@ -38,30 +36,14 @@ export default function TabTasksDeleteTaskModal({
   };
 
   return (
-    <AppModal
+    <DeleteModal
       opened={opened}
       onClose={onClose}
       title="Delete Task"
-      closable={!isDeleting}
-      type="danger"
-    >
-      <Text mb="md">
-        Are you sure? This will remove the{" "}
-        <Text fw={600} span>
-          {task?.taskName}
-        </Text>{" "}
-        from the tasks and cannot be undone.
-      </Text>
-
-      <Button
-        onClick={handleDeleteTask}
-        loading={isDeleting}
-        color="red.5"
-        fullWidth
-        leftSection={<IconTrash />}
-      >
-        I Understand
-      </Button>
-    </AppModal>
+      action="delete"
+      entityType="task"
+      handleDelete={handleDeleteTask}
+      isLoading={isDeleting}
+    />
   );
 }

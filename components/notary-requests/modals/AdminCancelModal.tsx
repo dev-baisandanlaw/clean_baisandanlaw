@@ -1,30 +1,20 @@
-import {
-  ClientRequestBadge,
-  PaymentBadge,
-} from "@/components/Common/BadgeComp";
-import BasicCard from "@/components/Common/BasicCard";
-import DetailField from "@/components/Common/DetailField";
 import AppModal from "@/components/Common/modal/AppModal";
-import SpoilerComp from "@/components/Common/SpoilerComp";
 import {
   useCancelClientRequestMutation,
   useLazyGetClientRequestByIdQuery,
 } from "@/store/services/clientRequestService";
-import { formatFee } from "@/utils/formatFee";
-import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { appNotifications } from "@/utils/notifications/notifications";
 import {
-  Alert,
   Button,
   Center,
   Group,
   Loader,
-  SimpleGrid,
   Stack,
   Text,
   Textarea,
+  ThemeIcon,
 } from "@mantine/core";
-import { IconAlertTriangle } from "@tabler/icons-react";
+import { IconAlertTriangle, IconTrash } from "@tabler/icons-react";
 import { useCallback, useEffect, useState } from "react";
 
 interface AdminCancelModalProps {
@@ -107,65 +97,19 @@ export default function AdminCancelModal({
 
       {!isLoadingDetails && clientRequestData && (
         <Stack>
-          <Alert
-            color="red"
-            variant="light"
-            icon={<IconAlertTriangle />}
-            title="This action cannot be undone"
-          >
-            <Text size="sm">
-              Once this request is cancelled, it cannot be restored or processed
-              again.
+          <Stack align="center" gap="2">
+            <ThemeIcon variant="light" color="red" radius="50%" size={60}>
+              <IconAlertTriangle size={32} />
+            </ThemeIcon>
+            <Text size="lg" fw={600}>
+              Are you sure?
             </Text>
-          </Alert>
 
-          <BasicCard title="Request's Information">
-            <SimpleGrid cols={{ base: 2, sm: 3 }} mb={16}>
-              <DetailField
-                title="Requestor's name"
-                value={clientRequestData?.requestor?.fullname}
-              />
-              <DetailField
-                title="Submitted Date"
-                value={getDateFormatDisplay(clientRequestData?.createdAt, true)}
-              />
-              <DetailField
-                title="Last Update"
-                value={getDateFormatDisplay(clientRequestData?.updatedAt, true)}
-              />
-              <DetailField
-                title="Fee"
-                value={
-                  clientRequestData?.fee ? (
-                    <Stack gap={2}>
-                      <Text size="sm">
-                        {formatFee(Number(clientRequestData?.fee))}
-                      </Text>
-                      <PaymentBadge
-                        isPaid={clientRequestData?.paymentStatus.isPaid}
-                        hasReceiptUploaded={
-                          !!clientRequestData?.paymentStatus?.receiptFileId
-                        }
-                      />
-                    </Stack>
-                  ) : (
-                    "-"
-                  )
-                }
-              />
-              <DetailField
-                title="Status"
-                value={
-                  <ClientRequestBadge status={clientRequestData?.status} />
-                }
-              />
-            </SimpleGrid>
-
-            <DetailField
-              title="Description"
-              value={<SpoilerComp>{clientRequestData.description}</SpoilerComp>}
-            />
-          </BasicCard>
+            <Text ta="center" my="xs">
+              This action will cancel the request. <br />
+              You won&apos;t be able to revert this!
+            </Text>
+          </Stack>
 
           <Textarea
             label="Remarks"
@@ -179,21 +123,24 @@ export default function AdminCancelModal({
             disabled={isCancelling}
           />
 
-          <Group justify="end">
+          <Group grow mt="md">
             <Button
               variant="default"
               onClick={handleClose}
               disabled={isCancelling}
+              size="sm"
             >
-              Close
+              Cancel
             </Button>
             <Button
+              size="sm"
               color="red.7"
               loading={isCancelling}
               disabled={!clientRequestId || isCancelling}
               onClick={handleSubmit}
+              leftSection={<IconTrash />}
             >
-              Cancel Request
+              I Understand
             </Button>
           </Group>
         </Stack>

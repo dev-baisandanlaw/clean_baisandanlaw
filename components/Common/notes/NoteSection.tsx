@@ -224,8 +224,9 @@ export default function NoteSection({
           close();
           setDeleteNoteId("");
         }}
-        deleteText="Are you sure you want to delete note? This action cannot be undone."
         title="Delete note"
+        action="delete"
+        entityType="note"
         handleDelete={async () => {
           if (!deleteNoteId) return;
           await handleDeleteNote(deleteNoteId);

@@ -41,10 +41,7 @@ export const bookingService = createApi({
       providesTags: ["Booking"],
     }),
 
-    getPendingAttorneyAssignmentBookings: builder.query<
-      Pick<Booking, "id" | "date" | "time">[],
-      void
-    >({
+    getPendingAttorneyAssignmentBookings: builder.query<Booking[], void>({
       query: () => ({
         url: "/bookings/pending-attorney-assignment",
         method: "GET",

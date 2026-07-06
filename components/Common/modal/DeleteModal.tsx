@@ -1,17 +1,23 @@
-import { Button, Modal, Text } from "@mantine/core";
-import { IconTrash } from "@tabler/icons-react";
+import { Button, Group, Stack, Text, ThemeIcon } from "@mantine/core";
+import { IconAlertTriangle, IconTrash } from "@tabler/icons-react";
 import { ReactNode, useState } from "react";
+import AppModal from "./AppModal";
 
 interface DeleteModalProps {
-  handleDelete: () => Promise<void>;
+  handleDelete: () => Promise<void> | void;
   handleSuccessCallback?: () => void;
 
   opened: boolean;
   onClose: () => void;
 
   title?: string;
-  deleteText: string;
-  children?: ReactNode;
+  action?: string;
+  entityType?: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  confirmIcon?: ReactNode;
+  confirmDisabled?: boolean;
+  isLoading?: boolean;
 }
 export default function DeleteModal({
   handleDelete,
@@ -21,46 +27,72 @@ export default function DeleteModal({
   onClose,
 
   title = "Delete Record",
-  deleteText,
-  children,
+  action = "delete",
+  entityType = "record",
+  confirmLabel = "I Understand",
+  cancelLabel = "Cancel",
+  confirmIcon = <IconTrash />,
+  confirmDisabled = false,
+  isLoading,
 }: DeleteModalProps) {
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [internalIsDeleting, setInternalIsDeleting] = useState(false);
+  const isDeleting = isLoading ?? internalIsDeleting;
 
   const handleClickDelete = async () => {
-    setIsDeleting(true);
+    setInternalIsDeleting(true);
 
-    await handleDelete();
+    try {
+      await handleDelete();
 
-    if (handleSuccessCallback) handleSuccessCallback();
-
-    setIsDeleting(false);
+      if (handleSuccessCallback) handleSuccessCallback();
+    } finally {
+      setInternalIsDeleting(false);
+    }
   };
 
   return (
-    <Modal
+    <AppModal
       opened={opened}
       onClose={onClose}
       title={title}
-      withCloseButton={!isDeleting}
-      centered
+      type="danger"
+      closable={!isDeleting}
+      size="md"
     >
-      <Text ta="center" mb="md">
-        {deleteText}
-      </Text>
+      <Stack align="center" gap="2">
+        <ThemeIcon variant="light" color="red" radius="50%" size={60}>
+          <IconAlertTriangle size={32} />
+        </ThemeIcon>
+        <Text size="lg" fw={600}>
+          Are you sure?
+        </Text>
 
-      {children}
+        <Text ta="center" my="xs">
+          This action will {action} the {entityType}. <br />
+          You won&apos;t be able to revert this!
+        </Text>
+      </Stack>
 
-      <Button
-        onClick={handleClickDelete}
-        loading={isDeleting}
-        color="red"
-        fullWidth
-        leftSection={<IconTrash />}
-        size="sm"
-        mt="md"
-      >
-        I Understand
-      </Button>
-    </Modal>
+      <Group grow mt="md">
+        <Button
+          variant="default"
+          onClick={onClose}
+          disabled={isDeleting}
+          size="sm"
+        >
+          {cancelLabel}
+        </Button>
+        <Button
+          size="sm"
+          onClick={handleClickDelete}
+          loading={isDeleting}
+          disabled={confirmDisabled}
+          color="red.7"
+          leftSection={confirmIcon}
+        >
+          {confirmLabel}
+        </Button>
+      </Group>
+    </AppModal>
   );
 }

@@ -88,7 +88,8 @@ export default function ViewClientRequestModal({
               <SpoilerComp>{clientRequestData.description}</SpoilerComp>
             </SpoilerComp>
           </BasicCard>
-          <BasicCard title="Requestor's Information">
+
+          <BasicCard title="Request Information">
             <SimpleGrid cols={{ base: 2, xs: 3 }}>
               <DetailField
                 title="Full Name"
@@ -105,11 +106,6 @@ export default function ViewClientRequestModal({
                 title="Phone Number"
                 value={clientRequestData.requestor?.phone}
               />
-            </SimpleGrid>
-          </BasicCard>
-
-          <BasicCard title="Request Information">
-            <SimpleGrid cols={{ base: 2, xs: 3 }} mb="md">
               <DetailField
                 title="Submitted Date"
                 value={getDateFormatDisplay(clientRequestData.createdAt, true)}

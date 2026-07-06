@@ -1,12 +1,8 @@
-import BasicCard from "@/components/Common/BasicCard";
-import DetailField from "@/components/Common/DetailField";
-import AppModal from "@/components/Common/modal/AppModal";
+import DeleteModal from "@/components/Common/modal/DeleteModal";
 import { AttorneyRow } from "@/components/data-table/columns/AttorneyColumns";
 import { useBanAttorneyMutation } from "@/store/services/userService";
-import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { appNotifications } from "@/utils/notifications/notifications";
-import { Alert, Button, SimpleGrid, Stack } from "@mantine/core";
-import { IconAlertCircle, IconBan } from "@tabler/icons-react";
+import { IconBan } from "@tabler/icons-react";
 
 interface BanAttorneyModalProps {
   opened: boolean;
@@ -47,47 +43,15 @@ export default function BanAttorneyModal({
   if (!userDetails) return null;
 
   return (
-    <AppModal
+    <DeleteModal
       opened={opened}
       onClose={onClose}
       title="Restrict Attorney"
-      size="lg"
-      closable={!isBanning}
-      type="danger"
-    >
-      <Stack>
-        <Alert
-          color="red"
-          title="Confirm Account Ban"
-          icon={<IconAlertCircle />}
-        >
-          Are you sure you want to restrict this attorney? Once confirmed, all
-          their sessions are revoked and they are not allowed to sign in again.
-        </Alert>
-
-        <BasicCard title="Attorney's Information">
-          <SimpleGrid cols={2}>
-            <DetailField title="Name" value={userDetails.fullname} />
-            <DetailField title="Email" value={userDetails.email} />
-            <DetailField title="Phone" value={userDetails.phone} />
-            <DetailField
-              title="Member Since"
-              value={getDateFormatDisplay(userDetails?.metadata?.createdAt)}
-            />
-          </SimpleGrid>
-        </BasicCard>
-
-        <Button
-          onClick={handleDeleteClient}
-          loading={isBanning}
-          color="red.7"
-          fullWidth
-          leftSection={<IconBan />}
-          mt="md"
-        >
-          I Understand
-        </Button>
-      </Stack>
-    </AppModal>
+      action="restrict"
+      entityType="attorney"
+      handleDelete={handleDeleteClient}
+      isLoading={isBanning}
+      confirmIcon={<IconBan />}
+    />
   );
 }

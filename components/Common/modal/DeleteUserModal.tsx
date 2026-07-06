@@ -1,12 +1,7 @@
 import { UserReference } from "@/types/user-reference";
-import AppModal from "./AppModal";
-import { Alert, Button, SimpleGrid } from "@mantine/core";
-import { IconAlertCircle, IconTrash } from "@tabler/icons-react";
-import BasicCard from "../BasicCard";
-import DetailField from "../DetailField";
-import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { useDeleteUserMutation } from "@/store/services/userService";
 import { appNotifications } from "@/utils/notifications/notifications";
+import DeleteModal from "./DeleteModal";
 
 interface DeleteUserModalProps {
   opened: boolean;
@@ -45,46 +40,14 @@ export default function DeleteUserModal({
   if (!user || !opened) return null;
 
   return (
-    <AppModal
+    <DeleteModal
       opened={opened}
       onClose={onClose}
       title="Delete User"
-      type="danger"
-      closable
-      size="lg"
-    >
-      <Alert
-        color="red"
-        title="Confirm Account Deletion"
-        icon={<IconAlertCircle />}
-        mb={12}
-      >
-        Are you sure you want to delete this user? Once confirmed, all their
-        sessions are revoked and they cannot access their account.
-      </Alert>
-
-      <BasicCard title="Attorney's Information">
-        <SimpleGrid cols={2}>
-          <DetailField title="Name" value={user.fullname} />
-          <DetailField title="Email" value={user.email} />
-          <DetailField title="Phone" value={user.phone} />
-          <DetailField
-            title="Member Since"
-            value={getDateFormatDisplay(user?.metadata?.createdAt)}
-          />
-        </SimpleGrid>
-      </BasicCard>
-
-      <Button
-        onClick={handleDeleteUser}
-        loading={isLoading}
-        color="red.7"
-        fullWidth
-        leftSection={<IconTrash />}
-        mt="md"
-      >
-        I Understand
-      </Button>
-    </AppModal>
+      action="delete"
+      entityType="user"
+      handleDelete={handleDeleteUser}
+      isLoading={isLoading}
+    />
   );
 }

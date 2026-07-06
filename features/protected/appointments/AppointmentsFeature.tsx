@@ -9,16 +9,7 @@ import ViewAppointmentModal from "@/components/appointments/modals/ViewAppointme
 import ReceiptPreviewModal from "@/components/Common/ReceiptPreviewModal";
 import { Booking } from "@/types/booking";
 import { useUser } from "@clerk/nextjs";
-import {
-  Alert,
-  Badge,
-  Button,
-  em,
-  Flex,
-  Group,
-  Stack,
-  Text,
-} from "@mantine/core";
+import { Alert, Button, em, Flex, Group, Stack, Text } from "@mantine/core";
 import {
   useDebouncedValue,
   useDisclosure,
@@ -47,22 +38,26 @@ export default function AppointmentsFeature() {
   const isMobile = useMediaQuery(`(max-width: ${em(750)})`);
 
   const { user, isLoaded } = useUser();
+  const isAdmin = user?.unsafeMetadata?.role === "admin";
   const router = useRouter();
+
   const [approveBookingReceiptFn] = useApproveBookingReceiptMutation();
+
   const { data: bookingSettings, isFetching: isFetchingBookingSettings } =
     useGetBookingSettingsQuery(undefined, {
-      skip: user?.unsafeMetadata?.role !== "admin",
+      skip: !isAdmin,
     });
 
   const { data: noAttorneyBookings = [] } =
     useGetPendingAttorneyAssignmentBookingsQuery(undefined, {
-      skip: !isLoaded || user?.unsafeMetadata?.role !== "admin",
+      skip: !isLoaded || !isAdmin,
     });
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
   const [selectedDate, setSelectedDate] = useState<string | null>(ymd);
   const [currentDate, setCurrentDate] = useState<string>(ymd);
   const [debounced] = useDebouncedValue(currentDate, 150);
+
   const { data: bookings = [], isFetching: isFetchingBookings } =
     useGetBookingsByMonthQuery(
       { month: debounced },
@@ -99,51 +94,56 @@ export default function AppointmentsFeature() {
 
   return (
     <>
-      {user?.unsafeMetadata?.role === "admin" &&
-        noAttorneyBookings.length > 0 && (
-          <Alert
-            title="Pending Attorney Assignment"
-            color="red"
-            icon={<IconFlame />}
-            mb="xl"
-            styles={(theme) => ({
-              title: { fontWeight: 700, color: theme.colors.red[4] },
-              icon: { color: theme.colors.red[4] },
-              message: {
-                color: theme.colors.red[4],
-                textAlign: "justify",
-                paddingRight: 16,
-              },
-              root: {
-                backgroundColor: theme.colors.red[0],
-                boxShadow: theme.other.customBoxShadow,
-                borderRadius: 10,
-              },
-            })}
-          >
-            <Text mb="xs" size="sm">
-              There are future bookings waiting for an attorney assignment.
-            </Text>
+      {isAdmin && noAttorneyBookings.length > 0 && (
+        <Alert
+          title="Pending Attorney Assignment"
+          color="red"
+          icon={<IconFlame />}
+          mb="xl"
+          styles={(theme) => ({
+            title: { fontWeight: 700, color: theme.colors.red[4] },
+            icon: { color: theme.colors.red[4] },
+            message: {
+              color: theme.colors.red[4],
+              textAlign: "justify",
+              paddingRight: 16,
+            },
+            root: {
+              backgroundColor: theme.colors.red[0],
+              boxShadow: theme.other.customBoxShadow,
+              borderRadius: 8,
+            },
+          })}
+        >
+          <Text mb="xs" size="sm">
+            Assign an attorney to these future bookings. Select a date to open
+            the appointment editor directly.
+          </Text>
 
-            <Group gap="xs">
-              {[...noAttorneyBookings]
-                .sort((a, b) => dayjs(a.date).diff(dayjs(b.date)))
-                .map((booking) => (
-                  <Badge
-                    key={booking.id}
-                    variant="outline"
-                    color="red"
-                    radius="xs"
-                  >
-                    {getDateFormatDisplay(
-                      `${booking.date} ${booking.time}`,
-                      true,
-                    )}
-                  </Badge>
-                ))}
-            </Group>
-          </Alert>
-        )}
+          <Group gap="xs">
+            {[...noAttorneyBookings]
+              .sort((a, b) => dayjs(a.date).diff(dayjs(b.date)))
+              .map((booking) => (
+                <Button
+                  key={booking.id}
+                  variant="filled"
+                  color="red"
+                  radius="xs"
+                  size="compact-xs"
+                  onClick={() => {
+                    setSelectedBooking(booking);
+                    openUpsertModal();
+                  }}
+                >
+                  {getDateFormatDisplay(
+                    `${booking.date} ${booking.time}`,
+                    true,
+                  )}
+                </Button>
+              ))}
+          </Group>
+        </Alert>
+      )}
       <Flex
         w="100%"
         h="100%"
