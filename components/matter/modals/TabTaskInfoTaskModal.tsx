@@ -27,10 +27,9 @@ export default function TabTaskInfoTaskModal({
   const [completeMatterTaskFn, { isLoading: isSubmitting }] =
     useCompleteMatterTaskMutation();
 
+  const userRole = user?.unsafeMetadata?.role as string | undefined;
   const canCompleteTask =
-    user?.unsafeMetadata?.role !== "client"
-      ? true
-      : task?.assignee.id === user?.id;
+    userRole === "admin" || task?.assignee.id === user?.id;
 
   const handleCompleteTask = async () => {
     completeMatterTaskFn({ matterId: task!.caseId, taskId: task!.id })

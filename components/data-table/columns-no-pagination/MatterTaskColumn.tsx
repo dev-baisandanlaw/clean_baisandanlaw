@@ -77,7 +77,7 @@ export const createMatterTaskColumns = ({
             <IconEye size={18} />
           </ActionIcon>
 
-          {userRole !== "client" && task.status !== "Complete" && (
+          {userRole === "admin" && task.status !== "Complete" && (
             <ActionIcon
               size="sm"
               variant="subtle"

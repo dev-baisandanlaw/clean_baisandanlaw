@@ -19,6 +19,7 @@ interface MatterTabTasksProps {
 export default function TabTasks({ matterData }: MatterTabTasksProps) {
   const { user } = useUser();
   const shrink = useMediaQuery(`(max-width: ${em(768)})`);
+  const userRole = user?.unsafeMetadata?.role as string | undefined;
 
   const [selectedTask, setSelectedTask] = useState<MatterTask | null>(null);
 
@@ -57,9 +58,9 @@ export default function TabTasks({ matterData }: MatterTabTasksProps) {
           setSelectedTask(task);
           openDeleteTaskModal();
         },
-        userRole: user?.unsafeMetadata?.role as string | undefined,
+        userRole,
       }),
-    [user, openInfoTaskModal, openDeleteTaskModal],
+    [userRole, openInfoTaskModal, openDeleteTaskModal],
   );
 
   return (
@@ -68,7 +69,7 @@ export default function TabTasks({ matterData }: MatterTabTasksProps) {
         <BasicCard
           title="Tasks"
           actionButton={
-            user?.unsafeMetadata?.role !== "client" && (
+            userRole === "admin" && (
               <Button
                 leftSection={<IconCirclePlus size={18} />}
                 size="xs"
