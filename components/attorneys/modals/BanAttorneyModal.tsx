@@ -51,7 +51,7 @@ export default function BanAttorneyModal({
       entityType="attorney"
       handleDelete={handleDeleteClient}
       isLoading={isBanning}
-      confirmIcon={<IconBan />}
+      confirmIcon={<IconBan size={16} />}
     />
   );
 }

@@ -66,7 +66,7 @@ export default function MatterDetailsFeature({
         ))}
       </Tabs.List>
 
-      <ScrollArea h="calc(100vh - 170px)" mt="xs">
+      <ScrollArea h="calc(100vh - 170px)" mt="xs" offsetScrollbars>
         {!isFetchingMatterDetails && matterDetails && (
           <Tabs.Panel value="overview">
             <TabOverview matterData={matterDetails} />

@@ -31,7 +31,7 @@ export default function DeleteModal({
   entityType = "record",
   confirmLabel = "I Understand",
   cancelLabel = "Cancel",
-  confirmIcon = <IconTrash />,
+  confirmIcon = <IconTrash size={16} />,
   confirmDisabled = false,
   isLoading,
 }: DeleteModalProps) {
@@ -89,6 +89,7 @@ export default function DeleteModal({
           disabled={confirmDisabled}
           color="red.7"
           leftSection={confirmIcon}
+          styles={{ label: { flexShrink: 0 } }}
         >
           {confirmLabel}
         </Button>

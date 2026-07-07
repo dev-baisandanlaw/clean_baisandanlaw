@@ -1,7 +1,7 @@
-import { Button, Flex, ScrollArea, SimpleGrid, Tabs } from "@mantine/core";
+import { Button, em, Flex, SimpleGrid, Tabs } from "@mantine/core";
 import { IconFileUpload } from "@tabler/icons-react";
 import TabDocumentDeleteFileModal from "./modals/TabDocumentDeleteFileModal";
-import { useDisclosure } from "@mantine/hooks";
+import { useDisclosure, useMediaQuery } from "@mantine/hooks";
 import React, { useState, useMemo } from "react";
 import TabDocumentsUploadFileModal from "./modals/TabDocumentsUploadFileModal";
 import { appNotifications } from "@/utils/notifications/notifications";
@@ -20,6 +20,8 @@ interface MatterTabDocumentsProps {
 
 export default function TabDocuments({ matterData }: MatterTabDocumentsProps) {
   const { user } = useUser();
+  const shrink = useMediaQuery(`(max-width: ${em(768)})`);
+
   const [downloadDocument] = useDownloadDocumentMutation();
   const [selectedDocument, setSelectedDocument] = useState<Document>();
 
@@ -111,75 +113,73 @@ export default function TabDocuments({ matterData }: MatterTabDocumentsProps) {
 
   return (
     <>
-      <ScrollArea.Autosize offsetScrollbars>
-        <Flex direction="column" gap="md">
-          <BasicCard
-            title="Documents"
-            actionButton={
-              <Button
-                leftSection={<IconFileUpload size={16} />}
-                size="xs"
-                variant="outline"
-                onClick={openUploadModalFile}
-              >
-                Upload
-              </Button>
-            }
-          >
-            <SimpleGrid cols={{ base: 2, xs: 2, sm: 4, md: 4 }}>
-              <DetailField
-                title="Files"
-                value={matterData.documents?.length || "0"}
-              />
+      <Flex direction="column" gap="md" style={{ minWidth: 0 }}>
+        <BasicCard
+          title="Documents"
+          actionButton={
+            <Button
+              leftSection={<IconFileUpload size={16} />}
+              size="xs"
+              variant="outline"
+              onClick={openUploadModalFile}
+            >
+              Upload
+            </Button>
+          }
+        >
+          <SimpleGrid cols={{ base: 2, xs: 2, sm: 4, md: 4 }}>
+            <DetailField
+              title="Files"
+              value={matterData.documents?.length || "0"}
+            />
 
-              <DetailField
-                title="Size"
-                value={`${
-                  matterData?.documents
-                    ?.reduce((sum, doc) => sum + Number(doc.sizeInMb || 0), 0)
-                    .toFixed(2) || "0"
-                } MB`}
-              />
+            <DetailField
+              title="Size"
+              value={`${
+                matterData?.documents
+                  ?.reduce((sum, doc) => sum + Number(doc.sizeInMb || 0), 0)
+                  .toFixed(2) || "0"
+              } MB`}
+            />
 
-              <DetailField
-                title="Images"
-                value={
-                  matterData.documents?.filter((doc) =>
-                    doc.mimeType.startsWith("image/"),
-                  ).length || "0"
-                }
-              />
+            <DetailField
+              title="Images"
+              value={
+                matterData.documents?.filter((doc) =>
+                  doc.mimeType.startsWith("image/"),
+                ).length || "0"
+              }
+            />
 
-              <DetailField
-                title="PDFs"
-                value={
-                  matterData.documents?.filter(
-                    (doc) => doc.mimeType === "application/pdf",
-                  ).length || "0"
-                }
-              />
-            </SimpleGrid>
-          </BasicCard>
+            <DetailField
+              title="PDFs"
+              value={
+                matterData.documents?.filter(
+                  (doc) => doc.mimeType === "application/pdf",
+                ).length || "0"
+              }
+            />
+          </SimpleGrid>
+        </BasicCard>
 
-          <Tabs
-            value={activeTab}
-            onChange={(value) => setActiveTab(value || "all")}
-          >
-            <Tabs.List>
-              <Tabs.Tab value="all">All</Tabs.Tab>
-              <Tabs.Tab value="images">Images</Tabs.Tab>
-              <Tabs.Tab value="pdfs">PDFs</Tabs.Tab>
-            </Tabs.List>
-          </Tabs>
+        <Tabs
+          value={activeTab}
+          onChange={(value) => setActiveTab(value || "all")}
+        >
+          <Tabs.List>
+            <Tabs.Tab value="all">All</Tabs.Tab>
+            <Tabs.Tab value="images">Images</Tabs.Tab>
+            <Tabs.Tab value="pdfs">PDFs</Tabs.Tab>
+          </Tabs.List>
+        </Tabs>
 
-          <DataTableNoPagination
-            columns={columns}
-            data={filteredDocuments}
-            emptyText="No documents found"
-            maxHeight="calc(100vh - 380px)"
-          />
-        </Flex>
-      </ScrollArea.Autosize>
+        <DataTableNoPagination
+          columns={columns}
+          data={filteredDocuments}
+          emptyText="No documents found"
+          maxHeight={shrink ? "100%" : "calc(100vh - 380px)"}
+        />
+      </Flex>
 
       <TabDocumentsUploadFileModal
         opened={isUploadModalFileOpen}

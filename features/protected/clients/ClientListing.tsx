@@ -54,13 +54,7 @@ export default function ClientListing() {
 
   return (
     <>
-      <Flex
-        w="100%"
-        h="100%"
-        gap={16}
-        px={{ sm: 12, md: 0 }}
-        direction="column"
-      >
+      <Flex w="100%" h="100%" gap={8} px={{ sm: 12, md: 0 }} direction="column">
         <Group align="center" justify="space-between" w="100%">
           <TextInput
             placeholder="Search name, email"

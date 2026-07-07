@@ -1,4 +1,12 @@
-import { Button, Group, Progress, ScrollArea, Text } from "@mantine/core";
+import {
+  Button,
+  em,
+  Flex,
+  Group,
+  Progress,
+  ScrollArea,
+  Text,
+} from "@mantine/core";
 import AppModal from "../Common/modal/AppModal";
 import { useRef, useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
@@ -14,6 +22,7 @@ import {
 import { appNotifications } from "@/utils/notifications/notifications";
 import { useUser } from "@clerk/nextjs";
 import { BookingSettings } from "@/types/bookingSettings";
+import { useMediaQuery } from "@mantine/hooks";
 
 interface RevampedBookingModalProps {
   opened: boolean;
@@ -47,6 +56,7 @@ export default function RevampedBookingModal({
   bookingSettings,
   successCallback,
 }: RevampedBookingModalProps) {
+  const shrink = useMediaQuery(`(max-width: ${em(768)})`);
   const { user } = useUser();
   const [bookAppointmentFn, { isLoading: isBooking }] =
     useBookNewAppointmentMutation();
@@ -281,7 +291,12 @@ export default function RevampedBookingModal({
           )}
         </ScrollArea.Autosize>
 
-        <Group mt={16} justify="end" gap="xs">
+        <Flex
+          mt={16}
+          justify="end"
+          gap="xs"
+          direction={shrink ? "column-reverse" : "row"}
+        >
           <Button
             size="sm"
             variant="default"
@@ -304,7 +319,7 @@ export default function RevampedBookingModal({
           >
             {step < 2 ? "Proceed to next step" : " Submit"}
           </Button>
-        </Group>
+        </Flex>
       </form>
     </AppModal>
   );

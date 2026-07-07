@@ -15,7 +15,6 @@ export default async function MatterDetailPage({
     listingPath: "/matters",
     notFoundError: "matter_not_found",
   });
-  console.log("ha");
 
   return <MatterDetailsFeature matterId={id} />;
 }

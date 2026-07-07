@@ -46,7 +46,7 @@ export default function RetainerDetailsFeature({
         ))}
       </Tabs.List>
 
-      <ScrollArea h="calc(100vh - 170px)" mt="xs">
+      <ScrollArea h="calc(100vh - 170px)" mt="xs" offsetScrollbars>
         <Tabs.Panel value="overview">
           {!isFetchingRetainerDetails && retainerDetails && (
             <RTabOverview retainerData={retainerDetails} />

@@ -94,64 +94,70 @@ export default function AppointmentsFeature() {
 
   return (
     <>
-      {isAdmin && noAttorneyBookings.length > 0 && (
-        <Alert
-          title="Pending Attorney Assignment"
-          color="red"
-          icon={<IconFlame />}
-          mb="xl"
-          styles={(theme) => ({
-            title: { fontWeight: 700, color: theme.colors.red[4] },
-            icon: { color: theme.colors.red[4] },
-            message: {
-              color: theme.colors.red[4],
-              textAlign: "justify",
-              paddingRight: 16,
-            },
-            root: {
-              backgroundColor: theme.colors.red[0],
-              boxShadow: theme.other.customBoxShadow,
-              borderRadius: 8,
-            },
-          })}
-        >
-          <Text mb="xs" size="sm">
-            Assign an attorney to these future bookings. Select a date to open
-            the appointment editor directly.
-          </Text>
-
-          <Group gap="xs">
-            {[...noAttorneyBookings]
-              .sort((a, b) => dayjs(a.date).diff(dayjs(b.date)))
-              .map((booking) => (
-                <Button
-                  key={booking.id}
-                  variant="filled"
-                  color="red"
-                  radius="xs"
-                  size="compact-xs"
-                  onClick={() => {
-                    setSelectedBooking(booking);
-                    openUpsertModal();
-                  }}
-                >
-                  {getDateFormatDisplay(
-                    `${booking.date} ${booking.time}`,
-                    true,
-                  )}
-                </Button>
-              ))}
-          </Group>
-        </Alert>
-      )}
       <Flex
         w="100%"
         h="100%"
-        gap={16}
+        gap={8}
         px={{ sm: 12, md: 0 }}
         direction="column"
+        style={{ minWidth: 0 }}
       >
-        <Group align="center" justify="center">
+        {isAdmin && noAttorneyBookings.length > 0 && (
+          <Alert
+            title="Pending Attorney Assignment"
+            color="red"
+            icon={<IconFlame />}
+            mb="md"
+            styles={(theme) => ({
+              title: { fontWeight: 700, color: theme.colors.red[4] },
+              icon: { color: theme.colors.red[4] },
+              message: {
+                color: theme.colors.red[4],
+                textAlign: "justify",
+                paddingRight: 16,
+              },
+              root: {
+                backgroundColor: theme.colors.red[0],
+                boxShadow: theme.other.customBoxShadow,
+                borderRadius: 8,
+              },
+            })}
+          >
+            <Text mb="xs" size="sm">
+              Assign an attorney to these future bookings. Select a date to open
+              the appointment editor directly.
+            </Text>
+
+            <Group gap="xs">
+              {[...noAttorneyBookings]
+                .sort((a, b) => dayjs(a.date).diff(dayjs(b.date)))
+                .map((booking) => (
+                  <Button
+                    key={booking.id}
+                    variant="filled"
+                    color="red"
+                    radius="xs"
+                    size="compact-xs"
+                    onClick={() => {
+                      setSelectedBooking(booking);
+                      openUpsertModal();
+                    }}
+                  >
+                    {getDateFormatDisplay(
+                      `${booking.date} ${booking.time}`,
+                      true,
+                    )}
+                  </Button>
+                ))}
+            </Group>
+          </Alert>
+        )}
+
+        <Flex
+          align="center"
+          justify="center"
+          direction={isMobile ? "column" : "row"}
+        >
           <AppointmentsDatePicker
             bookings={bookings}
             selectedDate={selectedDate}
@@ -205,7 +211,7 @@ export default function AppointmentsFeature() {
               selectedDate={selectedDate}
             />
           </Stack>
-        </Group>
+        </Flex>
 
         <AppointmentsList
           data={bookings || []}

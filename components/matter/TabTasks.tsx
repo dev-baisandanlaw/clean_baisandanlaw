@@ -1,8 +1,8 @@
 import { useUser } from "@clerk/nextjs";
-import { Button, ScrollArea, SimpleGrid, Stack } from "@mantine/core";
+import { Button, em, SimpleGrid, Stack } from "@mantine/core";
 import { useMemo, useState } from "react";
 import { IconCirclePlus } from "@tabler/icons-react";
-import { useDisclosure } from "@mantine/hooks";
+import { useDisclosure, useMediaQuery } from "@mantine/hooks";
 import { Matter, MatterTask } from "@/types/matter";
 import BasicCard from "../Common/BasicCard";
 import DetailField from "../Common/DetailField";
@@ -18,6 +18,7 @@ interface MatterTabTasksProps {
 
 export default function TabTasks({ matterData }: MatterTabTasksProps) {
   const { user } = useUser();
+  const shrink = useMediaQuery(`(max-width: ${em(768)})`);
 
   const [selectedTask, setSelectedTask] = useState<MatterTask | null>(null);
 
@@ -63,56 +64,51 @@ export default function TabTasks({ matterData }: MatterTabTasksProps) {
 
   return (
     <>
-      <ScrollArea.Autosize offsetScrollbars>
-        <Stack>
-          <BasicCard
-            title="Tasks"
-            actionButton={
-              user?.unsafeMetadata?.role !== "client" && (
-                <Button
-                  leftSection={<IconCirclePlus size={18} />}
-                  size="xs"
-                  variant="outline"
-                  onClick={openAddTaskModal}
-                >
-                  Add Task
-                </Button>
-              )
-            }
-          >
-            <SimpleGrid cols={{ base: 2, xs: 3, sm: 3, md: 3 }}>
-              <DetailField
-                title="All"
-                value={matterData?.tasks?.length || "0"}
-              />
-              <DetailField
-                title="Pending"
-                value={
-                  matterData?.tasks?.filter((i) => i.status === "Pending")
-                    .length || "0"
-                }
-              />
-              <DetailField
-                title="Complete"
-                value={
-                  matterData?.tasks?.filter((i) => i.status === "Complete")
-                    .length || "0"
-                }
-              />
-              <DetailField title="Attorney" value={taskSummary("Attorney")} />
-              <DetailField title="Client" value={taskSummary("Client")} />
-              <DetailField title="Staff" value={taskSummary("Staff")} />
-            </SimpleGrid>
-          </BasicCard>
+      <Stack style={{ minWidth: 0 }}>
+        <BasicCard
+          title="Tasks"
+          actionButton={
+            user?.unsafeMetadata?.role !== "client" && (
+              <Button
+                leftSection={<IconCirclePlus size={18} />}
+                size="xs"
+                variant="outline"
+                onClick={openAddTaskModal}
+              >
+                Add Task
+              </Button>
+            )
+          }
+        >
+          <SimpleGrid cols={{ base: 2, xs: 3, sm: 3, md: 3 }}>
+            <DetailField title="All" value={matterData?.tasks?.length || "0"} />
+            <DetailField
+              title="Pending"
+              value={
+                matterData?.tasks?.filter((i) => i.status === "Pending")
+                  .length || "0"
+              }
+            />
+            <DetailField
+              title="Complete"
+              value={
+                matterData?.tasks?.filter((i) => i.status === "Complete")
+                  .length || "0"
+              }
+            />
+            <DetailField title="Attorney" value={taskSummary("Attorney")} />
+            <DetailField title="Client" value={taskSummary("Client")} />
+            <DetailField title="Staff" value={taskSummary("Staff")} />
+          </SimpleGrid>
+        </BasicCard>
 
-          <DataTableNoPagination
-            columns={columns}
-            data={matterData?.tasks ?? []}
-            emptyText="No tasks found."
-            maxHeight="calc(100vh - 385px)"
-          />
-        </Stack>
-      </ScrollArea.Autosize>
+        <DataTableNoPagination
+          columns={columns}
+          data={matterData?.tasks ?? []}
+          emptyText="No tasks found."
+          maxHeight={shrink ? "100%" : "calc(100vh - 385px)"}
+        />
+      </Stack>
 
       <TabTasksAddTaskModal
         opened={isAddTaskModalOpen}

@@ -57,7 +57,7 @@ const DataTable = <TData,>({
   queryOptions,
   addListingButton,
   emptyText = "No data found.",
-  maxHeight = "calc(100vh - 205px)",
+  maxHeight = "calc(100vh - 190px)",
 }: DataTableProps<TData>) => {
   const [theadRef, theadRect] = useResizeObserver<HTMLTableSectionElement>();
 

@@ -77,13 +77,7 @@ export default function AttorneyListing() {
 
   return (
     <>
-      <Flex
-        w="100%"
-        h="100%"
-        gap={16}
-        px={{ sm: 12, md: 0 }}
-        direction="column"
-      >
+      <Flex w="100%" h="100%" gap={8} px={{ sm: 12, md: 0 }} direction="column">
         <Flex
           align="stretch"
           direction={shrink ? "column-reverse" : "row"}

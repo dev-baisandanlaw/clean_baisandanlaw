@@ -96,14 +96,14 @@ export default function MultiFileUploadComp({
           </Dropzone.Idle>
 
           <Stack gap="4" align="center">
-            <Text>Drag & Drop or Choose file to upload</Text>
-            <Text size="sm" c="dimmed">
+            <Text ta="center">Drag & Drop or Choose file to upload</Text>
+            <Text size="sm" c="dimmed" ta="center">
               Supported files:{" "}
               {[acceptImage && "Images", acceptPdf && "PDF"]
                 .filter(Boolean)
                 .join(", ")}{" "}
             </Text>
-            <Text size="sm" c="dimmed">
+            <Text size="sm" c="dimmed" ta="center">
               Max size per file: 5MB | Max Files: {maxFiles}
             </Text>
           </Stack>
@@ -112,12 +112,12 @@ export default function MultiFileUploadComp({
 
       <Stack gap={6}>
         {files.map((file, i) => (
-          <Paper key={i} withBorder px="sm" py="xs" radius="sm">
+          <Paper key={i} withBorder px="sm" py="xs" radius="sm" w="100%">
             <Group gap="xs" wrap="nowrap">
               <ThemeIcon variant="white">
                 <IconFileDescription size={18} />
               </ThemeIcon>
-              <Text size="sm" lineClamp={1}>
+              <Text size="sm" lineClamp={1} style={{ wordBreak: "break-all" }}>
                 {file.name}
               </Text>
 

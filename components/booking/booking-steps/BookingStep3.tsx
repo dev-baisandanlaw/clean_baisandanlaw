@@ -9,17 +9,14 @@ import {
   ThemeIcon,
   Tooltip,
 } from "@mantine/core";
-import { Dropzone, FileRejection, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import {
   IconCash,
   IconCopy,
   IconCheck,
   IconInfoCircle,
-  IconAlertCircle,
-  IconCloudUpload,
-  IconX,
 } from "@tabler/icons-react";
 import { Dispatch, SetStateAction, useState } from "react";
+import MultiFileUploadComp from "@/components/Common/MultiFileUploadComp";
 
 interface BookingStepThreeProps {
   uploadedReceipt: File | null;
@@ -34,34 +31,17 @@ export default function BookingStepThree({
   paymentChannels = [],
 }: BookingStepThreeProps) {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
-  const [rejectedFiles, setRejectedFiles] = useState<FileRejection[]>([]);
-  const [disclaimer, setDisclaimer] = useState<string>("");
+  const receiptFiles = uploadedReceipt ? [uploadedReceipt] : [];
+  const setReceiptFiles: Dispatch<SetStateAction<File[]>> = (value) => {
+    const nextFiles = typeof value === "function" ? value(receiptFiles) : value;
+
+    setUploadedReceipt(nextFiles[0] ?? null);
+  };
 
   const handleCopy = (accountNumber: string, index: number) => {
     navigator.clipboard.writeText(accountNumber);
     setCopiedIndex(index);
     setTimeout(() => setCopiedIndex(null), 1500);
-  };
-
-  const handleDrop = (newFiles: File[]) => {
-    setRejectedFiles([]);
-    if (uploadedReceipt) return; // Already have a file
-
-    const acceptedFiles = newFiles.slice(0, 1); // Take only the first file
-    if (acceptedFiles.length > 0) {
-      setUploadedReceipt(acceptedFiles[0]);
-    }
-
-    const droppedCount = newFiles.length - acceptedFiles.length;
-    if (droppedCount > 0) {
-      setDisclaimer("Only one file is allowed. Extra files ignored.");
-    }
-  };
-
-  const handleRemoveFile = () => {
-    setRejectedFiles([]);
-    setDisclaimer("");
-    setUploadedReceipt(null);
   };
 
   return (
@@ -150,88 +130,12 @@ export default function BookingStepThree({
           Upload Payment Receipt <span style={{ color: "red" }}>*</span>
         </Text>
 
-        {rejectedFiles.length > 0 && (
-          <Alert
-            color="red"
-            title={`${rejectedFiles.length} file(s) rejected due to file type or size limit`}
-            icon={<IconAlertCircle />}
-            mb="md"
-          />
-        )}
-
-        {uploadedReceipt && disclaimer && (
-          <Alert
-            color="orange"
-            title={disclaimer}
-            icon={<IconAlertCircle />}
-            mb="md"
-          />
-        )}
-
-        <Dropzone
-          styles={{
-            root: {
-              border: `2px dashed ${uploadedReceipt ? "gray" : "green"}`,
-            },
-          }}
-          accept={[...IMAGE_MIME_TYPE]}
-          onDrop={handleDrop}
-          onReject={setRejectedFiles}
-          maxSize={5 * 1024 * 1024}
-          mb="md"
-          disabled={!!uploadedReceipt}
-          bg={uploadedReceipt ? "gray.2" : "#f6fcfb"}
-          style={{ cursor: uploadedReceipt ? "not-allowed" : "pointer" }}
-        >
-          <Stack
-            align="center"
-            justify="center"
-            gap="10"
-            mih={100}
-            style={{ pointerEvents: "none" }}
-          >
-            <IconCloudUpload
-              size={50}
-              color={uploadedReceipt ? "gray" : "green"}
-            />
-            <Text ta="center">
-              <Text span fw={700} c="green">
-                Click here
-              </Text>{" "}
-              to upload your receipt or drag
-            </Text>
-            <Text
-              c={uploadedReceipt ? "dimmed" : "green"}
-              size="sm"
-              fw={500}
-              ta="center"
-            >
-              Supported formats:{" "}
-              <Text span fw={700}>
-                Images
-              </Text>{" "}
-              (Max 1 file, 5MB per file)
-            </Text>
-          </Stack>
-        </Dropzone>
-
-        {uploadedReceipt && (
-          <Paper withBorder p="sm" radius="sm" bg="gray.0">
-            <Group justify="space-between">
-              <Text size="sm" fw={500}>
-                {uploadedReceipt.name}
-              </Text>
-              <ActionIcon
-                color="red"
-                size="sm"
-                onClick={handleRemoveFile}
-                //   disabled={isSubmitting}
-              >
-                <IconX size={14} />
-              </ActionIcon>
-            </Group>
-          </Paper>
-        )}
+        <MultiFileUploadComp
+          files={receiptFiles}
+          setFiles={setReceiptFiles}
+          acceptImage
+          maxFiles={1}
+        />
       </Paper>
     </Stack>
   );

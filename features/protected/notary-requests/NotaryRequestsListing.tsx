@@ -281,13 +281,7 @@ export default function NotaryRequestsListing() {
 
   return (
     <>
-      <Flex
-        w="100%"
-        h="100%"
-        gap={16}
-        px={{ sm: 12, md: 0 }}
-        direction="column"
-      >
+      <Flex w="100%" h="100%" gap={8} px={{ sm: 12, md: 0 }} direction="column">
         <Flex
           align="stretch"
           direction={shrink ? "column-reverse" : "row"}
@@ -341,6 +335,7 @@ export default function NotaryRequestsListing() {
           queryArgs={queryArgs}
           queryOptions={{ skip: !isLoaded || !user }}
           emptyText="No client requests found."
+          maxHeight="calc(100vh - 240px)"
         />
       </Flex>
 
