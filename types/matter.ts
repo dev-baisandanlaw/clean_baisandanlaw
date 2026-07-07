@@ -50,6 +50,8 @@ export interface MatterSchedule {
   id: string;
 
   caseId: string;
+  leadAttorney: UserReference;
+  clientDetails: UserReference;
   date: string;
   time: string;
 

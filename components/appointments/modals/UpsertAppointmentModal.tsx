@@ -10,7 +10,6 @@ import {
   Group,
   Loader,
   NumberInput,
-  Paper,
   Radio,
   Select,
   SimpleGrid,
@@ -36,6 +35,7 @@ import {
   useManualBookNewAppointmentMutation,
   useManualUpdateBookingMutation,
 } from "@/store/services/bookingService";
+import { useGetAttorneyMatterSchedulesByDateQuery } from "@/store/services/matterService";
 import { useGetUsersByOrgQuery } from "@/store/services/userService";
 import { Booking } from "@/types/booking";
 import { BookingSettings } from "@/types/bookingSettings";
@@ -151,6 +151,14 @@ export default function UpsertAppointmentModal({
 
   const selectedDate = form.values.date || "";
 
+  const {
+    data: attorneyMatterSchedules = [],
+    isFetching: isFetchingMatterSchedules,
+  } = useGetAttorneyMatterSchedulesByDateQuery(
+    { attorneyId: form.values.attorneyId || "", date: selectedDate },
+    { skip: !opened || !form.values.attorneyId || !selectedDate },
+  );
+
   const attyBookings = useMemo(
     () =>
       monthBookings
@@ -163,6 +171,12 @@ export default function UpsertAppointmentModal({
         .sort((a, b) => a.time.localeCompare(b.time)),
     [booking?.id, form.values.attorneyId, monthBookings, selectedDate],
   );
+  const shouldShowAttorneyDateNotice =
+    !!form.values.dateValue &&
+    !!form.values.attorneyId &&
+    (isFetchingMatterSchedules ||
+      attyBookings.length > 0 ||
+      attorneyMatterSchedules.length > 0);
 
   const times = useMemo(() => {
     if (!bookingSettings) return [];
@@ -319,41 +333,77 @@ export default function UpsertAppointmentModal({
               {...form.getInputProps("attorneyId")}
             />
 
-            {form.values.dateValue &&
-              form.values.attorneyId &&
-              attyBookings.length > 0 && (
-                <Paper mt="md" withBorder radius="md" p="md" bg="blue.0">
-                  <Text size="sm" fw={600} mb="sm">
-                    Attorney&apos;s Booked Times with this date
-                  </Text>
-                  <TableScrollContainer mah={400} minWidth={200}>
-                    <Table withTableBorder style={{ borderRadius: 8 }}>
-                      <Table.Thead>
-                        <Table.Tr>
-                          <Table.Th>Time</Table.Th>
-                          <Table.Th>Client</Table.Th>
-                        </Table.Tr>
-                      </Table.Thead>
+            {shouldShowAttorneyDateNotice && (
+              <Alert
+                mt="md"
+                p="md"
+                color="blue"
+                styles={(theme) => ({
+                  title: { fontWeight: 600, color: theme.colors.blue[7] },
+                  body: { gap: 2 },
+                  root: { paddingBlock: 12 },
+                })}
+              >
+                <Text size="xs" fw={600} mb="sm">
+                  Attorney&apos;s Booked Times and Matter Schedules with this
+                  date
+                </Text>
+                <TableScrollContainer mah={400} minWidth={200}>
+                  <Table withRowBorders style={{ borderRadius: 8 }}>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th fz="xs">Type</Table.Th>
+                        <Table.Th fz="xs">Time</Table.Th>
+                        <Table.Th fz="xs">Client / Schedule</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
 
-                      <Table.Tbody>
-                        {attyBookings.map((bookingItem) => (
-                          <Table.Tr key={bookingItem.id}>
-                            <Table.Td fw={600}>
-                              <TimeValue
-                                value={bookingItem.time}
-                                format="12h"
-                              />
-                            </Table.Td>
-                            <Table.Td fw={600}>
-                              {bookingItem.clientDetails.fullname}
-                            </Table.Td>
-                          </Table.Tr>
-                        ))}
-                      </Table.Tbody>
-                    </Table>
-                  </TableScrollContainer>
-                </Paper>
-              )}
+                    <Table.Tbody>
+                      {isFetchingMatterSchedules && (
+                        <Table.Tr>
+                          <Table.Td colSpan={3}>
+                            <Group gap="xs">
+                              <Loader size="xs" />
+                              <Text size="xs" c="dimmed">
+                                Checking matter schedules
+                              </Text>
+                            </Group>
+                          </Table.Td>
+                        </Table.Tr>
+                      )}
+
+                      {attyBookings.map((bookingItem) => (
+                        <Table.Tr key={bookingItem.id}>
+                          <Table.Td fw={600} fz="xs">
+                            Appointment
+                          </Table.Td>
+                          <Table.Td fw={600} fz="xs">
+                            <TimeValue value={bookingItem.time} format="12h" />
+                          </Table.Td>
+                          <Table.Td fw={600} fz="xs">
+                            {bookingItem.clientDetails.fullname}
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+
+                      {attorneyMatterSchedules.map((schedule) => (
+                        <Table.Tr key={schedule.id}>
+                          <Table.Td fw={600} fz="xs">
+                            Matter schedule
+                          </Table.Td>
+                          <Table.Td fw={600} fz="xs">
+                            <TimeValue value={schedule.time} format="12h" />
+                          </Table.Td>
+                          <Table.Td fw={600} fz="xs">
+                            {schedule.title}
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                </TableScrollContainer>
+              </Alert>
+            )}
           </Stack>
 
           <Stack gap="xs">

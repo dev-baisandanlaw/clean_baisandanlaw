@@ -1,4 +1,4 @@
-import { Matter } from "@/types/matter";
+import { Matter, MatterSchedule } from "@/types/matter";
 import { GenericPaginatedResponse } from "@/types/pagination";
 import { UserReference } from "@/types/user-reference";
 
@@ -32,3 +32,21 @@ export interface CreateNewMatterTaskDto {
   taskName: string;
   assignee: UserReference;
 }
+
+export interface UpsertMatterScheduleDto {
+  caseId: string;
+  date: string;
+  time: string;
+  title: string;
+  location: string;
+  description: string;
+}
+
+export interface MatterScheduleDateQuery {
+  date: string;
+}
+
+export type MatterScheduleResponse = {
+  data?: MatterSchedule;
+  message: string;
+};

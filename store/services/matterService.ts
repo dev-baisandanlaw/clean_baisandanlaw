@@ -3,9 +3,13 @@ import { createApi } from "@reduxjs/toolkit/query/react";
 import {
   CreateNewMatterDto,
   CreateNewMatterTaskDto,
+  MatterScheduleDateQuery,
+  MatterScheduleResponse,
   MatterListingResponse,
+  UpsertMatterScheduleDto,
 } from "../service-types/type-matter-service";
-import { Matter } from "@/types/matter";
+import { Matter, MatterSchedule } from "@/types/matter";
+import { Booking } from "@/types/booking";
 
 export const matterService = createApi({
   reducerPath: "matterService",
@@ -141,6 +145,60 @@ export const matterService = createApi({
       }),
       invalidatesTags: ["Matter"],
     }),
+
+    getMatterLeadAttorneyAppointmentsByDate: builder.query<
+      Booking[],
+      { caseId: string } & MatterScheduleDateQuery
+    >({
+      query: ({ caseId, date }) => ({
+        url: `/matter-schedules/matter/${caseId}/lead-attorney-appointments`,
+        params: { date },
+      }),
+    }),
+
+    getAttorneyMatterSchedulesByDate: builder.query<
+      MatterSchedule[],
+      { attorneyId: string; date: string }
+    >({
+      query: ({ attorneyId, date }) => ({
+        url: "/matter-schedules/attorney/date",
+        params: { attorneyId, date },
+      }),
+    }),
+
+    createMatterSchedule: builder.mutation<
+      MatterScheduleResponse,
+      UpsertMatterScheduleDto
+    >({
+      query: (dto) => ({
+        url: "/matter-schedules/create",
+        body: dto,
+        method: "POST",
+      }),
+      invalidatesTags: ["Matter"],
+    }),
+
+    updateMatterSchedule: builder.mutation<
+      MatterScheduleResponse,
+      Partial<UpsertMatterScheduleDto> & { id: string }
+    >({
+      query: ({ id, ...payload }) => ({
+        url: `/matter-schedules/update/${id}`,
+        body: payload,
+        method: "PATCH",
+      }),
+      invalidatesTags: ["Matter"],
+    }),
+
+    deleteMatterSchedule: builder.mutation<{ message: string }, { id: string }>(
+      {
+        query: ({ id }) => ({
+          url: `/matter-schedules/delete/${id}`,
+          method: "DELETE",
+        }),
+        invalidatesTags: ["Matter"],
+      },
+    ),
   }),
 });
 
@@ -159,4 +217,11 @@ export const {
   useCreateNewMatterTaskMutation,
   useDeleteMatterTaskMutation,
   useCompleteMatterTaskMutation,
+
+  // Schedules
+  useGetMatterLeadAttorneyAppointmentsByDateQuery,
+  useGetAttorneyMatterSchedulesByDateQuery,
+  useCreateMatterScheduleMutation,
+  useUpdateMatterScheduleMutation,
+  useDeleteMatterScheduleMutation,
 } = matterService;
