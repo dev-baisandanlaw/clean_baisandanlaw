@@ -21,6 +21,7 @@ import {
 import { useDownloadDocumentMutation } from "@/store/services/documentService";
 import { type ClientRequestStatus } from "@/types/clientRequest";
 import { appNotifications } from "@/utils/notifications/notifications";
+import { useRouteErrorNotification } from "@/utils/notifications/useRouteErrorNotification";
 import { useUser } from "@clerk/nextjs";
 import { Button, Flex, ScrollArea, Tabs, TextInput } from "@mantine/core";
 import { useDebouncedValue, useMediaQuery } from "@mantine/hooks";
@@ -56,6 +57,8 @@ const statusFilters: { value: StatusFilter; label: string }[] = [
 ];
 
 export default function NotaryRequestsListing() {
+  useRouteErrorNotification({ entity: "client request" });
+
   const shrink = useMediaQuery("(max-width: 768px)");
   const { user, isLoaded } = useUser();
 

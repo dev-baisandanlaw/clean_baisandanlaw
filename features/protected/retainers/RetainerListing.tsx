@@ -16,8 +16,11 @@ import AddRetainerModal from "@/components/retainers/modals/AddRetainerModal";
 import { useGetAllRetainersQuery } from "@/store/services/retainerService";
 import DataTable from "@/components/data-table/DataTable";
 import { retainerColumns } from "@/components/data-table/columns/RetainerColumns";
+import { useRouteErrorNotification } from "@/utils/notifications/useRouteErrorNotification";
 
 export default function RetainerListing() {
+  useRouteErrorNotification({ entity: "retainer" });
+
   const shrink = useMediaQuery("(max-width: 768px)");
   const { user, isLoaded, isSignedIn } = useUser();
 

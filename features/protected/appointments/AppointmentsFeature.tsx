@@ -29,12 +29,15 @@ import {
   useGetPendingAttorneyAssignmentBookingsQuery,
 } from "@/store/services/bookingService";
 import { appNotifications } from "@/utils/notifications/notifications";
+import { useRouteErrorNotification } from "@/utils/notifications/useRouteErrorNotification";
 
 dayjs.extend(isSameOrAfter);
 
 const ymd = dayjs().format("YYYY-MM-DD");
 
 export default function AppointmentsFeature() {
+  useRouteErrorNotification();
+
   const isMobile = useMediaQuery(`(max-width: ${em(750)})`);
 
   const { user, isLoaded } = useUser();

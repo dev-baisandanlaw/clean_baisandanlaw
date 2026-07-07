@@ -16,8 +16,11 @@ import AddMatterModal from "@/components/matter/modals/AddMatterModal";
 import { useGetAllMattersQuery } from "@/store/services/matterService";
 import DataTable from "@/components/data-table/DataTable";
 import { matterColumns } from "@/components/data-table/columns/MatterColumns";
+import { useRouteErrorNotification } from "@/utils/notifications/useRouteErrorNotification";
 
 export default function MattersListing() {
+  useRouteErrorNotification({ entity: "matter" });
+
   const shrink = useMediaQuery("(max-width: 768px)");
 
   const { user } = useUser();

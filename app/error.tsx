@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
@@ -14,17 +15,26 @@ import {
   Title,
   useMantineTheme,
 } from "@mantine/core";
-import { IconArrowLeft, IconHome } from "@tabler/icons-react";
+import { IconHome, IconRefresh } from "@tabler/icons-react";
 
 import logo from "@/public/images/logo.png";
 
-export default function NotFound() {
+type ErrorPageProps = {
+  error: Error & { digest?: string };
+  reset: () => void;
+};
+
+export default function ErrorPage({ error, reset }: ErrorPageProps) {
   const router = useRouter();
   const theme = useMantineTheme();
 
+  useEffect(() => {
+    console.error(error);
+  }, [error]);
+
   return (
     <Box
-      bg="green.0"
+      bg="red.0"
       style={{
         minHeight: "100vh",
         display: "grid",
@@ -37,38 +47,39 @@ export default function NotFound() {
           p={{ base: 28, sm: 40 }}
           shadow="sm"
           style={{
-            border: `1px solid ${theme.colors.green[1]}`,
+            border: `1px solid ${theme.colors.red[1]}`,
             boxShadow: theme.other.customBoxShadow,
           }}
         >
           <Stack align="center" gap="md" ta="center">
-            <Image src={logo} alt="Bais Andan Law Firm" width={86} height={86} />
+            <Image
+              src={logo}
+              alt="Bais Andan Law Firm"
+              width={86}
+              height={86}
+            />
 
-            <Text fw={700} c="green.4" size="sm">
-              404
-            </Text>
-
-            <Title order={1} c="green.9" size="h2">
-              Page not found
+            <Title order={1} c="red.9" size="h2">
+              Something went wrong
             </Title>
 
             <Text c="dimmed" maw={440}>
-              The page you are looking for may have been moved, removed, or is
-              no longer available.
+              We could not load this page right now. Please try again or return
+              to the home page.
             </Text>
 
             <Group justify="center" mt="sm" gap="sm">
               <Button
+                color="red"
                 variant="light"
-                color="green"
-                leftSection={<IconArrowLeft size={18} />}
-                onClick={() => router.back()}
+                leftSection={<IconRefresh size={18} />}
+                onClick={reset}
               >
-                Go Back
+                Try Again
               </Button>
 
               <Button
-                color="green"
+                color="red"
                 leftSection={<IconHome size={18} />}
                 onClick={() => router.push("/")}
               >
