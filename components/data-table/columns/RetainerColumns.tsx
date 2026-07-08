@@ -18,7 +18,11 @@ export const retainerColumns: ColumnDef<RetainerRow>[] = [
 
       return (
         <Group gap="sm" wrap="nowrap">
-          {clientType === "individual" ? <IconUser /> : <IconBuilding />}
+          {clientType === "individual" ? (
+            <IconUser style={{ flexShrink: 0 }} size={16} />
+          ) : (
+            <IconBuilding style={{ flexShrink: 0 }} size={16} />
+          )}
           <Text size="sm" fw={600} c="green">
             {clientName}
           </Text>

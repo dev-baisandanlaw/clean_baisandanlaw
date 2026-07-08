@@ -4,11 +4,11 @@ import {
   Badge,
   Button,
   Card,
+  Center,
   Divider,
   Group,
   SimpleGrid,
   Stack,
-  Table,
   Text,
 } from "@mantine/core";
 import {
@@ -19,7 +19,6 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
-import EmptyTableComponent from "../EmptyTableComponent";
 import { TimeValue } from "@mantine/dates";
 import { Matter, MatterSchedule } from "@/types/matter";
 import BasicCard from "../Common/BasicCard";
@@ -119,14 +118,9 @@ export default function TabSchedules({ matterData }: TabSchedulesProps) {
               />
             </Stack>
           ) : (
-            <Table>
-              <Table.Tbody>
-                <EmptyTableComponent
-                  colspan={12}
-                  message="No schedules found"
-                />
-              </Table.Tbody>
-            </Table>
+            <Center h={200}>
+              <Text c="dimmed">No schedules found</Text>
+            </Center>
           )}
         </BasicCard>
       </Stack>

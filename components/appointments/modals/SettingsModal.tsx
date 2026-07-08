@@ -56,6 +56,16 @@ const toHolidayItems = (holidays: HolidaySetting[] = []) =>
 const formatWorkDayName = (day: string) =>
   day.charAt(0).toUpperCase() + day.slice(1);
 
+const WORK_SCHEDULE_DAYS = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+] as const;
+
 const timeToMinutes = (time: string) => {
   const [hours, minutes] = time.split(":").map(Number);
 
@@ -151,7 +161,9 @@ export default function SettingsModal({
 
   const workScheduleItems = useMemo(
     () =>
-      Object.keys(bookingSettings?.workSchedule ?? {}).map((day) => ({
+      WORK_SCHEDULE_DAYS.filter(
+        (day) => day in (bookingSettings?.workSchedule ?? {}),
+      ).map((day) => ({
         id: day,
         name: formatWorkDayName(day),
       })),

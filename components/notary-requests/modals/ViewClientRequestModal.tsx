@@ -84,9 +84,7 @@ export default function ViewClientRequestModal({
       {!isLoadingDetails && clientRequestData && (
         <Stack>
           <BasicCard title="Description">
-            <SpoilerComp>
-              <SpoilerComp>{clientRequestData.description}</SpoilerComp>
-            </SpoilerComp>
+            <SpoilerComp>{clientRequestData.description}</SpoilerComp>
           </BasicCard>
 
           <BasicCard title="Request Information">
