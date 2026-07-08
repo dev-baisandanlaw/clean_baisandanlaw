@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Alert,
   Box,
   Button,
   Container,
@@ -20,10 +19,35 @@ import logo from "@/public/images/logo.png";
 import { useForm } from "@mantine/form";
 import { useState } from "react";
 import { useSignIn } from "@clerk/nextjs";
+import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
 import { appNotifications } from "@/utils/notifications/notifications";
 import { useRouter } from "nextjs-toploader/app";
+import AuthErrorAlert from "@/components/Common/alert/AuthErrorAlert";
 
 const emailRegex = /^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/;
+const accountNotFoundErrorParts = [
+  "account not found",
+  "couldn't find your account",
+  "could not find your account",
+  "identifier is invalid",
+];
+
+const getResetPasswordErrorMessage = (error: unknown) => {
+  const message = isClerkAPIResponseError(error)
+    ? error.errors[0]?.longMessage || error.errors[0]?.message
+    : error instanceof Error
+      ? error.message
+      : "";
+
+  const normalizedMessage = message.toLowerCase();
+  const isAccountNotFoundError = accountNotFoundErrorParts.some((part) =>
+    normalizedMessage.includes(part)
+  );
+
+  return isAccountNotFoundError
+    ? "Invalid or expired code."
+    : message || "An error occurred. Please try again.";
+};
 
 export default function Page() {
   const { isLoaded, signIn, setActive } = useSignIn();
@@ -34,7 +58,7 @@ export default function Page() {
   const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   const [successfulCodeSent, setSuccessfulCodeSent] = useState(false);
-  const [error, setError] = useState<string>("");
+  const [resetError, setResetError] = useState("");
 
   const form = useForm({
     initialValues: {
@@ -68,33 +92,29 @@ export default function Page() {
 
   const handleGetCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
     setIsGettingCode(true);
+    setResetError("");
 
-    await signIn
-      ?.create({
+    try {
+      await signIn?.create({
         strategy: "reset_password_email_code",
         identifier: form.values.email,
-      })
-      .then(() => {
-        appNotifications.success({
-          title: "Code sent successfully",
-          message: "Please check your email for the code.",
-        });
-        setSuccessfulCodeSent(true);
-        setError("");
-      })
-      .catch((err) => {
-        setError(
-          err.errors?.[0].longMessage || "An error occurred. Please try again."
-        );
-      })
-      .finally(() => setIsGettingCode(false));
+      });
+    } catch {
+      // Keep the response identical whether or not the account exists.
+    } finally {
+      appNotifications.success({
+        title: "Check your email",
+        message: "If your account exists, you'll receive a reset code.",
+      });
+      setSuccessfulCodeSent(true);
+      setIsGettingCode(false);
+    }
   };
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    setResetError("");
 
     setIsResettingPassword(true);
 
@@ -115,11 +135,7 @@ export default function Page() {
           router.push("/appointments");
         }
       })
-      .catch((err) => {
-        setError(
-          err.errors?.[0].longMessage || "An error occurred. Please try again."
-        );
-      })
+      .catch((err) => setResetError(getResetPasswordErrorMessage(err)))
       .finally(() => setIsResettingPassword(false));
   };
 
@@ -158,22 +174,20 @@ export default function Page() {
               </Title>
               {!successfulCodeSent && (
                 <Text mb={16}>
-                  Please enter your email address below. We will send you a code
-                  to reset your password.
+                  Enter your email address below. If your account exists in the
+                  system, you&apos;ll receive a code to reset your password.
                 </Text>
               )}
               {successfulCodeSent && (
                 <Stack gap={4} mb={16}>
-                  <Text>We&apos;ve sent a verification code to </Text>
-                  <Text c="green.4" fw={700} mb={16}>
-                    {form.values.email}
+                  <Text>
+                    If your account exists in the system, you&apos;ll receive a
+                    reset code by email.
                   </Text>
                 </Stack>
               )}
 
-              {!!error && (
-                <Alert title={error} variant="light" color="red.9" mb={16} />
-              )}
+              {!!resetError && <AuthErrorAlert title={resetError} />}
             </header>
 
             {!successfulCodeSent && (
@@ -195,6 +209,15 @@ export default function Page() {
                 >
                   Get Code
                 </Button>
+                <Button
+                  fullWidth
+                  mt={8}
+                  variant="outline"
+                  component="a"
+                  href="/sign-in"
+                >
+                  Back to Login
+                </Button>
               </form>
             )}
 
@@ -205,7 +228,6 @@ export default function Page() {
                   <PinInput
                     type="number"
                     length={6}
-                    // size={shrinkLarger ? "xs" : "lg"}
                     styles={{
                       root: {
                         flexWrap: "wrap",
@@ -232,7 +254,11 @@ export default function Page() {
                     fullWidth
                     mt={16}
                     loading={isResettingPassword}
-                    disabled={!resetForm.isValid()}
+                    disabled={
+                      !resetForm.isValid() ||
+                      !resetForm.values.code ||
+                      resetForm.values.code.length !== 6
+                    }
                     type="submit"
                   >
                     Reset Password
@@ -244,7 +270,7 @@ export default function Page() {
                       setSuccessfulCodeSent(false);
                       resetForm.reset();
                       form.reset();
-                      setError("");
+                      setResetError("");
                     }}
                   >
                     Back

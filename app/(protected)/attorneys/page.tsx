@@ -1,10 +1,18 @@
 import AttorneyListing from "@/features/protected/attorneys/AttorneyListing";
+import { currentUser } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 
 export const metadata = {
   title: "Attorneys",
   description: "View and create accounts for your attorneys.",
 };
 
-export default function AttorneysPage() {
+export default async function AttorneysPage() {
+  const user = await currentUser();
+
+  if (user?.unsafeMetadata?.role !== "admin") {
+    redirect("/appointments?error=unauthorized");
+  }
+
   return <AttorneyListing />;
 }

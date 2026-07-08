@@ -1,23 +1,21 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo } from "react";
 
 import {
   Alert,
-  Badge,
+  Autocomplete,
   Button,
   Checkbox,
-  Divider,
   em,
+  FocusTrap,
   Group,
-  Modal,
+  Loader,
   NumberInput,
-  Paper,
   Radio,
   Select,
   SimpleGrid,
   Stack,
   Table,
   TableScrollContainer,
-  Tabs,
   TagsInput,
   Text,
   Textarea,
@@ -27,422 +25,269 @@ import {
 import { DatePickerInput, getTimeRange, TimeValue } from "@mantine/dates";
 import { useForm } from "@mantine/form";
 import { useMediaQuery } from "@mantine/hooks";
-import axios from "axios";
-import dayjs from "dayjs";
-import {
-  addDoc,
-  collection,
-  doc,
-  getDocs,
-  query,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-
-import {
-  ATTY_PRACTICE_AREAS,
-  CLERK_ORG_IDS,
-  COLLECTIONS,
-} from "@/constants/constants";
-import { db } from "@/firebase/config";
-import { Booking } from "@/types/booking";
-import { GlobalSched } from "@/types/global-sched";
-import { Attorney, Client } from "@/types/user";
-import { appNotifications } from "@/utils/notifications/notifications";
 import { IconInfoCircle } from "@tabler/icons-react";
+import dayjs from "dayjs";
 
-type AddAppointmentModalProps = {
+import AppModal from "@/components/Common/modal/AppModal";
+import { ATTY_PRACTICE_AREAS } from "@/constants/constants";
+import {
+  useGetBookingsByMonthQuery,
+  useManualBookNewAppointmentMutation,
+  useManualUpdateBookingMutation,
+} from "@/store/services/bookingService";
+import { useGetAttorneyMatterSchedulesByDateQuery } from "@/store/services/matterService";
+import { useGetUsersByOrgQuery } from "@/store/services/userService";
+import { Booking } from "@/types/booking";
+import { BookingSettings } from "@/types/bookingSettings";
+import { UserReference } from "@/types/user-reference";
+import { appNotifications } from "@/utils/notifications/notifications";
+import {
+  buildClientDetails,
+  getInitialManualAppointmentValues,
+  type ManualAppointmentFormValues,
+} from "./helpers/upsertAppointmentHelpers";
+
+type UpsertAppointmentModalProps = {
   opened: boolean;
   onClose: () => void;
   booking: Booking | null;
-  globalSched: GlobalSched | null;
+  bookingSettings?: BookingSettings;
 };
 
-export default function AddAppointmentModal({
+export default function UpsertAppointmentModal({
   opened,
   onClose,
   booking,
-  globalSched,
-}: AddAppointmentModalProps) {
+  bookingSettings,
+}: UpsertAppointmentModalProps) {
   const isMobile = useMediaQuery(`(max-width: ${em(750)})`);
   const theme = useMantineTheme();
 
-  const [times, setTimes] = useState<{ label: string; value: string }[]>([]);
+  const [manualBookNewAppointmentFn, { isLoading: isSaving }] =
+    useManualBookNewAppointmentMutation();
+  const [manualUpdateBookingFn, { isLoading: isUpdating }] =
+    useManualUpdateBookingMutation();
 
-  const [isLoading, setIsLoading] = useState(false);
+  const { data: usersByOrg, isFetching: isFetchingUsers } =
+    useGetUsersByOrgQuery({ types: ["attorney", "client"] }, { skip: !opened });
 
-  const [hasFetchedAtty, setHasFetchedAtty] = useState(false);
-  const [hasFetchedClient, setHasFetchedClient] = useState(false);
-
-  const [clientUsers, setClientUsers] = useState<Client[]>([]);
-  const [attorneyUsers, setAttorneyUsers] = useState<Attorney[]>([]);
-
-  const [attyBookings, setAttyBookings] = useState<Booking[]>([]);
-
-  const [selectedClientType, setSelectedClientType] = useState<
-    "Existing Client" | "New Client"
-  >("Existing Client");
-
-  const handleFetchAtty = async () => {
-    const { data } = await axios.get<Attorney[]>(
-      "/api/clerk/organization/fetch",
-      {
-        params: {
-          organization_id: CLERK_ORG_IDS.attorney,
-          limit: 500,
-          banned: false,
-        },
-      },
-    );
-    setAttorneyUsers(data);
-    setHasFetchedAtty(true);
-  };
-
-  const handleFetchClient = async () => {
-    const { data } = await axios.get<Client[]>(
-      "/api/clerk/organization/fetch",
-      {
-        params: {
-          organization_id: CLERK_ORG_IDS.client,
-          limit: 500,
-        },
-      },
-    );
-    setClientUsers(data);
-    setHasFetchedClient(true);
-  };
-
-  const fetchAttyBookings = async () => {
-    const { docs } = await getDocs(
-      query(
-        collection(db, COLLECTIONS.BOOKINGS),
-        where("attorney.id", "==", form.values.attorney),
-        where("date", "==", dayjs(form.values.date).format("YYYY-MM-DD")),
-      ),
-    );
-    setAttyBookings(
-      docs.map((doc) => ({ id: doc.id, ...doc.data() }) as Booking),
-    );
-  };
-
-  const form = useForm({
-    initialValues: {
-      client: "",
-      attorney: "",
-      date: new Date(),
-      time: "",
-      message: "",
-      via: "Walk-in",
-      areas: [] as string[],
-      consultationMode: "in-person",
-      branch: "",
-      representedByPreviousLawyer: false,
-      // TODO: add here the payment fields
-    },
-  });
-
-  const clientForm = useForm({
-    initialValues: {
-      firstName: "",
-      lastName: "",
-      email: "",
-      phoneNumber: "",
-      fullAddress: "",
-      birthday: null as Date | null,
-    },
+  const form = useForm<ManualAppointmentFormValues>({
+    initialValues: getInitialManualAppointmentValues(),
     validate: {
-      firstName: (value) => (!value.length ? "First name is required" : null),
-      lastName: (value) => (!value.length ? "Last name is required" : null),
-      email: (value) =>
-        !value?.length
-          ? "Email is required"
-          : /^\S+@\S+$/.test(value)
-            ? null
-            : "Invalid Email",
-      phoneNumber: (value) =>
-        String(value).length < 10 ? "Invalid Phone Number" : null,
+      clientDetails: {
+        fullname: (value) => (!value.length ? "Full name is required" : null),
+        email: (value) =>
+          !value?.length
+            ? "Email is required"
+            : /^\S+@\S+$/.test(value)
+              ? null
+              : "Invalid Email",
+        phone: (value) =>
+          String(value || "").length < 10 ? "Invalid Phone Number" : null,
+      },
     },
     validateInputOnChange: true,
   });
 
-  const handleSubmit = async (values: typeof form.values) => {
-    setIsLoading(true);
+  const selectedMonth = form.values.dateValue
+    ? dayjs(form.values.dateValue).format("YYYY-MM-DD")
+    : dayjs().format("YYYY-MM-DD");
 
-    let clientData;
+  const { data: monthBookings = [] } = useGetBookingsByMonthQuery(
+    { month: selectedMonth },
+    { skip: !opened },
+  );
 
-    const attyDetails = attorneyUsers.find(
-      (attorney) => attorney.id === values.attorney,
-    );
+  const attorneyUsers = usersByOrg?.attorney ?? [];
+  const clientUsers = usersByOrg?.client ?? [];
+  const matchedClient = clientUsers.find(
+    (client) =>
+      client.email?.trim().toLowerCase() ===
+      form.values.clientDetails.email?.trim().toLowerCase(),
+  );
+  const clientEmailOptions = clientUsers
+    .map((client) => client.email)
+    .filter((email): email is string => !!email);
 
-    if (selectedClientType === "Existing Client") {
-      const clientDetails = clientUsers.find(
-        (client) => client.id === values.client,
-      );
-      clientData = {
-        fullname: clientDetails?.first_name + " " + clientDetails?.last_name,
-        id: clientDetails?.id,
-        email: clientDetails?.email_addresses[0].email_address,
-        firstName: clientDetails?.first_name,
-        lastName: clientDetails?.last_name,
-        phoneNumber: clientDetails?.unsafe_metadata?.phoneNumber,
-        fullAddress: clientDetails?.unsafe_metadata?.fullAddress || "",
-        birthday: clientDetails?.unsafe_metadata?.birthday || "",
-      };
-    } else {
-      clientData = {
-        firstName: clientForm.values.firstName,
-        lastName: clientForm.values.lastName,
-        fullname:
-          clientForm.values.firstName + " " + clientForm.values.lastName,
-        email: clientForm.values.email,
-        phoneNumber: clientForm.values.phoneNumber || "",
-        fullAddress: clientForm.values.fullAddress || "",
-        birthday: clientForm.values.birthday
-          ? dayjs(clientForm.values.birthday).format("YYYY-MM-DD")
-          : "",
-      };
-    }
+  const normalizeClientDetails = (
+    client: UserReference,
+    fallbackEmail: string,
+  ): ManualAppointmentFormValues["clientDetails"] => ({
+    fullname: client.fullname || "",
+    email: client.email || fallbackEmail,
+    id: client.id || "",
+    phone: client.phone ? String(client.phone) : "",
+    fullAddress: client.fullAddress || client.fullAddres || "",
+    birthday: client.birthday ? new Date(client.birthday) : null,
+  });
 
-    const startISO = dayjs(
-      `${dayjs(values.date).format("YYYY-MM-DD")} ${values.time}`,
-    );
-    const endISO = startISO.add(1, "hour");
-
-    const firebaseAddBooking = async ({
-      eventId,
-      htmlLink,
-    }: {
-      eventId: string;
-      htmlLink: string;
-    }) => {
-      await addDoc(collection(db, COLLECTIONS.BOOKINGS), {
-        ...values,
-        existingClient: selectedClientType === "Existing Client",
-        date: dayjs(values.date).format("YYYY-MM-DD"),
-        attorney: {
-          fullname: attyDetails?.first_name + " " + attyDetails?.last_name,
-          id: attyDetails?.id,
-          email: attyDetails?.email_addresses[0].email_address,
-        },
-        client: clientData,
-        createdAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-        updatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-        googleCalendar: {
-          eventId,
-          htmlLink,
-        },
-        consultationMode: values.consultationMode,
-        branch: values.consultationMode === "in-person" ? values.branch : "",
-        paymentFields: { receiptFileId: "", isPaid: true },
-      })
-        .then(() => {
-          appNotifications.success({
-            title: "Appointment added successfully",
-            message: "The appointment has been added successfully",
-          });
-
-          onClose();
-        })
-        .catch(() => {
-          appNotifications.error({
-            title: "Failed to add appointment",
-            message: "The appointment could not be added. Please try again.",
-          });
-        })
-        .finally(() => setIsLoading(false));
-    };
-
-    const firebaseUpdateBooking = async ({
-      eventId,
-      htmlLink,
-    }: {
-      eventId: string;
-      htmlLink: string;
-    }) => {
-      await updateDoc(doc(db, COLLECTIONS.BOOKINGS, booking!.id), {
-        ...values,
-        existingClient: selectedClientType === "Existing Client",
-        date: dayjs(values.date).format("YYYY-MM-DD"),
-        attorney: {
-          fullname: attyDetails?.first_name + " " + attyDetails?.last_name,
-          id: attyDetails?.id,
-          email: attyDetails?.email_addresses[0].email_address,
-        },
-        client: clientData,
-        googleCalendar: {
-          eventId,
-          htmlLink,
-        },
-        consultationMode: values.consultationMode,
-        branch: values.consultationMode === "in-person" ? values.branch : "",
-      })
-        .then(() => {
-          appNotifications.success({
-            title: "Appointment updated successfully",
-            message: "The appointment has been updated successfully",
-          });
-          onClose();
-        })
-        .catch(() =>
-          appNotifications.error({
-            title: "Failed to update appointment",
-            message: "The appointment could not be updated. Please try again.",
-          }),
-        )
-        .finally(() => setIsLoading(false));
-    };
-
-    if (booking?.googleCalendar?.eventId) {
-      await axios
-        .post("/api/google/calendar/update", {
-          title: "DO NOT REPLY - Appointment from BaisAndan Law Office",
-          startISO: startISO.toISOString(),
-          endISO: endISO.toISOString(),
-          attendeesEmail: [
-            attyDetails?.email_addresses[0].email_address,
-            clientData.email,
-          ],
-          eventId: booking.googleCalendar.eventId,
-        })
-        .then(async ({ data }) => {
-          await firebaseUpdateBooking({
-            eventId: data.eventId,
-            htmlLink: data.htmlLink,
-          });
-        })
-        .catch(() => {
-          appNotifications.error({
-            title: "Failed to update appointment",
-            message: "The appointment could not be updated. Please try again.",
-          });
-          setIsLoading(false);
-        });
-
+  const fillClientFromEmail = (email: string) => {
+    if (booking) {
+      form.setFieldValue("clientDetails.email", email);
       return;
     }
 
-    await axios
-      .post("/api/google/calendar/add", {
-        title: "DO NOT REPLY - Appointment from BaisAndan Law Office",
-        startISO: startISO.toISOString(),
-        endISO: endISO.toISOString(),
-        attendeesEmail: [
-          attyDetails?.email_addresses[0].email_address,
-          clientData.email,
-        ],
-      })
-      .then(async ({ data: googleCalendarData }) => {
-        if (booking) {
-          await firebaseUpdateBooking({
-            eventId: googleCalendarData.eventId,
-            htmlLink: googleCalendarData.htmlLink,
-          });
-        } else {
-          await firebaseAddBooking({
-            eventId: googleCalendarData.eventId,
-            htmlLink: googleCalendarData.htmlLink,
-          });
-        }
+    const normalizedEmail = email.trim().toLowerCase();
+    const client = clientUsers.find(
+      (item) => item.email?.trim().toLowerCase() === normalizedEmail,
+    );
+
+    if (!client) {
+      form.setFieldValue("existingClient", false);
+      form.setFieldValue("clientDetails", {
+        fullname: "",
+        email,
+        id: "",
+        phone: "",
+        fullAddress: "",
+        birthday: null,
+      });
+      return;
+    }
+
+    form.setFieldValue("existingClient", true);
+    form.setFieldValue("clientDetails", normalizeClientDetails(client, email));
+  };
+
+  const selectedDate = form.values.date || "";
+
+  const {
+    data: attorneyMatterSchedules = [],
+    isFetching: isFetchingMatterSchedules,
+  } = useGetAttorneyMatterSchedulesByDateQuery(
+    { attorneyId: form.values.attorneyId || "", date: selectedDate },
+    { skip: !opened || !form.values.attorneyId || !selectedDate },
+  );
+
+  const attyBookings = useMemo(
+    () =>
+      monthBookings
+        .filter(
+          (item) =>
+            item.attorneyId === form.values.attorneyId &&
+            item.date === selectedDate &&
+            item.id !== booking?.id,
+        )
+        .sort((a, b) => a.time.localeCompare(b.time)),
+    [booking?.id, form.values.attorneyId, monthBookings, selectedDate],
+  );
+  const shouldShowAttorneyDateNotice =
+    !!form.values.dateValue &&
+    !!form.values.attorneyId &&
+    (isFetchingMatterSchedules ||
+      attyBookings.length > 0 ||
+      attorneyMatterSchedules.length > 0);
+
+  const times = useMemo(() => {
+    if (!bookingSettings) return [];
+
+    return getTimeRange({
+      startTime: bookingSettings.officeHourStart,
+      endTime: bookingSettings.officeHourEnd,
+      interval: `${bookingSettings.bookingIntervalMinutes}:00`,
+    }).map((time) => {
+      const hhmm = time.slice(0, 5);
+
+      return {
+        value: hhmm,
+        label: dayjs(`2000-01-01 ${hhmm}`).format("h:mm A"),
+      };
+    });
+  }, [bookingSettings]);
+
+  const handleSubmit = (values: ManualAppointmentFormValues) => {
+    const attorneyDetails = attorneyUsers.find(
+      (attorney) => attorney.id === values.attorneyId,
+    );
+
+    if (!values.dateValue || !attorneyDetails) return;
+
+    const payload = {
+      attorneyId: values.attorneyId,
+      attorneyDetails,
+      clientDetails: buildClientDetails(values.clientDetails),
+      existingClient: !!matchedClient,
+      representedByPreviousLawyer: values.representedByPreviousLawyer,
+      date: dayjs(values.dateValue).format("YYYY-MM-DD"),
+      time: values.time,
+      message: values.message.trim(),
+      via: values.via,
+      areas: values.areas,
+      consultationMode: values.consultationMode,
+      branch:
+        values.consultationMode === "in-person" ? values.branch : undefined,
+    };
+
+    const mutation = booking
+      ? manualUpdateBookingFn({ id: booking.id, ...payload })
+      : manualBookNewAppointmentFn(payload);
+
+    mutation
+      .unwrap()
+      .then(() => {
+        appNotifications.success({
+          title: booking
+            ? "Appointment updated successfully"
+            : "Appointment added successfully",
+          message: booking
+            ? "The appointment has been updated successfully"
+            : "The appointment has been added successfully",
+        });
+        onClose();
       })
       .catch(() => {
         appNotifications.error({
-          title: "Failed to add appointment",
-          message: "The appointment could not be added. Please try again.",
+          title: booking
+            ? "Failed to update appointment"
+            : "Failed to add appointment",
+          message: booking
+            ? "The appointment could not be updated. Please try again."
+            : "The appointment could not be added. Please try again.",
         });
-        setIsLoading(false);
       });
   };
 
   useEffect(() => {
-    if (hasFetchedAtty && hasFetchedClient) return;
-    handleFetchAtty();
-    handleFetchClient();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opened]);
-
-  useEffect(() => {
     if (!opened) {
       form.reset();
-      clientForm.reset();
-      setAttyBookings([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened]);
 
   useEffect(() => {
-    if (booking && opened) {
-      form.setValues({
-        attorney: booking.attorney?.id || "",
-        date: new Date(booking.date),
-        time: dayjs(`2000-01-01 ${booking.time}`).format("HH:mm"),
-        message: booking.message,
-        via: booking.via,
-        areas: booking.areas || [],
-        consultationMode: booking?.consultationMode || "in-person",
-        branch: booking?.branch || "",
-        representedByPreviousLawyer:
-          booking?.representedByPreviousLawyer || false,
-      });
+    if (!booking || !opened) return;
 
-      if (booking.existingClient) {
-        setSelectedClientType("Existing Client");
-        form.setFieldValue("client", booking.client.id);
-      } else {
-        setSelectedClientType("New Client");
-        form.setFieldValue("client", "");
-        clientForm.setValues({
-          firstName: booking.client.firstName,
-          lastName: booking.client.lastName,
-          email: booking.client.email,
-          phoneNumber: booking.client.phoneNumber,
-          fullAddress: booking.client.fullAddress || "",
-          birthday: booking.client.birthday
-            ? new Date(booking.client.birthday)
-            : null,
-        });
-      }
-    }
-
+    form.setValues({
+      attorneyId: booking.attorneyId || booking.attorneyDetails?.id || "",
+      attorneyDetails: booking.attorneyDetails || undefined,
+      clientDetails: normalizeClientDetails(
+        booking.clientDetails,
+        booking.clientDetails.email || "",
+      ),
+      existingClient: booking.existingClient,
+      dateValue: new Date(booking.date),
+      date: booking.date,
+      time: dayjs(`2000-01-01 ${booking.time}`).format("HH:mm"),
+      message: booking.message,
+      via: booking.via,
+      areas: booking.areas || [],
+      consultationMode: booking.consultationMode || "in-person",
+      branch: booking.branch || "",
+      representedByPreviousLawyer: !!booking.representedByPreviousLawyer,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opened, times]);
+  }, [booking, opened]);
 
-  useEffect(() => {
-    if (form.values.attorney && form.values.date) fetchAttyBookings();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.values.attorney, form.values.date]);
-
-  useEffect(() => {
-    if (opened && globalSched && globalSched?.officeHours) {
-      const { officeHours } = globalSched;
-
-      const timeHours = getTimeRange({
-        startTime: officeHours.officeStart,
-        endTime: officeHours.officeEnd,
-        interval: officeHours.bookingInterval,
-      });
-
-      setTimes(
-        timeHours.map((t) => {
-          const hhmm = t.slice(0, 5);
-          const d = dayjs(`2000-01-01 ${hhmm}`);
-          return {
-            value: hhmm,
-            label: d.format("h:mm A"),
-          };
-        }),
-      );
-    }
-  }, [opened, globalSched]);
+  const isLoading = isSaving || isUpdating || isFetchingUsers;
 
   return (
-    <Modal
+    <AppModal
       opened={opened}
       onClose={onClose}
       title={booking ? "Update Appointment" : "Add Appointment"}
-      centered
-      transitionProps={{ transition: "pop" }}
-      size="lg"
-      withCloseButton={!isLoading}
+      size="xl"
+      closable={!isLoading}
+      type="success"
     >
       {!booking && (
         <Alert
@@ -466,182 +311,160 @@ export default function AddAppointmentModal({
           </Text>
         </Alert>
       )}
+
+      <FocusTrap.InitialFocus />
+
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack gap="xl">
           <Stack gap="0">
-            <Divider label="Attorney" color="blue" />
             <Select
               withAsterisk
               searchable
               label="Attorney"
               placeholder="Select Attorney"
-              data={attorneyUsers.map((user) => ({
-                value: user.id,
-                label: `${user.first_name} ${user.last_name}`,
-              }))}
-              renderOption={({ option }) => {
-                const selectedAttorney = attorneyUsers.find(
-                  (attorney) => attorney.id === option.value,
-                );
-                const practiceAreas =
-                  selectedAttorney?.unsafe_metadata.practiceAreas || [];
-
-                return (
-                  <div>
-                    <div>{option.label}</div>
-                    <div
-                      style={{
-                        marginTop: 4,
-                        display: "flex",
-                        gap: 4,
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      {practiceAreas.map((area: string, index: number) => (
-                        <Badge
-                          key={index}
-                          size="xs"
-                          variant="outline"
-                          radius="xs"
-                        >
-                          {area}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                );
-              }}
+              data={attorneyUsers
+                .filter((user) => user.id)
+                .map((user) => ({
+                  value: user.id!,
+                  label: user.fullname,
+                }))}
+              rightSection={isFetchingUsers ? <Loader size="sm" /> : null}
               nothingFoundMessage="No attorneys found"
-              {...form.getInputProps("attorney")}
+              {...form.getInputProps("attorneyId")}
             />
 
-            {form.values.date &&
-              form.values.attorney &&
-              attyBookings?.filter((b) => b.id !== booking?.id)?.length > 0 && (
-                <Paper mt="md" withBorder radius="md" p="md" bg="blue.0">
-                  <Text size="sm" fw={600} mb="sm">
-                    Attorney&apos;s Booked Times with this date
-                  </Text>
-                  <TableScrollContainer mah={400} minWidth={200}>
-                    <Table withTableBorder style={{ borderRadius: 8 }}>
-                      <Table.Thead>
-                        <Table.Tr>
-                          <Table.Th>Time</Table.Th>
-                          <Table.Th>Client</Table.Th>
-                        </Table.Tr>
-                      </Table.Thead>
-
-                      <Table.Tbody>
-                        {attyBookings
-                          .filter((b) => b.id !== booking?.id)
-                          .map((booking, i) => (
-                            <Table.Tr key={i}>
-                              <Table.Td fw={600}>
-                                <TimeValue value={booking.time} format="12h" />
-                              </Table.Td>
-                              <Table.Td fw={600}>
-                                {booking.client.fullname}
-                              </Table.Td>
-                            </Table.Tr>
-                          ))}
-                      </Table.Tbody>
-                    </Table>
-                  </TableScrollContainer>
-                </Paper>
-              )}
-          </Stack>
-
-          <Stack gap="xs">
-            <Divider label="Client" color="blue" />
-            <Tabs
-              value={selectedClientType}
-              onChange={(value) =>
-                setSelectedClientType(value as "Existing Client" | "New Client")
-              }
-              variant="outline"
-            >
-              <Tabs.List>
-                <Tabs.Tab value="Existing Client" flex={1}>
-                  Existing Client
-                </Tabs.Tab>
-                <Tabs.Tab value="New Client" flex={1}>
-                  New Client
-                </Tabs.Tab>
-              </Tabs.List>
-            </Tabs>
-
-            {selectedClientType === "Existing Client" && (
-              <Select
-                withAsterisk
-                searchable
-                label="Client"
-                placeholder="Select Client"
-                data={clientUsers.map((user) => ({
-                  value: user.id,
-                  label: `${user.first_name} ${user.last_name} (${user.email_addresses[0].email_address})`,
-                }))}
-                nothingFoundMessage="No clients found"
-                {...form.getInputProps("client")}
-              />
-            )}
-
-            {selectedClientType === "New Client" && (
-              <SimpleGrid
-                cols={isMobile ? 1 : 2}
-                verticalSpacing={isMobile ? "2px" : "md"}
+            {shouldShowAttorneyDateNotice && (
+              <Alert
+                mt="md"
+                p="md"
+                color="blue"
+                styles={(theme) => ({
+                  title: { fontWeight: 600, color: theme.colors.blue[7] },
+                  body: { gap: 2 },
+                  root: { paddingBlock: 12 },
+                })}
               >
-                <TextInput
-                  withAsterisk
-                  label="First Name"
-                  placeholder="Enter First Name"
-                  {...clientForm.getInputProps("firstName")}
-                />
+                <Text size="xs" fw={600} mb="sm">
+                  Attorney&apos;s Booked Times and Matter Schedules with this
+                  date
+                </Text>
+                <TableScrollContainer mah={400} minWidth={200}>
+                  <Table withRowBorders style={{ borderRadius: 8 }}>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th fz="xs">Type</Table.Th>
+                        <Table.Th fz="xs">Time</Table.Th>
+                        <Table.Th fz="xs">Client / Schedule</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
 
-                <TextInput
-                  withAsterisk
-                  label="Last Name"
-                  placeholder="Enter Last Name"
-                  {...clientForm.getInputProps("lastName")}
-                />
+                    <Table.Tbody>
+                      {isFetchingMatterSchedules && (
+                        <Table.Tr>
+                          <Table.Td colSpan={3}>
+                            <Group gap="xs">
+                              <Loader size="xs" />
+                              <Text size="xs" c="dimmed">
+                                Checking matter schedules
+                              </Text>
+                            </Group>
+                          </Table.Td>
+                        </Table.Tr>
+                      )}
 
-                <TextInput
-                  withAsterisk
-                  label="Email"
-                  placeholder="Enter Email"
-                  {...clientForm.getInputProps("email")}
-                />
-                <NumberInput
-                  withAsterisk
-                  hideControls
-                  label="Phone Number"
-                  maxLength={10}
-                  placeholder="912 345 6789"
-                  leftSection={
-                    <Text size="sm" c="dimmed">
-                      +63
-                    </Text>
-                  }
-                  allowNegative={false}
-                  {...clientForm.getInputProps("phoneNumber")}
-                />
-                <TextInput
-                  label="Full Address"
-                  placeholder="Enter Full Address"
-                  {...clientForm.getInputProps("fullAddress")}
-                />
-                <DatePickerInput
-                  label="Birthday"
-                  placeholder="Select Birthday"
-                  clearable
-                  valueFormat="YYYY-MM-DD"
-                  {...clientForm.getInputProps("birthday")}
-                />
-              </SimpleGrid>
+                      {attyBookings.map((bookingItem) => (
+                        <Table.Tr key={bookingItem.id}>
+                          <Table.Td fw={600} fz="xs">
+                            Appointment
+                          </Table.Td>
+                          <Table.Td fw={600} fz="xs">
+                            <TimeValue value={bookingItem.time} format="12h" />
+                          </Table.Td>
+                          <Table.Td fw={600} fz="xs">
+                            {bookingItem.clientDetails.fullname}
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+
+                      {attorneyMatterSchedules.map((schedule) => (
+                        <Table.Tr key={schedule.id}>
+                          <Table.Td fw={600} fz="xs">
+                            Matter schedule
+                          </Table.Td>
+                          <Table.Td fw={600} fz="xs">
+                            <TimeValue value={schedule.time} format="12h" />
+                          </Table.Td>
+                          <Table.Td fw={600} fz="xs">
+                            {schedule.title}
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                </TableScrollContainer>
+              </Alert>
             )}
           </Stack>
 
           <Stack gap="xs">
-            <Divider label="Date & Time" color="blue" />
+            <SimpleGrid
+              cols={isMobile ? 1 : 2}
+              verticalSpacing={isMobile ? "2px" : "md"}
+            >
+              <TextInput
+                withAsterisk
+                label="Full Name"
+                placeholder="Enter Full Name"
+                {...form.getInputProps("clientDetails.fullname")}
+              />
+
+              <Autocomplete
+                withAsterisk
+                label="Email"
+                placeholder="Enter or search email"
+                data={clientEmailOptions}
+                value={form.values.clientDetails.email || ""}
+                onChange={fillClientFromEmail}
+                rightSection={isFetchingUsers ? <Loader size="sm" /> : null}
+              />
+
+              <NumberInput
+                withAsterisk
+                hideControls
+                label="Phone Number"
+                maxLength={10}
+                placeholder="912 345 6789"
+                leftSection={
+                  <Text size="sm" c="dimmed">
+                    +63
+                  </Text>
+                }
+                allowNegative={false}
+                {...form.getInputProps("clientDetails.phone")}
+              />
+              <DatePickerInput
+                label="Birthday"
+                placeholder="Select Birthday"
+                clearable
+                valueFormat="YYYY-MM-DD"
+                value={form.values.clientDetails.birthday || null}
+                onChange={(value) => {
+                  form.setFieldValue(
+                    "clientDetails.birthday",
+                    value ? new Date(value) : null,
+                  );
+                }}
+              />
+              <TextInput
+                label="Full Address"
+                placeholder="Enter Full Address"
+                style={{ gridColumn: isMobile ? undefined : "1 / -1" }}
+                {...form.getInputProps("clientDetails.fullAddress")}
+              />
+            </SimpleGrid>
+          </Stack>
+
+          <Stack gap="xs">
             <SimpleGrid
               cols={isMobile ? 1 : 2}
               verticalSpacing={isMobile ? "2px" : "md"}
@@ -652,18 +475,27 @@ export default function AddAppointmentModal({
                 placeholder="Select Date"
                 clearable
                 hideOutsideDates
-                {...form.getInputProps("date")}
+                value={form.values.dateValue}
+                onChange={(value) => {
+                  const dateValue = value ? new Date(value) : null;
+
+                  form.setFieldValue("dateValue", dateValue);
+                  form.setFieldValue(
+                    "date",
+                    dateValue ? dayjs(dateValue).format("YYYY-MM-DD") : "",
+                  );
+                }}
               />
 
               <Select
                 withAsterisk
                 label="Time"
                 placeholder="Select Time"
-                data={times?.map((time) => ({
+                data={times.map((time) => ({
                   value: time.value,
                   label: time.label,
                   disabled: attyBookings.some(
-                    (b) => b.time === time.value && b.id !== booking?.id,
+                    (bookingItem) => bookingItem.time === time.value,
                   ),
                 }))}
                 {...form.getInputProps("time")}
@@ -697,14 +529,11 @@ export default function AddAppointmentModal({
           </Stack>
 
           <Stack gap="xs">
-            <Divider label="Other Details" color="blue" />
-
             <Select
               withAsterisk
               label="Via"
               clearable={false}
               placeholder="Select Via"
-              {...form.getInputProps("via")}
               data={[
                 "Website",
                 "Phone Call",
@@ -714,6 +543,7 @@ export default function AddAppointmentModal({
                 "Referral",
                 "Others",
               ]}
+              {...form.getInputProps("via")}
             />
 
             <TagsInput
@@ -732,6 +562,7 @@ export default function AddAppointmentModal({
             />
 
             <Textarea
+              withAsterisk
               label="Description"
               placeholder="Enter description"
               minRows={6}
@@ -753,19 +584,18 @@ export default function AddAppointmentModal({
             </Button>
             <Button
               type="submit"
-              loading={isLoading}
+              loading={isSaving || isUpdating}
               disabled={
-                !form.values.attorney ||
-                !form.values.date ||
+                isLoading ||
+                !form.values.attorneyId ||
+                !form.values.dateValue ||
                 !form.values.time ||
                 !form.values.message ||
                 !form.values.via ||
                 !form.values.areas.length ||
                 (form.values.consultationMode === "in-person" &&
                   !form.values.branch) ||
-                (selectedClientType === "Existing Client" &&
-                  !form.values.client) ||
-                (selectedClientType === "New Client" && !clientForm.isValid())
+                !form.isValid()
               }
             >
               {booking ? "Update Appointment" : "Add Appointment"}
@@ -773,6 +603,6 @@ export default function AddAppointmentModal({
           </Group>
         </Stack>
       </form>
-    </Modal>
+    </AppModal>
   );
 }

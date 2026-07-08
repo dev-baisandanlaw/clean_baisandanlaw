@@ -2,37 +2,36 @@ import {
   ActionIcon,
   Button,
   em,
-  Modal,
   SimpleGrid,
   Stack,
   TagsInput,
   TextInput,
   useMantineTheme,
 } from "@mantine/core";
-import { ATTY_PRACTICE_AREAS, CLERK_ORG_IDS } from "@/constants/constants";
+import { ATTY_PRACTICE_AREAS } from "@/constants/constants";
 import { IconRefresh } from "@tabler/icons-react";
 import { useForm } from "@mantine/form";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { nanoid } from "nanoid";
-import axios from "axios";
 import { appNotifications } from "@/utils/notifications/notifications";
 import { useMediaQuery } from "@mantine/hooks";
+import AppModal from "@/components/Common/modal/AppModal";
+import { useAddNewAttorneyMutation } from "@/store/services/userService";
 
 interface AddAttorneyModalProps {
   opened: boolean;
   onClose: () => void;
-  setIsDataChanged: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export const AddAttorneyModal = ({
   opened,
   onClose,
-  setIsDataChanged,
 }: AddAttorneyModalProps) => {
   const isMobile = useMediaQuery(`(max-width: ${em(600)})`);
   const theme = useMantineTheme();
 
-  const [isLoading, setIsLoading] = useState(false);
+  const [createAttyFn, { isLoading: isSubmitting }] =
+    useAddNewAttorneyMutation();
 
   const form = useForm({
     initialValues: {
@@ -69,45 +68,26 @@ export const AddAttorneyModal = ({
   };
 
   const handleSubmit = async (values: typeof form.values) => {
-    setIsLoading(true);
+    createAttyFn({ ...values })
+      .unwrap()
+      .then(() => {
+        appNotifications.success({
+          title: "Attorney added successfully",
+          message: "The attorney has been added successfully",
+        });
 
-    try {
-      const { data: createdUserData } = await axios.post(
-        "/api/clerk/user/create-user",
-        values,
-      );
-
-      await axios.post("/api/clerk/organization/post-user-to-org", {
-        user_id: createdUserData!.id,
-        organization_id: CLERK_ORG_IDS.attorney,
+        onClose();
+      })
+      .catch((e) => {
+        const message =
+          e?.data?.message ||
+          "The attorney could not be added. Please try again.";
+        appNotifications.error({
+          title: "Failed to add attorney",
+          message,
+          autoClose: 5000,
+        });
       });
-
-      appNotifications.success({
-        title: "Attorney added successfully",
-        message: "The attorney has been added successfully",
-      });
-
-      setIsDataChanged(true);
-      onClose();
-    } catch (error: any) {
-      const errorMessage = error?.response?.data?.error?.errors?.[0]?.message;
-
-      if (errorMessage?.includes("online data breach")) {
-        form.setFieldError(
-          "password",
-          "Password is too weak. Please try again.",
-        );
-      }
-
-      appNotifications.error({
-        title: "Failed to add attorney",
-        message:
-          errorMessage || "The attorney could not be added. Please try again.",
-        autoClose: 5000,
-      });
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   useEffect(() => {
@@ -116,13 +96,13 @@ export const AddAttorneyModal = ({
   }, [opened]);
 
   return (
-    <Modal
+    <AppModal
       opened={opened}
       onClose={onClose}
       title="Add Attorney"
-      centered
-      transitionProps={{ transition: "pop" }}
       size="lg"
+      type="success"
+      closable={!isSubmitting}
     >
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack>
@@ -191,11 +171,15 @@ export const AddAttorneyModal = ({
             {...form.getInputProps("practiceAreas")}
           />
 
-          <Button type="submit" disabled={!form.isValid()} loading={isLoading}>
+          <Button
+            type="submit"
+            disabled={!form.isValid()}
+            loading={isSubmitting}
+          >
             Add Attorney
           </Button>
         </Stack>
       </form>
-    </Modal>
+    </AppModal>
   );
 };

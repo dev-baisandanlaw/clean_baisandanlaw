@@ -7,13 +7,13 @@ const SpoilerComp = ({ children }: { children: React.ReactNode }) => {
       maxHeight={75}
       showLabel={
         <Group gap="4">
-          <Text size="sm">Show more</Text>
+          <Text size="xs">Show more</Text>
           <IconChevronDown size={12} />
         </Group>
       }
       hideLabel={
         <Group gap="4">
-          <Text size="sm">Show less</Text>
+          <Text size="xs">Show less</Text>
           <IconChevronUp size={12} />
         </Group>
       }

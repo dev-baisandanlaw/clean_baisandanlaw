@@ -1,23 +1,21 @@
-import {
-  Modal,
-  Button,
-  Group,
-  Image,
-  LoadingOverlay,
-  Center,
-} from "@mantine/core";
+import { Button, Group, Image, LoadingOverlay, Center } from "@mantine/core";
 import { appNotifications } from "@/utils/notifications/notifications";
 import { useEffect, useState } from "react";
-import axios from "axios";
+import {
+  type DocumentDownloadSource,
+  useDownloadDocumentMutation,
+} from "@/store/services/documentService";
+import { useUser } from "@clerk/nextjs";
+import AppModal from "./modal/AppModal";
 
 interface ReceiptPreviewModalProps {
   opened: boolean;
   onClose: () => void;
   receiptFileId: string;
   isPaid: boolean;
-  onApprove: () => Promise<void>;
-  isDownloadOnly?: boolean;
+  onApprove?: () => Promise<void>;
   filenamePrefix?: string;
+  source: DocumentDownloadSource;
 }
 
 export default function ReceiptPreviewModal({
@@ -26,41 +24,60 @@ export default function ReceiptPreviewModal({
   receiptFileId,
   isPaid,
   onApprove,
-  isDownloadOnly = false,
   filenamePrefix = "receipt",
+  source,
 }: ReceiptPreviewModalProps) {
+  const { user } = useUser();
+  const isAdmin = user?.unsafeMetadata?.role === "admin";
+
   const [isApproving, setIsApproving] = useState(false);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [previewUrl, setPreviewUrl] = useState("");
 
+  const [downloadDocument] = useDownloadDocumentMutation();
+
   useEffect(() => {
+    let objectUrl = "";
+    let isActive = true;
+
     const loadPreview = async () => {
       setIsLoadingPreview(true);
       try {
-        const res = await axios.get(
-          `/api/google/drive/download_receipts/${receiptFileId}`,
-          { responseType: "blob" },
-        );
+        const receipt = await downloadDocument({
+          fileId: receiptFileId,
+          source,
+        }).unwrap();
 
-        const url = URL.createObjectURL(res.data);
-        setPreviewUrl(url);
-      } catch (error) {
-        console.error("Preview failed", error);
+        if (!isActive) {
+          URL.revokeObjectURL(receipt.objectUrl);
+          return;
+        }
+
+        objectUrl = receipt.objectUrl;
+        setPreviewUrl(objectUrl);
+      } catch {
+        appNotifications.error({
+          title: "Failed to load receipt",
+          message: "The receipt preview could not be loaded.",
+        });
       } finally {
-        setIsLoadingPreview(false);
+        if (isActive) {
+          setIsLoadingPreview(false);
+        }
       }
     };
 
     if (receiptFileId && opened) {
       loadPreview();
+    } else {
+      setPreviewUrl("");
     }
 
     return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      isActive = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [receiptFileId, opened]);
+  }, [downloadDocument, receiptFileId, opened, source]);
 
   const handleDownload = async () => {
     appNotifications.info({
@@ -69,39 +86,19 @@ export default function ReceiptPreviewModal({
     });
 
     try {
-      const res = await axios.get(
-        `/api/google/drive/download_receipts/${receiptFileId}`,
-        {
-          responseType: "blob",
-        },
-      );
+      const { objectUrl, extension } = await downloadDocument({
+        fileId: receiptFileId,
+        source,
+      }).unwrap();
+      let filename = filenamePrefix;
 
-      const disposition = res.headers["content-disposition"];
-      const filenameMatch = disposition?.match(
-        /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/,
-      );
-
-      let filename = `${filenamePrefix}-${receiptFileId}`;
-
-      if (filenameMatch?.[1]) {
-        let original = filenameMatch[1].replace(/['"]/g, "");
-
-        try {
-          original = decodeURIComponent(original);
-        } catch {
-          // ignore decode errors
-        }
-
-        const ext = original.split(".").pop();
-        if (ext) {
-          filename += `.${ext}`;
-        }
+      if (extension) {
+        filename += `.${extension}`;
       }
 
-      const url = window.URL.createObjectURL(res.data);
       const a = document.createElement("a");
 
-      a.href = url;
+      a.href = objectUrl;
       a.download = filename;
       a.style.display = "none";
 
@@ -109,7 +106,9 @@ export default function ReceiptPreviewModal({
       a.click();
 
       document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      window.setTimeout(() => {
+        window.URL.revokeObjectURL(objectUrl);
+      }, 1000);
     } catch {
       appNotifications.error({
         title: "Failed to download file",
@@ -121,7 +120,7 @@ export default function ReceiptPreviewModal({
   const handleApprove = async () => {
     setIsApproving(true);
     try {
-      await onApprove();
+      await onApprove?.();
       onClose();
     } catch {
       appNotifications.error({
@@ -134,12 +133,13 @@ export default function ReceiptPreviewModal({
   };
 
   return (
-    <Modal
+    <AppModal
       opened={opened}
       onClose={onClose}
       title="Receipt Preview"
       size="lg"
-      withCloseButton={!isApproving}
+      closable={!isApproving}
+      type="success"
     >
       {isLoadingPreview && (
         <Center h={400}>
@@ -164,12 +164,12 @@ export default function ReceiptPreviewModal({
         <Button onClick={handleDownload} variant="outline">
           Download
         </Button>
-        {!isPaid && !isDownloadOnly && (
+        {!isPaid && isAdmin && onApprove && (
           <Button onClick={handleApprove} color="green" loading={isApproving}>
             Approve
           </Button>
         )}
       </Group>
-    </Modal>
+    </AppModal>
   );
 }

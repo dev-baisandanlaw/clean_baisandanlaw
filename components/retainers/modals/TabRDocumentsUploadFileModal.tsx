@@ -1,324 +1,104 @@
-import {
-  ActionIcon,
-  Alert,
-  Button,
-  Flex,
-  Group,
-  Image,
-  Modal,
-  Paper,
-  SimpleGrid,
-  Stack,
-  Text,
-  ThemeIcon,
-} from "@mantine/core";
+import { Button, Group } from "@mantine/core";
 import { useEffect, useState } from "react";
 
-import {
-  Dropzone,
-  FileRejection,
-  IMAGE_MIME_TYPE,
-  PDF_MIME_TYPE,
-} from "@mantine/dropzone";
-import {
-  IconAlertCircle,
-  IconCloudUpload,
-  IconFileTypePdf,
-  IconX,
-} from "@tabler/icons-react";
-import { useUser } from "@clerk/nextjs";
-import { arrayUnion, doc, updateDoc } from "firebase/firestore";
-import { db } from "@/firebase/config";
-import { COLLECTIONS } from "@/constants/constants";
-import axios from "axios";
-import { nanoid } from "nanoid";
-import dayjs from "dayjs";
 import { appNotifications } from "@/utils/notifications/notifications";
+import { useUploadRetainerDocumentsMutation } from "@/store/services/retainerService";
+import AppModal from "@/components/Common/modal/AppModal";
+import MultiFileUploadComp from "@/components/Common/MultiFileUploadComp";
 
 interface TabRDocumentsUploadFileModalProps {
   opened: boolean;
   onClose: () => void;
   retainerId: string;
-  googleDriveFolderId: string;
-  setDataChanged: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export default function TabRDocumentsUploadFileModal({
   opened,
   onClose,
   retainerId,
-  googleDriveFolderId,
-  setDataChanged,
 }: TabRDocumentsUploadFileModalProps) {
-  const { user } = useUser();
+  const [uploadRetainerDocumentsFn, { isLoading: isUploadingDocument }] =
+    useUploadRetainerDocumentsMutation();
+
   const [files, setFiles] = useState<File[]>([]);
-  const [rejectedFiles, setRejectedFiles] = useState<FileRejection[]>([]);
-  const [disclaimer, setDisclaimer] = useState<string>("");
-
-  const [isUploading, setIsUploading] = useState(false);
-
-  const handleDrop = (newFiles: File[]) => {
-    setRejectedFiles([]);
-    const maxFiles = 5;
-    const remainingSlots = maxFiles - files.length;
-
-    if (remainingSlots <= 0) return;
-
-    // Remove duplicates by comparing name + size + lastModified
-    const uniqueNewFiles = newFiles.filter(
-      (newFile) =>
-        !files.some(
-          (existing) =>
-            existing.name === newFile.name &&
-            existing.size === newFile.size &&
-            existing.lastModified === newFile.lastModified
-        )
-    );
-
-    // Slice to ensure we don't exceed the max
-    const acceptedFiles = uniqueNewFiles.slice(0, remainingSlots);
-
-    setFiles((prev) => [...prev, ...acceptedFiles]);
-
-    const droppedCount = newFiles.length - acceptedFiles.length;
-    if (droppedCount > 0) {
-      setDisclaimer(
-        `${droppedCount} file(s) ignored due to duplicates or max limit`
-      );
-    }
-  };
-
-  const handleRemoveFile = (index: number) => {
-    setRejectedFiles([]);
-    setDisclaimer("");
-    setFiles((prev) => prev.filter((_, i) => i !== index));
-  };
 
   const handleUploadFiles = async () => {
-    setIsUploading(true);
+    uploadRetainerDocumentsFn({ id: retainerId, files: Array.from(files) })
+      .unwrap()
+      .then(({ failedUploads, successfulUploads }) => {
+        if (successfulUploads <= 0) {
+          appNotifications.error({
+            title: "Failed to upload files",
+            message: "All files failed to upload",
+          });
+          return;
+        }
 
-    try {
-      const retainerRef = doc(db, COLLECTIONS.RETAINERS, retainerId);
+        if (successfulUploads === files.length) {
+          appNotifications.success({
+            title: "Files uploaded successfully",
+            message: "All files were uploaded successfully",
+          });
+          onClose();
+          return;
+        }
 
-      const settled = await Promise.allSettled(
-        files.map(async (file) => {
-          const fd = new FormData();
-          fd.append("parentId", googleDriveFolderId);
-          fd.append("file", file);
-
-          const res = await axios.post("/api/google/drive/upload", fd);
-          return { file, raw: res.data };
-        })
-      );
-
-      const docsToAdd = settled
-        .filter((r) => r.status === "fulfilled")
-        .map((r) => {
-          const { file, raw } = r.value;
-          return {
-            id: nanoid(),
-            name: file.name,
-            mimeType: file.type,
-            originalSize: file.size,
-            sizeInMb: +(file.size / 1024 / 1024).toFixed(2),
-            uploadedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-            googleDriveId: raw.uploadedFiles.id,
-            uploadedBy: {
-              id: user?.id ?? null,
-              fullname:
-                [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
-                null,
-            },
-          };
-        });
-
-      if (docsToAdd.length) {
-        await updateDoc(retainerRef, {
-          updatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss"),
-          documents: arrayUnion(...docsToAdd),
-        });
+        if (successfulUploads > 0 && failedUploads > 0) {
+          appNotifications.success({
+            title: "Some files uploaded successfully",
+            message: `Only ${successfulUploads} file(s) were uploaded successfully`,
+          });
+          onClose();
+        }
+      })
+      .catch(() => {
         appNotifications.success({
-          title: `Files uploaded successfully`,
-          message: `${docsToAdd.length} file(s) uploaded successfully`,
+          title: "Failed to upload files",
+          message: "All files failed to upload",
         });
-        setDataChanged((prev) => !prev);
-        onClose();
-      }
-    } catch {
-      appNotifications.error({
-        title: "Failed to upload files",
-        message: "The files could not be uploaded. Please try again.",
       });
-      setIsUploading(false);
-      onClose();
-    }
   };
-
-  const previews = files.map((file, index) => {
-    const imageUrl = URL.createObjectURL(file);
-    return (
-      <Stack key={index} gap="xs" bdrs="md">
-        {file.type.includes("image") ? (
-          <Paper pos="relative" withBorder radius="md">
-            <Image
-              src={imageUrl}
-              alt={file?.name || ""}
-              onLoad={() => URL.revokeObjectURL(imageUrl)}
-              fit="cover"
-              radius="md"
-              width="100%"
-              h={125}
-              style={{ objectFit: "cover" }}
-            />
-            <ActionIcon
-              pos="absolute"
-              color="red"
-              top={5}
-              right={5}
-              size={24}
-              onClick={() => handleRemoveFile(index)}
-              disabled={isUploading}
-            >
-              <IconX size={16} />
-            </ActionIcon>
-          </Paper>
-        ) : (
-          <Paper pos="relative" withBorder radius="md">
-            <Flex
-              bdrs="md"
-              bg="gray.0"
-              w="100%"
-              h={125}
-              align="center"
-              justify="center"
-            >
-              <ThemeIcon variant="transparent" size={48} my="auto">
-                <IconFileTypePdf size={48} />
-              </ThemeIcon>
-            </Flex>
-
-            <ActionIcon
-              pos="absolute"
-              color="red"
-              top={5}
-              right={5}
-              size={24}
-              onClick={() => handleRemoveFile(index)}
-            >
-              <IconX size={16} />
-            </ActionIcon>
-          </Paper>
-        )}
-        <Text size="xs" truncate ml="2">
-          {file?.name}
-        </Text>
-      </Stack>
-    );
-  });
 
   useEffect(() => {
     if (!opened) {
       setFiles([]);
-      setDisclaimer("");
-      setRejectedFiles([]);
     }
   }, [opened]);
 
   return (
-    <Modal
+    <AppModal
       opened={opened}
       onClose={onClose}
       size="xl"
       title="Upload Document"
-      transitionProps={{ transition: "pop" }}
-      withCloseButton={!isUploading}
-      centered
+      closable={!isUploadingDocument}
+      type="success"
     >
-      {rejectedFiles.length > 0 && (
-        <Alert
-          color="red"
-          title={`${rejectedFiles.length} file(s) rejected due to file type or size limit`}
-          icon={<IconAlertCircle />}
-          mb="md"
-        />
-      )}
-
-      {files.length === 5 && disclaimer && (
-        <Alert
-          color="orange"
-          title={disclaimer}
-          icon={<IconAlertCircle />}
-          mb="md"
-        />
-      )}
-
-      <Dropzone
-        styles={{
-          root: {
-            border: `2px dashed ${files.length >= 5 ? "gray" : "green"}`,
-          },
-        }}
-        accept={[...IMAGE_MIME_TYPE, ...PDF_MIME_TYPE]}
-        onDrop={handleDrop}
-        onReject={setRejectedFiles}
-        maxSize={5 * 1024 * 1024}
-        mb="md"
-        disabled={files.length >= 5}
-        bg={files.length >= 5 ? "gray.2" : "#f6fcfb"}
-        style={{ cursor: files.length >= 5 ? "not-allowed" : "pointer" }}
-      >
-        <Stack
-          align="center"
-          justify="center"
-          gap="10"
-          mih={100}
-          style={{ pointerEvents: "none" }}
-        >
-          <IconCloudUpload
-            size={50}
-            color={files.length >= 5 ? "gray" : "green"}
-          />
-          <Text ta="center">
-            <Text span fw={700} c="green">
-              Click here
-            </Text>{" "}
-            to upload your files or drag
-          </Text>
-          <Text
-            c={files.length >= 5 ? "dimmed" : "green"}
-            size="sm"
-            fw={500}
-            ta="center"
-          >
-            Supported formats:{" "}
-            <Text span fw={700}>
-              Images
-            </Text>{" "}
-            and{" "}
-            <Text span fw={700}>
-              PDFs
-            </Text>{" "}
-            (Max 5 files, 5MB per file)
-          </Text>
-        </Stack>
-      </Dropzone>
-
-      <SimpleGrid cols={{ base: 1, xs: 2, sm: 3, md: 5 }}>
-        {previews}
-      </SimpleGrid>
+      <MultiFileUploadComp
+        files={files}
+        setFiles={setFiles}
+        acceptImage
+        acceptPdf
+        maxFiles={5}
+        disabled={isUploadingDocument}
+      />
 
       <Group justify="flex-end" mt="xl">
-        <Button variant="outline" onClick={onClose} disabled={isUploading}>
+        <Button
+          variant="outline"
+          onClick={onClose}
+          disabled={isUploadingDocument}
+        >
           Cancel
         </Button>
         <Button
           disabled={files.length === 0}
           onClick={handleUploadFiles}
-          loading={isUploading}
+          loading={isUploadingDocument}
         >
           Upload
         </Button>
       </Group>
-    </Modal>
+    </AppModal>
   );
 }

@@ -1,45 +1,35 @@
+import { UserReference } from "./user-reference";
+
+export interface BookingPaymentFields {
+  approvedBy?: UserReference | null;
+  approvedDate?: string;
+  isApproved?: boolean;
+  amount?: string;
+  imageLink?: string;
+  fileId?: string;
+}
+
 export interface Booking {
   id: string;
-  client: {
-    id: string;
-    fullname: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    phoneNumber: string;
-    birthday?: string;
-    fullAddress?: string;
-  };
-  attorney: {
-    fullname: string;
-    email: string;
-    id: string;
-  } | null;
-  adverseParty: string;
-  representedByPreviousLawyer: boolean;
-  consultationMode: "in-person" | "online";
-  branch?: "Angeles branch" | "Magalang branch" | null;
-  areas?: string[];
-  message: string;
+  adverseParty: string | null;
+  areas: string[];
+  attorneyDetails: UserReference | null;
+  attorneyId: string | null;
+  clientDetails: UserReference;
+  clientEmail: string;
   existingClient: boolean;
+  representedByPreviousLawyer?: boolean | null;
+  consultationMode: string;
+  branch: string | null;
   date: string;
   time: string;
-  via:
-    | "Website"
-    | "Phone Call"
-    | "Email"
-    | "Walk-in"
-    | "Facebook"
-    | "Referral"
-    | "Others";
-  createdAt: string;
-  updatedAt: string;
   googleCalendar: {
     eventId: string;
     htmlLink: string;
-  };
-  paymentFields: {
-    receiptFileId: string;
-    isPaid: boolean;
-  };
+  } | null;
+  paymentFields: BookingPaymentFields | null;
+  message: string;
+  via: string;
+  createdAt: string;
+  updatedAt: string;
 }

@@ -1,4 +1,3 @@
-import { NotaryRequestStatus } from "@/types/notary-requests";
 import {
   IconCalendar,
   IconUsers,
@@ -9,12 +8,6 @@ import {
 } from "@tabler/icons-react";
 
 export const NAV_LINKS = [
-  // {
-  //   label: "Dashboard",
-  //   href: "/dashboard",
-  //   icon: IconLayoutDashboard,
-  //   roles: ["admin", "attorney", "client"],
-  // },
   {
     label: "Appointments",
     href: "/appointments",
@@ -67,20 +60,6 @@ export const COLLECTIONS = {
   RETAINERS: "retainers",
 };
 
-export const PAYMONGO_CONFIG = {
-  CHECKOUT_SESSION: "https://api.paymongo.com/v1/checkout_sessions",
-  HEADERS: {
-    Authorization: `Basic ${process.env.NEXT_PUBLIC_PAYMONGO_BASIC_AUTH}`,
-    Accept: "application/json",
-    "Content-Type": "application/json",
-  },
-};
-
-export const CLERK_ORG_IDS = {
-  client: process.env.NEXT_PUBLIC_CLERK_CLIENT_ORG_ID,
-  attorney: process.env.NEXT_PUBLIC_CLERK_ATTY_ORG_ID,
-};
-
 export const CLERK_API_CONFIG = {
   baseUrl: "https://api.clerk.com/v1",
   headers: {
@@ -88,56 +67,6 @@ export const CLERK_API_CONFIG = {
     "Content-Type": "application/json",
   },
 };
-
-export const REGULAR_HOLIDAYS = [
-  { name: "New Year", date: "01/01", id: "new-year" },
-  { name: "Araw ng Kagitingan", date: "04/09", id: "kagitingan" },
-  { name: "Labor Day", date: "05/01", id: "labor-day" },
-  { name: "Independence Day", date: "06/12", id: "independence-day" },
-  { name: "Bonifacio Day", date: "11/30", id: "bonifacio-day" },
-  { name: "Christmas Day", date: "12/25", id: "christmas-day" },
-  { name: "Rizal Day", date: "12/30", id: "rizal-day" },
-];
-
-export const SPECIAL_HOLIDAYS = [
-  {
-    name: "EDSA People Power Revolution Anniversary",
-    date: "02/25",
-    id: "edsa",
-  },
-  { name: "Ninoy Aquino Day", date: "08/21", id: "ninoy" },
-  { name: "All Saints Day Eve", date: "10/31", id: "all-saints-eve" },
-  { name: "All Saints Day", date: "11/01", id: "all-saints" },
-  {
-    name: "Feast of the Immaculate Conception of Mary",
-    date: "12/08",
-    id: "immaculate-conception",
-  },
-  { name: "Christmas Eve", date: "12/24", id: "christmas-eve" },
-  { name: "Last Day of the Year", date: "12/31", id: "last-day" },
-];
-
-export const WORK_SCHEDULE = [
-  { name: "Monday", value: 1 },
-  { name: "Tuesday", value: 2 },
-  { name: "Wednesday", value: 3 },
-  { name: "Thursday", value: 4 },
-  { name: "Friday", value: 5 },
-  { name: "Saturday", value: 6 },
-  { name: "Sunday", value: 0 },
-];
-
-export const HOUR_INTERVAL = [
-  { name: "15 Minutes", value: "00:15" },
-  { name: "30 Minutes", value: "00:30" },
-  { name: "45 Minutes", value: "00:45" },
-  { name: "1 Hour", value: "01:00" },
-  { name: "2 Hours", value: "02:00" },
-  { name: "3 Hours", value: "03:00" },
-  { name: "4 Hours", value: "04:00" },
-  { name: "5 Hours", value: "05:00" },
-  { name: "6 Hours", value: "06:00" },
-];
 
 export const ATTY_PRACTICE_AREAS = [
   "General Law",
@@ -168,38 +97,3 @@ export const ATTY_PRACTICE_AREAS = [
   "Technology & Data Privacy Law",
   "Securities & Investment Law",
 ];
-
-export const NOTARY_STEPS = [
-  {
-    title: "Request",
-    description: "Start by telling us what you need.",
-  },
-  {
-    title: "Process",
-    description:
-      "Our team carefully reviews your request and prepares your document",
-  },
-  {
-    title: "Feedback",
-    description:
-      "You’ll get the chance to preview and confirm everything before we notarize.",
-  },
-  {
-    title: "Notify",
-    description:
-      "Once it's ready, we'll notify you so you can review or pick it up.",
-  },
-];
-
-export const NOTARY_STEPS_ORDER = {
-  [NotaryRequestStatus.SUBMITTED]: 1,
-  [NotaryRequestStatus.NEEDS_CLIENT_REVISION]: 1.5,
-  [NotaryRequestStatus.PAYMENT_PENDING]: 2,
-  [NotaryRequestStatus.FOR_ADMIN_PAYMENT_VERIFICATION]: 2.5,
-  [NotaryRequestStatus.PROCESSING]: 3,
-  [NotaryRequestStatus.NEEDS_ATTORNEY_REVISION]: 3.5,
-  [NotaryRequestStatus.FOR_CLIENT_REVIEW]: 4,
-  [NotaryRequestStatus.CLIENT_APPROVED]: 5,
-  [NotaryRequestStatus.COMPLETED]: 6,
-  [NotaryRequestStatus.CANCELLED]: -1,
-};

@@ -3,24 +3,13 @@
 import AppointmentsList from "@/components/appointments/AppointmentsList";
 import AppointmentSummary from "@/components/appointments/AppointmentSummary";
 import AppointmentsDatePicker from "@/components/appointments/DatePickerFilter";
-import UpsertAppointmentModal from "@/components/appointments/modals/UpsertAppointmentModal";
 import DeleteDuplicateModal from "@/components/appointments/modals/DeleteDuplicateModal";
+import UpsertAppointmentModal from "@/components/appointments/modals/UpsertAppointmentModal";
 import ViewAppointmentModal from "@/components/appointments/modals/ViewAppointmentModal";
 import ReceiptPreviewModal from "@/components/Common/ReceiptPreviewModal";
-import { COLLECTIONS } from "@/constants/constants";
-import { db } from "@/firebase/config";
 import { Booking } from "@/types/booking";
 import { useUser } from "@clerk/nextjs";
-import {
-  Alert,
-  Badge,
-  Button,
-  em,
-  Flex,
-  Group,
-  Stack,
-  Text,
-} from "@mantine/core";
+import { Alert, Button, em, Flex, Group, Stack, Text } from "@mantine/core";
 import {
   useDebouncedValue,
   useDisclosure,
@@ -28,187 +17,100 @@ import {
 } from "@mantine/hooks";
 import { IconCirclePlus, IconFlame, IconSettings } from "@tabler/icons-react";
 import dayjs from "dayjs";
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  onSnapshot,
-  query,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import SettingsModal from "@/components/appointments/modals/SettingsModal";
-import { GlobalSched } from "@/types/global-sched";
-import { appNotifications } from "@/utils/notifications/notifications";
 import { useRouter } from "nextjs-toploader/app";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
+import {
+  useApproveBookingReceiptMutation,
+  useGetBookingsByMonthQuery,
+  useGetBookingSettingsQuery,
+  useGetPendingAttorneyAssignmentBookingsQuery,
+} from "@/store/services/bookingService";
+import { appNotifications } from "@/utils/notifications/notifications";
+import { useRouteErrorNotification } from "@/utils/notifications/useRouteErrorNotification";
 
 dayjs.extend(isSameOrAfter);
 
 const ymd = dayjs().format("YYYY-MM-DD");
 
 export default function AppointmentsFeature() {
+  useRouteErrorNotification();
+
   const isMobile = useMediaQuery(`(max-width: ${em(750)})`);
 
   const { user, isLoaded } = useUser();
+  const isAdmin = user?.unsafeMetadata?.role === "admin";
   const router = useRouter();
 
-  const [dataChanged, setDataChanged] = useState(false);
-  const [globalSched, setGlobalSched] = useState<GlobalSched | null>(null);
-  const [isFetchingGlobalSched, setIsFetchingGlobalSched] = useState(false);
+  const [approveBookingReceiptFn] = useApproveBookingReceiptMutation();
 
-  const fetchGlobalSched = async () => {
-    try {
-      setIsFetchingGlobalSched(true);
-      const snap = await getDoc(
-        doc(
-          db,
-          COLLECTIONS.GLOBAL_SCHED,
-          process.env.NEXT_PUBLIC_FIREBASE_HOLIDAYS_BLOCKED_SCHED_ID!,
-        ),
-      );
-      if (!snap.exists()) return;
+  const { data: bookingSettings, isFetching: isFetchingBookingSettings } =
+    useGetBookingSettingsQuery(undefined, {
+      skip: !isAdmin,
+    });
 
-      setGlobalSched({ ...snap.data() } as GlobalSched);
-    } catch {
-      appNotifications.error({
-        title: "Failed to fetch global sched",
-        message: "The global sched could not be fetched. Please try again.",
-      });
-    } finally {
-      setIsFetchingGlobalSched(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!user || !isLoaded) return;
-
-    fetchGlobalSched();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataChanged, isLoaded]);
-
+  const { data: noAttorneyBookings = [] } =
+    useGetPendingAttorneyAssignmentBookingsQuery(undefined, {
+      skip: !isLoaded || !isAdmin,
+    });
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [noAttorneyBookings, setNoAttorneyBookings] = useState<Booking[]>();
-  const [isFetchingBookings, setIsFetchingBookings] = useState(false);
 
   const [selectedDate, setSelectedDate] = useState<string | null>(ymd);
   const [currentDate, setCurrentDate] = useState<string>(ymd);
+  const [debounced] = useDebouncedValue(currentDate, 150);
 
-  const [appModal, { open: openAppModal, close: closeAppModal }] =
-    useDisclosure(false);
-  const [delModal, { open: openDelModal, close: closeDelModal }] =
-    useDisclosure(false);
-  const [viewModal, { open: openViewModal, close: closeViewModal }] =
-    useDisclosure(false);
+  const { data: bookings = [], isFetching: isFetchingBookings } =
+    useGetBookingsByMonthQuery(
+      { month: debounced },
+      { skip: !isLoaded || !user },
+    );
+
   const [
     settingsModalOpened,
     { open: openSettingsModal, close: closeSettingsModal },
   ] = useDisclosure(false);
+  const [viewModal, { open: openViewModal, close: closeViewModal }] =
+    useDisclosure(false);
+  const [deleteModal, { open: openDeleteModal, close: closeDeleteModal }] =
+    useDisclosure(false);
+  const [upsertModal, { open: openUpsertModal, close: closeUpsertModal }] =
+    useDisclosure(false);
   const [
-    receiptModalOpened,
-    { open: openReceiptModal, close: closeReceiptModal },
+    receiptPreviewModal,
+    { open: openReceiptPreviewModal, close: closeReceiptPreviewModal },
   ] = useDisclosure(false);
 
-  const handleSelectBooking = async (
-    booking: Booking | null,
-    mode: "update" | "delete" | "view" | "add" | "receipt",
-  ) => {
-    setSelectedBooking(booking);
+  const handleApproveReceipt = async () => {
+    if (!selectedBooking?.id) return;
 
-    if (mode === "delete") {
-      openDelModal();
-    }
-
-    if (mode === "view") {
-      openViewModal();
-    }
-
-    if (mode === "add") {
-      openAppModal();
-    }
-
-    if (mode === "update") {
-      openAppModal();
-    }
-
-    if (mode === "receipt") {
-      openReceiptModal();
-    }
+    await approveBookingReceiptFn({ id: selectedBooking.id })
+      .unwrap()
+      .then(() => {
+        appNotifications.success({
+          title: "Payment approved",
+          message: "The booking receipt has been approved.",
+        });
+      });
   };
-
-  const fetchNoAttorneyBookings = async () => {
-    const ref = collection(db, COLLECTIONS.BOOKINGS);
-    const constraints = [
-      where("attorney", "==", null),
-      where("date", ">=", dayjs().format("YYYY-MM-DD")),
-    ];
-    const q = query(ref, ...constraints);
-    const snapshot = await getDocs(q);
-    const bookings = snapshot.docs.map(
-      (doc) => ({ id: doc.id, ...doc.data() }) as Booking,
-    );
-    setNoAttorneyBookings(bookings);
-  };
-
-  const [debounced] = useDebouncedValue(currentDate, 150);
-
-  useEffect(() => {
-    if (!user) return;
-
-    setIsFetchingBookings(true);
-
-    const startOfMonth = dayjs(debounced).startOf("month").format("YYYY-MM-DD");
-    const endOfMonth = dayjs(debounced).endOf("month").format("YYYY-MM-DD");
-
-    const ref = collection(db, COLLECTIONS.BOOKINGS);
-    const constraints = [
-      where("date", ">=", startOfMonth),
-      where("date", "<=", endOfMonth),
-    ];
-
-    if (user?.unsafeMetadata?.role === "client") {
-      constraints.push(where("client.id", "==", user?.id));
-    } else if (user?.unsafeMetadata?.role === "attorney") {
-      constraints.push(where("attorney.id", "==", user?.id)); // TODO: Automate attorney assignment when booking is created
-    }
-
-    const q = query(ref, ...constraints);
-
-    const unsub = onSnapshot(
-      q,
-      (snapshot) => {
-        const results: Booking[] = snapshot.docs.map((doc) => ({
-          ...doc.data(),
-          id: doc.id,
-        })) as Booking[];
-
-        setBookings(results);
-        setIsFetchingBookings(false);
-        fetchNoAttorneyBookings(); // Fetch no attorney bookings
-      },
-      (error) => {
-        console.error("Firestore onSnapshot error:", error);
-        setIsFetchingBookings(false);
-      },
-    );
-
-    return () => unsub();
-  }, [debounced, user]);
 
   return (
     <>
-      {user?.unsafeMetadata?.role === "admin" &&
-        noAttorneyBookings &&
-        noAttorneyBookings?.length > 0 && (
+      <Flex
+        w="100%"
+        h="100%"
+        gap={8}
+        px={{ sm: 12, md: 0 }}
+        direction="column"
+        style={{ minWidth: 0 }}
+      >
+        {isAdmin && noAttorneyBookings.length > 0 && (
           <Alert
             title="Pending Attorney Assignment"
             color="red"
             icon={<IconFlame />}
-            mb="xl"
+            mb="md"
             styles={(theme) => ({
               title: { fontWeight: 700, color: theme.colors.red[4] },
               icon: { color: theme.colors.red[4] },
@@ -220,41 +122,45 @@ export default function AppointmentsFeature() {
               root: {
                 backgroundColor: theme.colors.red[0],
                 boxShadow: theme.other.customBoxShadow,
-                borderRadius: 10,
+                borderRadius: 8,
               },
             })}
           >
             <Text mb="xs" size="sm">
-              There are future bookings waiting for an attorney assignment.
+              Assign an attorney to these future bookings. Select a date to open
+              the appointment editor directly.
             </Text>
 
             <Group gap="xs">
-              {noAttorneyBookings
-                ?.sort((a, b) => dayjs(a.date).diff(dayjs(b.date)))
+              {[...noAttorneyBookings]
+                .sort((a, b) => dayjs(a.date).diff(dayjs(b.date)))
                 .map((booking) => (
-                  <Badge
+                  <Button
                     key={booking.id}
-                    variant="outline"
+                    variant="filled"
                     color="red"
                     radius="xs"
+                    size="compact-xs"
+                    onClick={() => {
+                      setSelectedBooking(booking);
+                      openUpsertModal();
+                    }}
                   >
                     {getDateFormatDisplay(
                       `${booking.date} ${booking.time}`,
                       true,
                     )}
-                  </Badge>
+                  </Button>
                 ))}
             </Group>
           </Alert>
         )}
-      <Flex
-        w="100%"
-        h="100%"
-        gap={16}
-        px={{ sm: 12, md: 0 }}
-        direction="column"
-      >
-        <Group align="center" justify="center">
+
+        <Flex
+          align="center"
+          justify="center"
+          direction={isMobile ? "column" : "row"}
+        >
           <AppointmentsDatePicker
             bookings={bookings}
             selectedDate={selectedDate}
@@ -272,7 +178,10 @@ export default function AppointmentsFeature() {
                   leftSection={<IconCirclePlus />}
                   size="sm"
                   variant="outline"
-                  onClick={() => handleSelectBooking(null, "add")}
+                  onClick={() => {
+                    setSelectedBooking(null);
+                    openUpsertModal();
+                  }}
                 >
                   Add Appointment
                 </Button>
@@ -280,7 +189,7 @@ export default function AppointmentsFeature() {
                 <Button
                   leftSection={<IconSettings />}
                   size="sm"
-                  loading={isFetchingGlobalSched}
+                  loading={isFetchingBookingSettings}
                   variant="outline"
                   onClick={openSettingsModal}
                 >
@@ -305,60 +214,65 @@ export default function AppointmentsFeature() {
               selectedDate={selectedDate}
             />
           </Stack>
-        </Group>
+        </Flex>
 
         <AppointmentsList
           data={bookings || []}
-          isLoading={appModal ? false : isFetchingBookings}
+          isLoading={isFetchingBookings}
           selectedDate={selectedDate}
-          handleSelectBooking={handleSelectBooking}
+          onView={(booking) => {
+            setSelectedBooking(booking);
+            openViewModal();
+          }}
+          onEdit={(booking) => {
+            setSelectedBooking(booking);
+            openUpsertModal();
+          }}
+          onDelete={(booking) => {
+            setSelectedBooking(booking);
+            openDeleteModal();
+          }}
+          onViewReceipt={(booking) => {
+            setSelectedBooking(booking);
+            openReceiptPreviewModal();
+          }}
+          userRole={user?.unsafeMetadata?.role as string | undefined}
         />
       </Flex>
-
-      <UpsertAppointmentModal
-        opened={appModal}
-        onClose={closeAppModal}
-        booking={selectedBooking || null}
-        globalSched={globalSched}
-      />
-
-      <DeleteDuplicateModal
-        opened={delModal}
-        onClose={closeDelModal}
-        booking={selectedBooking || null}
-      />
 
       <ViewAppointmentModal
         opened={viewModal}
         onClose={closeViewModal}
-        booking={selectedBooking || null}
+        booking={selectedBooking}
+      />
+
+      <DeleteDuplicateModal
+        opened={deleteModal}
+        onClose={closeDeleteModal}
+        booking={selectedBooking}
+      />
+
+      <UpsertAppointmentModal
+        opened={upsertModal}
+        onClose={closeUpsertModal}
+        booking={selectedBooking}
+        bookingSettings={bookingSettings}
       />
 
       <SettingsModal
         opened={settingsModalOpened}
         onClose={closeSettingsModal}
-        globalSched={globalSched}
-        setDataChanged={setDataChanged}
+        bookingSettings={bookingSettings}
       />
 
       <ReceiptPreviewModal
-        opened={receiptModalOpened}
-        onClose={closeReceiptModal}
-        receiptFileId={selectedBooking?.paymentFields?.receiptFileId ?? ""}
-        isPaid={selectedBooking?.paymentFields?.isPaid ?? false}
-        onApprove={async () => {
-          if (!selectedBooking) return;
-          const ref = doc(db, COLLECTIONS.BOOKINGS, selectedBooking.id);
-          await updateDoc(ref, {
-            "paymentFields.isPaid": true,
-          });
-          appNotifications.success({
-            title: "Payment approved",
-            message: "The payment has been approved successfully.",
-          });
-          setDataChanged((prev) => !prev);
-        }}
-        filenamePrefix="receipt-booking"
+        opened={receiptPreviewModal}
+        onClose={closeReceiptPreviewModal}
+        receiptFileId={selectedBooking?.paymentFields?.fileId ?? ""}
+        isPaid={selectedBooking?.paymentFields?.isApproved ?? false}
+        onApprove={handleApproveReceipt}
+        filenamePrefix="booking-receipt"
+        source="appointments"
       />
     </>
   );

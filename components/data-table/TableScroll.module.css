@@ -1,0 +1,8 @@
+.scrollbar[data-orientation="vertical"] {
+  top: var(--header-height, 0px);
+  bottom: 14px;
+}
+
+.scrollbar[data-orientation="horizontal"] {
+  bottom: 10px;
+}

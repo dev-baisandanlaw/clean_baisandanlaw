@@ -1,64 +1,52 @@
-import { Retainer } from "@/types/retainer";
-import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
-import { getMimeTypeIcon } from "@/utils/getMimeTypeIcon";
-import {
-  ActionIcon,
-  Button,
-  Card,
-  Flex,
-  Group,
-  SimpleGrid,
-  Stack,
-  Table,
-  TableScrollContainer,
-  Tabs,
-  Text,
-  Tooltip,
-} from "@mantine/core";
-import {
-  IconCirclePlus,
-  IconFileDownload,
-  IconTrash,
-} from "@tabler/icons-react";
-import EmptyTableComponent from "../EmptyTableComponent";
-import TabRDocumentsUploadFileModal from "./modals/TabRDocumentsUploadFileModal";
-import { useDisclosure } from "@mantine/hooks";
-import axios from "axios";
+import { Button, em, Flex, SimpleGrid, Tabs } from "@mantine/core";
+import { IconFileUpload } from "@tabler/icons-react";
 import TabRDocumentsDeleteModal from "./modals/TabRDocumentsDeleteModal";
+import { useDisclosure, useMediaQuery } from "@mantine/hooks";
 import { useState, useMemo } from "react";
+import TabRDocumentsUploadFileModal from "./modals/TabRDocumentsUploadFileModal";
 import { appNotifications } from "@/utils/notifications/notifications";
+import { Retainer } from "@/types/retainer-new";
+import { Document } from "@/types/document";
+import BasicCard from "../Common/BasicCard";
+import DetailField from "../Common/DetailField";
+import { useUser } from "@clerk/nextjs";
+import { createRetainerDocumentColumns } from "../data-table/columns-no-pagination/RetainerDocumentsColumn";
+import DataTableNoPagination from "../data-table/DataTableNoPagination";
+import { useDownloadDocumentMutation } from "@/store/services/documentService";
 
 interface RTabDocumentsProps {
   retainerData: Retainer;
-  setDataChanged: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export default function RTabDocuments({
-  retainerData,
-  setDataChanged,
-}: RTabDocumentsProps) {
-  const [uploadModal, { open: openUploadModal, close: closeUploadModal }] =
-    useDisclosure(false);
-  const [deleteModal, { open: openDeleteModal, close: closeDeleteModal }] =
-    useDisclosure(false);
+export default function RTabDocuments({ retainerData }: RTabDocumentsProps) {
+  const { user } = useUser();
+  const shrink = useMediaQuery(`(max-width: ${em(768)})`);
 
-  const [selectedDocument, setSelectedDocument] = useState<
-    Retainer["documents"][number] | null
-  >(null);
+  const [downloadDocument] = useDownloadDocumentMutation();
+  const [selectedDocument, setSelectedDocument] = useState<Document>();
   const [activeTab, setActiveTab] = useState<string>("all");
 
-  // Filter documents based on active tab
+  const [
+    isDeleteModalFileOpen,
+    { open: openDeleteModalFile, close: closeDeleteModalFile },
+  ] = useDisclosure(false);
+
+  const [
+    isUploadModalFileOpen,
+    { open: openUploadModalFile, close: closeUploadModalFile },
+  ] = useDisclosure(false);
+
   const filteredDocuments = useMemo(() => {
     if (!retainerData.documents) return [];
 
     switch (activeTab) {
       case "images":
         return retainerData.documents.filter((doc) =>
-          doc.mimeType.startsWith("image/")
+          doc.mimeType.startsWith("image/"),
         );
       case "pdfs":
         return retainerData.documents.filter(
-          (doc) => doc.mimeType === "application/pdf"
+          (doc) => doc.mimeType === "application/pdf",
         );
       case "all":
       default:
@@ -73,36 +61,21 @@ export default function RTabDocuments({
     });
 
     try {
-      const res = await axios.get(`/api/google/drive/download/${fileId}`, {
-        responseType: "blob",
-      });
-
-      const disposition = res.headers["content-disposition"];
-      const filenameMatch = disposition?.match(
-        /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/
-      );
-
-      let filename = "download";
-      if (filenameMatch?.[1]) {
-        filename = filenameMatch[1].replace(/['"]/g, "");
-        try {
-          filename = decodeURIComponent(filename);
-        } catch {
-          /* Empty */
-        }
-      }
-
-      // Create and trigger download
-      const url = window.URL.createObjectURL(res.data);
+      const file = await downloadDocument({
+        fileId,
+        source: "retainers",
+      }).unwrap();
       const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      a.style.display = "none";
 
+      a.href = file.objectUrl;
+      a.download = file.filename;
+      a.style.display = "none";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      window.setTimeout(() => {
+        window.URL.revokeObjectURL(file.objectUrl);
+      }, 1000);
     } catch {
       appNotifications.error({
         title: "Failed to download file",
@@ -111,167 +84,106 @@ export default function RTabDocuments({
     }
   };
 
+  const canDelete = (doc: Document) => {
+    if (!user) return false;
+    return (
+      user.unsafeMetadata?.role !== "client" || user.id === doc.uploadedBy.id
+    );
+  };
+
+  const columns = useMemo(
+    () =>
+      createRetainerDocumentColumns({
+        onDownload: handleDownload,
+        onDelete: (doc) => {
+          setSelectedDocument(doc);
+          openDeleteModalFile();
+        },
+        canDelete,
+        userId: user?.id,
+        userRole: user?.unsafeMetadata?.role as string | undefined,
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [user, openDeleteModalFile],
+  );
+
   return (
     <>
-      <Flex direction="column" gap="md">
-        <SimpleGrid cols={1}>
-          <Card withBorder radius="md" p="md">
-            <Card.Section inheritPadding py="xs">
-              <Group justify="space-between">
-                <Text size="lg" fw={600} c="green">
-                  Documents
-                </Text>
-
-                <Button
-                  leftSection={<IconCirclePlus />}
-                  size="xs"
-                  variant="outline"
-                  onClick={openUploadModal}
-                >
-                  Upload
-                </Button>
-              </Group>
-            </Card.Section>
-
-            <Table variant="vertical" layout="fixed">
-              <Table.Tbody>
-                <Table.Tr>
-                  <Table.Th w={160}>Total Files</Table.Th>
-                  <Table.Td>
-                    <Text c="green" fw={600} size="sm">
-                      {retainerData.documents?.length || 0}
-                    </Text>
-                  </Table.Td>
-                </Table.Tr>
-
-                <Table.Tr>
-                  <Table.Th>Total Size</Table.Th>
-                  <Table.Td>
-                    <Text c="green" fw={600} size="sm">
-                      {retainerData.documents
-                        ?.reduce((sum, doc) => sum + (doc.sizeInMb || 0), 0)
-                        .toFixed(2) || 0}
-                      MB
-                    </Text>
-                  </Table.Td>
-                </Table.Tr>
-              </Table.Tbody>
-            </Table>
-          </Card>
-        </SimpleGrid>
+      <Flex direction="column" gap="md" style={{ minWidth: 0 }}>
+        <BasicCard
+          title="Documents"
+          actionButton={
+            <Button
+              leftSection={<IconFileUpload size={16} />}
+              size="xs"
+              variant="outline"
+              onClick={openUploadModalFile}
+            >
+              Upload
+            </Button>
+          }
+        >
+          <SimpleGrid cols={{ base: 2, xs: 2, sm: 4, md: 4 }}>
+            <DetailField
+              title="Files"
+              value={retainerData.documents?.length || "0"}
+            />
+            <DetailField
+              title="Size"
+              value={`${
+                retainerData?.documents
+                  ?.reduce((sum, doc) => sum + Number(doc.sizeInMb || 0), 0)
+                  .toFixed(2) || "0"
+              } MB`}
+            />
+            <DetailField
+              title="Images"
+              value={
+                retainerData.documents?.filter((doc) =>
+                  doc.mimeType.startsWith("image/"),
+                ).length || "0"
+              }
+            />
+            <DetailField
+              title="PDFs"
+              value={
+                retainerData.documents?.filter(
+                  (doc) => doc.mimeType === "application/pdf",
+                ).length || "0"
+              }
+            />
+          </SimpleGrid>
+        </BasicCard>
 
         <Tabs
           value={activeTab}
           onChange={(value) => setActiveTab(value || "all")}
         >
           <Tabs.List>
-            <Tabs.Tab value="all">
-              All ({retainerData.documents?.length || 0})
-            </Tabs.Tab>
-            <Tabs.Tab value="images">
-              Images (
-              {retainerData.documents?.filter((doc) =>
-                doc.mimeType.startsWith("image/")
-              ).length || 0}
-              )
-            </Tabs.Tab>
-            <Tabs.Tab value="pdfs">
-              PDFs (
-              {retainerData.documents?.filter(
-                (doc) => doc.mimeType === "application/pdf"
-              ).length || 0}
-              )
-            </Tabs.Tab>
+            <Tabs.Tab value="all">All</Tabs.Tab>
+            <Tabs.Tab value="images">Images</Tabs.Tab>
+            <Tabs.Tab value="pdfs">PDFs</Tabs.Tab>
           </Tabs.List>
         </Tabs>
 
-        <TableScrollContainer minWidth={500} h={"calc(100vh - 380px)"}>
-          <Table stickyHeader stickyHeaderOffset={0} verticalSpacing="xs">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Name</Table.Th>
-                <Table.Th>Size</Table.Th>
-                <Table.Th>Type</Table.Th>
-                <Table.Th>Upload Details</Table.Th>
-                <Table.Th>Actions</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-
-            <Table.Tbody>
-              {filteredDocuments.length > 0 &&
-                filteredDocuments.map((doc) => (
-                  <Table.Tr key={doc.id}>
-                    <Table.Td>
-                      <Tooltip label={doc.name} position="top">
-                        <Text truncate maw="200px" size="sm" fw={600} c="green">
-                          {doc.name}
-                        </Text>
-                      </Tooltip>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm" fw={600} c="green">
-                        {doc.sizeInMb.toFixed(2)} MB
-                      </Text>
-                    </Table.Td>
-                    <Table.Td>{getMimeTypeIcon(doc.mimeType)}</Table.Td>
-                    <Table.Td>
-                      <Stack gap={0}>
-                        <Text size="sm" fw={600} c="green">
-                          {doc.uploadedBy?.fullname || "-"}
-                        </Text>
-                        <Text size="xs" c="black" opacity={0.8}>
-                          {getDateFormatDisplay(doc.uploadedAt, true)}
-                        </Text>
-                      </Stack>
-                    </Table.Td>
-                    <Table.Td>
-                      <Group gap={6}>
-                        <ActionIcon
-                          size="sm"
-                          variant="subtle"
-                          onClick={() => handleDownload(doc.googleDriveId)}
-                        >
-                          <IconFileDownload size={24} />
-                        </ActionIcon>
-
-                        <ActionIcon
-                          variant="subtle"
-                          size="sm"
-                          color="red"
-                          onClick={() => {
-                            setSelectedDocument(doc);
-                            openDeleteModal();
-                          }}
-                        >
-                          <IconTrash />
-                        </ActionIcon>
-                      </Group>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-
-              {filteredDocuments.length === 0 && (
-                <EmptyTableComponent colspan={5} />
-              )}
-            </Table.Tbody>
-          </Table>
-        </TableScrollContainer>
+        <DataTableNoPagination
+          columns={columns}
+          data={filteredDocuments}
+          emptyText="No documents found."
+          maxHeight={shrink ? "100%" : "calc(100vh - 380px)"}
+        />
       </Flex>
 
       <TabRDocumentsUploadFileModal
-        opened={uploadModal}
-        onClose={closeUploadModal}
-        retainerId={retainerData.id!}
-        setDataChanged={setDataChanged}
-        googleDriveFolderId={retainerData.googleDriveFolderId}
+        opened={isUploadModalFileOpen}
+        onClose={closeUploadModalFile}
+        retainerId={retainerData.id}
       />
 
       <TabRDocumentsDeleteModal
-        opened={deleteModal}
-        onClose={closeDeleteModal}
-        file={selectedDocument!}
-        retainer={retainerData}
-        setDataChanged={setDataChanged}
+        opened={isDeleteModalFileOpen}
+        onClose={closeDeleteModalFile}
+        document={selectedDocument}
       />
     </>
   );

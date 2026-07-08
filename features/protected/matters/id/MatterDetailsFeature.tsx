@@ -4,32 +4,15 @@ import TabDocuments from "@/components/matter/TabDocuments";
 import TabOverview from "@/components/matter/TabOverview";
 import TabSchedules from "@/components/matter/TabSchedules";
 import TabTasks from "@/components/matter/TabTasks";
-import { COLLECTIONS } from "@/constants/constants";
-import { db } from "@/firebase/config";
-import { Matter } from "@/types/case";
-import { MatterUpdateDocument } from "@/types/matter-updates";
-import { Attorney, Client } from "@/types/user";
-import { appNotifications } from "@/utils/notifications/notifications";
 import { LoadingOverlay, ScrollArea, Tabs } from "@mantine/core";
 import {
   IconCategory,
   IconChecklist,
   IconFolder,
   IconCalendarWeek,
-  // IconMessage,
 } from "@tabler/icons-react";
-import axios from "axios";
-import {
-  collection,
-  doc,
-  getDoc,
-  onSnapshot,
-  query,
-  where,
-} from "firebase/firestore";
-import { createContext, useCallback, useEffect, useState } from "react";
-import { useRouter } from "nextjs-toploader/app";
 import { useUser } from "@clerk/nextjs";
+import { useGetSingleMatterQuery } from "@/store/services/matterService";
 
 interface MatterDetailsFeatureProps {
   matterId: string | null | undefined;
@@ -39,161 +22,22 @@ const tabs = [
   { value: "overview", label: "Overview", icon: IconCategory },
   { value: "documents", label: "Documents", icon: IconFolder },
   { value: "tasks", label: "Tasks", icon: IconChecklist },
-  { value: "schedule", label: "Schedule", icon: IconCalendarWeek },
-  // { value: "channel", label: "Channel", icon: IconMessage },
+  { value: "schedules", label: "Schedules", icon: IconCalendarWeek },
 ];
-
-export const DataChangedContext = createContext(false);
 
 export default function MatterDetailsFeature({
   matterId,
 }: MatterDetailsFeatureProps) {
-  const { user, isLoaded } = useUser();
-  const router = useRouter();
+  const { isLoaded } = useUser();
 
-  const [matterData, setMatterData] = useState<Matter | null>(null);
-  const [clientData, setClientData] = useState<Client | null>(null);
-  const [attorneyData, setAttorneyData] = useState<Attorney | null>(null);
-  const [matterUpdates, setMatterUpdates] =
-    useState<MatterUpdateDocument | null>(null);
-
-  const [isMatterLoading, setIsMatterLoading] = useState(false);
-  const [isClientLoading, setIsClientLoading] = useState(false);
-  const [isAttorneyLoading, setIsAttorneyLoading] = useState(false);
-
-  //context
-  const [dataChanged, setDataChanged] = useState(false);
-
-  const showNotification = useCallback((title: string, message: string) => {
-    appNotifications.clean();
-    appNotifications.cleanQueue();
-    appNotifications.error({
-      title,
-      message,
-    });
-  }, []);
-
-  const fetchClientDetails = useCallback(async (clientId: string) => {
-    try {
-      setIsClientLoading(true);
-      const { data } = await axios.get(
-        "/api/clerk/organization/fetch-single-user",
-        { params: { user_id: clientId } }
-      );
-      setClientData(data[0]);
-    } catch (err) {
-      console.error("fetchClientDetails error:", err);
-      setClientData(null);
-    } finally {
-      setIsClientLoading(false);
-    }
-  }, []);
-
-  const fetchAttorneyDetails = useCallback(async (attorneyId: string) => {
-    try {
-      setIsAttorneyLoading(true);
-      const { data } = await axios.get(
-        "/api/clerk/organization/fetch-single-user",
-        { params: { user_id: attorneyId } }
-      );
-      setAttorneyData(data[0]);
-    } catch (err) {
-      console.error("fetchAttorneyDetails error:", err);
-      setAttorneyData(null);
-    } finally {
-      setIsAttorneyLoading(false);
-    }
-  }, []);
-
-  const fetchMatterDetails = async () => {
-    if (!matterId) {
-      setMatterData(null);
-      setClientData(null);
-      setAttorneyData(null);
-
-      showNotification(
-        "Matter not found",
-        "The matter could not be found. Please try again."
-      );
-      router.push("/matters");
-      return;
-    }
-
-    setIsMatterLoading(true);
-    try {
-      const snap = await getDoc(doc(db, COLLECTIONS.CASES, matterId));
-      if (!snap.exists()) {
-        setMatterData(null);
-        setClientData(null);
-        setAttorneyData(null);
-
-        showNotification(
-          "Matter not found",
-          "The matter could not be found. Please try again."
-        );
-        router.push("/matters");
-
-        return;
-      }
-
-      const m = { ...(snap.data() as Matter), id: snap.id };
-
-      setMatterData(m);
-
-      if (m.clientData?.id) {
-        if (
-          user?.unsafeMetadata?.role === "client" &&
-          m.clientData.id !== user?.id
-        ) {
-          showNotification(
-            "Unauthorized",
-            "You are not authorized to access this matter."
-          );
-
-          router.push("/matters");
-          return;
-        }
-        fetchClientDetails(m.clientData.id);
-      } else {
-        setClientData(null);
-      }
-
-      if (m.leadAttorney?.id) {
-        fetchAttorneyDetails(m.leadAttorney.id);
-      } else {
-        setAttorneyData(null);
-      }
-    } catch (err) {
-      console.error("fetchMatterDetails error:", err);
-    } finally {
-      setIsMatterLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!matterId || !isLoaded) return;
-    fetchMatterDetails();
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [matterId, isLoaded, dataChanged]);
-
-  useEffect(() => {
-    if (!matterId) return;
-
-    const ref = collection(db, COLLECTIONS.MATTER_UPDATES);
-    const q = query(ref, where("id", "==", matterId));
-
-    const unsub = onSnapshot(q, (snapshot) => {
-      const results: MatterUpdateDocument[] = snapshot.docs.map((doc) => ({
-        ...doc.data(),
-        id: doc.id,
-      })) as MatterUpdateDocument[];
-
-      setMatterUpdates(results[0]);
-    });
-
-    return () => unsub();
-  }, [matterId]);
+  const { data: matterDetails, isLoading: isFetchingMatterDetails } =
+    useGetSingleMatterQuery(
+      {
+        id: matterId!,
+        options: ["documents", "tasks", "schedules", "notes", "updates"],
+      },
+      { skip: !matterId || !isLoaded },
+    );
 
   return (
     <Tabs
@@ -208,9 +52,7 @@ export default function MatterDetailsFeature({
         },
       }}
     >
-      <LoadingOverlay
-        visible={isMatterLoading || isClientLoading || isAttorneyLoading}
-      />
+      <LoadingOverlay visible={isFetchingMatterDetails} />
 
       <Tabs.List>
         {tabs.map((tab) => (
@@ -224,45 +66,28 @@ export default function MatterDetailsFeature({
         ))}
       </Tabs.List>
 
-      <ScrollArea h="calc(100vh - 170px)" mt="xs">
-        {!isMatterLoading &&
-          !isClientLoading &&
-          !isAttorneyLoading &&
-          matterData &&
-          attorneyData &&
-          matterUpdates && (
-            <Tabs.Panel value="overview">
-              <TabOverview
-                matterData={matterData}
-                clientData={clientData}
-                attorneyData={attorneyData}
-                matterUpdates={matterUpdates}
-                setDataChanged={setDataChanged}
-              />
-            </Tabs.Panel>
-          )}
+      <ScrollArea h="calc(100vh - 170px)" mt="xs" offsetScrollbars>
+        {!isFetchingMatterDetails && matterDetails && (
+          <Tabs.Panel value="overview">
+            <TabOverview matterData={matterDetails} />
+          </Tabs.Panel>
+        )}
 
-        {!isMatterLoading && matterData && (
+        {!isFetchingMatterDetails && matterDetails && (
           <Tabs.Panel value="documents">
-            <TabDocuments
-              matterData={matterData}
-              setDataChanged={setDataChanged}
-            />
+            <TabDocuments matterData={matterDetails} />
           </Tabs.Panel>
         )}
 
-        {!isMatterLoading && matterData && (
+        {!isFetchingMatterDetails && matterDetails && (
           <Tabs.Panel value="tasks">
-            <TabTasks matterData={matterData} />
+            <TabTasks matterData={matterDetails} />
           </Tabs.Panel>
         )}
 
-        {!isMatterLoading && matterData && (
-          <Tabs.Panel value="schedule">
-            <TabSchedules
-              matterData={matterData}
-              setDataChanged={setDataChanged}
-            />
+        {!isFetchingMatterDetails && matterDetails && (
+          <Tabs.Panel value="schedules">
+            <TabSchedules matterData={matterDetails} />
           </Tabs.Panel>
         )}
       </ScrollArea>

@@ -1,10 +1,15 @@
-import { AreaBadge, BookingViaBadge } from "@/components/Common/BadgeComp";
+import {
+  AreaBadge,
+  BookingViaBadge,
+  PaymentBadge,
+} from "@/components/Common/BadgeComp";
 import BasicCard from "@/components/Common/BasicCard";
 import DetailField from "@/components/Common/DetailField";
+import AppModal from "@/components/Common/modal/AppModal";
 import SpoilerComp from "@/components/Common/SpoilerComp";
 import { Booking } from "@/types/booking";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
-import { Button, Group, Modal, SimpleGrid, Stack, Text } from "@mantine/core";
+import { Button, Group, SimpleGrid, Stack } from "@mantine/core";
 import dayjs from "dayjs";
 
 type ViewAppointmentModalProps = {
@@ -21,48 +26,54 @@ export default function ViewAppointmentModal({
   if (!booking) return null;
 
   return (
-    <Modal
+    <AppModal
       opened={opened}
       onClose={onClose}
-      title={
-        <Group gap="xs">
-          <Text fw={600}>View Appointment</Text>
-          <BookingViaBadge via={booking.via} />
-        </Group>
-      }
-      centered
+      title="Appointment Information"
       size="xl"
-      transitionProps={{ transition: "pop" }}
+      type="success"
+      closable
     >
       <Stack>
         <BasicCard title="Client's Information">
           <SimpleGrid cols={{ base: 2, xs: 3 }}>
-            <DetailField title="Full Name" value={booking.client.fullname} />
-            <DetailField title="Email" value={booking.client.email} />
+            <DetailField
+              title="Full Name"
+              value={booking.clientDetails.fullname}
+            />
+            <DetailField title="Email" value={booking.clientDetails.email} />
             <DetailField
               title="Phone Number"
-              value={booking.client.phoneNumber || "-"}
+              value={booking.clientDetails?.phone}
             />
             <DetailField
               title="Birthday"
               value={
-                booking.client.birthday
-                  ? dayjs(booking?.client?.birthday).format("MMM D, YYYY")
-                  : "-"
+                booking.clientDetails.birthday
+                  ? dayjs(booking.clientDetails.birthday).format("MMM D, YYYY")
+                  : undefined
               }
             />
             <DetailField
               title="Address"
-              value={booking.client.fullAddress || "-"}
+              value={booking.clientDetails.fullAddress}
             />
           </SimpleGrid>
         </BasicCard>
 
-        <BasicCard title="Booking Information">
+        <BasicCard
+          title="Booking Information"
+          actionButton={
+            <PaymentBadge
+              hasReceiptUploaded={!!booking.paymentFields?.fileId}
+              isPaid={!!booking.paymentFields?.isApproved}
+            />
+          }
+        >
           <SimpleGrid cols={{ base: 2, xs: 3 }} mb="md">
             <DetailField
               title="Assigned Attorney"
-              value={booking.attorney?.fullname || "-"}
+              value={booking.attorneyDetails?.fullname}
             />
             <DetailField
               title="Date & Time"
@@ -75,24 +86,30 @@ export default function ViewAppointmentModal({
               title="Consultation"
               value={
                 booking?.consultationMode === "in-person"
-                  ? booking?.branch || "-"
+                  ? (booking?.branch ?? undefined)
                   : booking?.consultationMode === "online"
                     ? "Online"
-                    : "-"
+                    : undefined
               }
             />
             <DetailField
-              title="Represented by Previous Lawyer"
+              title="Via"
+              value={<BookingViaBadge via={booking.via} />}
+            />
+            <DetailField
+              title="Represented by previous lawyer"
               value={booking?.representedByPreviousLawyer ? "Yes" : "No"}
             />
             <DetailField
               title="Areas"
               value={
-                <Group gap="xs">
-                  {booking.areas?.map((area) => (
-                    <AreaBadge key={area} area={area} />
-                  ))}
-                </Group>
+                booking.areas.length > 0 ? (
+                  <Group gap={4}>
+                    {booking.areas.map((area) => (
+                      <AreaBadge key={area} area={area} />
+                    ))}
+                  </Group>
+                ) : undefined
               }
             />
           </SimpleGrid>
@@ -114,6 +131,6 @@ export default function ViewAppointmentModal({
           Close
         </Button>
       </Stack>
-    </Modal>
+    </AppModal>
   );
 }

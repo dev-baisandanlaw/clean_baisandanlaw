@@ -1,6 +1,5 @@
 import "@mantine/core/styles.css";
 import "@mantine/dates/styles.css";
-import "@mantine/charts/styles.css";
 import "@mantine/dropzone/styles.css";
 
 import "./globals.css";
@@ -16,9 +15,10 @@ import type { Metadata } from "next";
 import { Open_Sans } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 // import AppShellComponent from "@/components/AppShellComponent";
-import { ToastContainer } from "react-toastify";
 import { Notifications } from "@mantine/notifications";
 import NextTopLoader from "nextjs-toploader";
+import { Providers } from "./providers";
+import { ClerkTokenProvider } from "@/components/clerk/ClerkTokenProvider";
 
 const openSans = Open_Sans({
   variable: "--font-open-sans",
@@ -63,7 +63,12 @@ const theme = createTheme({
 
   components: {
     TextInput: { defaultProps: { maxLength: 75 } },
-    Textarea: { defaultProps: { maxLength: 1000 } },
+    Textarea: {
+      defaultProps: {
+        maxLength: 1000,
+        inputWrapperOrder: ["label", "error", "input", "description"],
+      },
+    },
     TagsInput: {
       defaultProps: {
         maxTags: 10,
@@ -144,21 +149,23 @@ export default function RootLayout({
         className={`${openSans.variable}`}
         style={{ margin: 0, padding: 0 }}
       >
-        <NextTopLoader />
-        <ToastContainer position="top-center" autoClose={2000} />
-        <MantineProvider theme={theme}>
-          <Notifications position="top-center" />
-          <ClerkProvider
-            appearance={{
-              variables: {
-                colorPrimary: "#2B4E45",
-              },
-            }}
-          >
-            {children}
-            {/* <AppShellComponent>{children}</AppShellComponent> */}
-          </ClerkProvider>
-        </MantineProvider>
+        <NextTopLoader color="green" />
+        <Providers>
+          <MantineProvider theme={theme}>
+            <Notifications position="top-center" />
+            <ClerkProvider
+              appearance={{
+                variables: {
+                  colorPrimary: "#2B4E45",
+                },
+              }}
+            >
+              <ClerkTokenProvider />
+              {children}
+              {/* <AppShellComponent>{children}</AppShellComponent> */}
+            </ClerkProvider>
+          </MantineProvider>
+        </Providers>
       </body>
     </html>
   );

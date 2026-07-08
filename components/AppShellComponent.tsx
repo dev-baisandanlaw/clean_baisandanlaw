@@ -24,11 +24,11 @@ import {
 import { useDisclosure, useMediaQuery } from "@mantine/hooks";
 import { IconLogout } from "@tabler/icons-react";
 import { useClerk, useUser } from "@clerk/nextjs";
-import dayjs from "dayjs";
 
 import { NAV_LINKS } from "@/constants/constants";
 import { appNotifications } from "@/utils/notifications/notifications";
 import logo from "@/public/images/logo.png";
+import { useGetCurrentClientSubscriptionQuery } from "@/store/services/userService";
 
 import styles from "./Appshell.module.css";
 
@@ -38,6 +38,13 @@ export default function AppShellComponent({
   children: React.ReactNode;
 }) {
   const { user } = useUser();
+  const userRole = user?.unsafeMetadata?.role as string | undefined;
+  const userEmail = user?.emailAddresses[0]?.emailAddress;
+  const { data: currentSubscription } = useGetCurrentClientSubscriptionQuery(
+    { clientEmail: userEmail || "" },
+    { skip: userRole !== "client" || !userEmail },
+  );
+
   const { signOut } = useClerk();
   const pathname = usePathname();
   const theme = useMantineTheme();
@@ -165,65 +172,58 @@ export default function AppShellComponent({
         <Divider my="sm" />
 
         <AppShell.Section component={ScrollArea}>
-          {NAV_LINKS.filter((n) =>
-            n.roles.includes(user?.unsafeMetadata?.role as string),
-          ).map((link, i) => {
-            if (
-              link.label === "Retainers" &&
-              user?.unsafeMetadata?.role === "client" &&
-              // @ts-expect-error - user is a client
-              (!user?.unsafeMetadata?.subscription?.subscribedEndDate ||
-                // subscription is still valid
-                dayjs().isAfter(
-                  dayjs(
-                    // @ts-expect-error - user is a client
-                    user?.unsafeMetadata?.subscription?.subscribedEndDate,
-                  ).endOf("day"),
-                ))
-            ) {
-              return null;
-            }
-            return (
-              <React.Fragment key={link.label}>
-                <NavLink
-                  active
-                  component={Link}
-                  label={link.label}
-                  href={link.href}
-                  variant={
-                    pathname === link.href || pathname.startsWith(link.href)
-                      ? "filled"
-                      : "light"
-                  }
-                  className={styles.appShellRoot}
-                  styles={{
-                    label: {
-                      color: "white",
-                      fontWeight:
-                        pathname === link.href || pathname.startsWith(link.href)
-                          ? 700
-                          : 600,
-                      letterSpacing: 1.5,
-                    },
-                    root: {
-                      borderRadius: 6,
-                      backgroundColor:
-                        pathname === link.href || pathname.startsWith(link.href)
-                          ? theme.other.customLighterGreen
-                          : "transparent",
-                    },
-                  }}
-                  leftSection={<link.icon color="white" />}
-                  mb="sm"
-                />
+          {NAV_LINKS.filter((n) => n.roles.includes(userRole as string)).map(
+            (link, i) => {
+              if (
+                link.label === "Retainers" &&
+                userRole === "client" &&
+                !currentSubscription
+              ) {
+                return null;
+              }
+              return (
+                <React.Fragment key={link.label}>
+                  <NavLink
+                    active
+                    component={Link}
+                    label={link.label}
+                    href={link.href}
+                    variant={
+                      pathname === link.href || pathname.startsWith(link.href)
+                        ? "filled"
+                        : "light"
+                    }
+                    className={styles.appShellRoot}
+                    styles={{
+                      label: {
+                        color: "white",
+                        fontWeight:
+                          pathname === link.href ||
+                          pathname.startsWith(link.href)
+                            ? 700
+                            : 600,
+                        letterSpacing: 1.5,
+                      },
+                      root: {
+                        borderRadius: 6,
+                        backgroundColor:
+                          pathname === link.href ||
+                          pathname.startsWith(link.href)
+                            ? theme.other.customLighterGreen
+                            : "transparent",
+                      },
+                    }}
+                    leftSection={<link.icon color="white" />}
+                    mb="sm"
+                  />
 
-                {user?.unsafeMetadata?.role === "admin" &&
-                  i === NAV_LINKS.length - 3 && (
+                  {userRole === "admin" && i === NAV_LINKS.length - 3 && (
                     <Divider mt="md" label="Users" labelPosition="left" />
                   )}
-              </React.Fragment>
-            );
-          })}
+                </React.Fragment>
+              );
+            },
+          )}
         </AppShell.Section>
 
         <AppShell.Section mt="auto">

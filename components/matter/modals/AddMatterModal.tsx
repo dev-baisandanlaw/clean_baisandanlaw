@@ -1,11 +1,7 @@
-import { useEffect, useState } from "react";
-
-import { useRouter } from "next/navigation";
-
 import {
   Button,
   Group,
-  Modal,
+  Loader,
   Select,
   Stack,
   TagsInput,
@@ -14,24 +10,15 @@ import {
   useMantineTheme,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import { useUser } from "@clerk/nextjs";
-import { addDoc, collection, doc, setDoc } from "firebase/firestore";
-import dayjs from "dayjs";
-import axios from "axios";
 
-import {
-  ATTY_PRACTICE_AREAS,
-  CLERK_ORG_IDS,
-  COLLECTIONS,
-} from "@/constants/constants";
-import { db } from "@/firebase/config";
-import { syncToAppwrite } from "@/lib/syncToAppwrite";
+import { ATTY_PRACTICE_AREAS } from "@/constants/constants";
 import { appNotifications } from "@/utils/notifications/notifications";
 
-import { addMatterUpdate } from "../utils/addMatterUpdate";
-
-import { Attorney, Client } from "@/types/user";
-import { MatterUpdateType } from "@/types/matter-updates";
+import { useCreateNewMatterMutation } from "@/store/services/matterService";
+import { CreateNewMatterDto } from "@/store/service-types/type-matter-service";
+import { useGetUsersByOrgQuery } from "@/store/services/userService";
+import AppModal from "@/components/Common/modal/AppModal";
+import { useRouter } from "nextjs-toploader/app";
 
 interface AddMatterModalProps {
   opened: boolean;
@@ -42,223 +29,135 @@ export default function AddMatterModal({
   opened,
   onClose,
 }: AddMatterModalProps) {
-  const { user } = useUser();
   const theme = useMantineTheme();
   const router = useRouter();
 
-  const form = useForm({
+  const {
+    data: users,
+    isLoading: isLoadingUsers,
+    isFetching: isFetchingUsers,
+  } = useGetUsersByOrgQuery(
+    {
+      types: ["attorney", "client"],
+    },
+    { skip: !opened },
+  );
+
+  const [createNewMatterFn, { isLoading: isSubmitting }] =
+    useCreateNewMatterMutation();
+
+  const form = useForm<CreateNewMatterDto>({
     initialValues: {
       caseNumber: "",
       leadAttorney: {
         fullname: "",
         id: "",
-        imageUrl: "",
+        email: "",
+        phone: "",
       },
       clientData: {
         fullname: "",
         id: "",
-        imageUrl: "",
+        email: "",
+        phone: "",
       },
       caseType: [],
       caseDescription: "",
     },
   });
 
-  const [isClientFetchCalled, setIsClientFetchCalled] = useState(false);
-  const [isAttorneyFetchCalled, setIsAttorneyFetchCalled] = useState(false);
-
-  const [clientUsers, setClientUsers] = useState<Client[]>([]);
-  const [attorneyUsers, setAttorneyUsers] = useState<Attorney[]>([]);
-
-  const [isLoading, setIsLoading] = useState(false);
-
   const handleSubmit = async (values: typeof form.values) => {
-    const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
-    setIsLoading(true);
+    const leadAttorneyDetails = users?.attorney.find(
+      (user) => user.id === values.leadAttorney.id,
+    );
 
-    try {
-      const leadAttorneyDetails = attorneyUsers.find(
-        (user) => user.id === values.leadAttorney.id,
-      );
-      const attyCasesCount =
-        leadAttorneyDetails?.unsafe_metadata?.involvedCases || 0;
+    const clientDetails = users?.client.find(
+      (user) => user.id === values.clientData.id,
+    );
 
-      const clientDetails = clientUsers.find(
-        (user) => user.id === values.clientData.id,
-      );
-
-      const data = {
-        ...values,
-        leadAttorney: {
-          fullname:
-            leadAttorneyDetails?.first_name +
-            " " +
-            leadAttorneyDetails?.last_name,
-          id: leadAttorneyDetails?.id,
-          imageUrl: leadAttorneyDetails?.profile_image_url,
-          email: leadAttorneyDetails?.email_addresses[0].email_address,
-        },
-        clientData: {
-          fullname: clientDetails?.first_name + " " + clientDetails?.last_name,
-          id: clientDetails?.id,
-          imageUrl: clientDetails?.profile_image_url,
-          email: clientDetails?.email_addresses[0].email_address,
-        },
-        caseNumber: form.values.caseNumber.trim(),
-        createdBy: {
-          id: user!.id,
-          fullname: user!.firstName + " " + user!.lastName,
-          email: user!.emailAddresses[0].emailAddress,
-        },
-        createdAt: now,
-        updatedAt: now,
-        documents: [],
-        status: "active",
-      };
-
-      // 1. Create Google Drive folder for the matter
-      const { data: googleDriveFolder } = await axios.post(
-        "/api/google/drive/gFolders/create",
-        {
-          name: form.values.caseNumber.trim(),
-          parentId: process.env.NEXT_PUBLIC_GOOGLE_DOCUMENTS_MATTERS_FOLDER_ID,
-        },
-      );
-
-      // 2. Add matter to database
-      const res = await addDoc(collection(db, COLLECTIONS.CASES), {
-        ...data,
-        googleDriveFolderId: googleDriveFolder.id,
-      });
-
-      // 3. Update lead attorney's involved cases count
-      await axios.patch("/api/clerk/user/update-user-metadata", {
-        userId: leadAttorneyDetails?.id,
-        unsafe_metadata: {
-          ...leadAttorneyDetails?.unsafe_metadata,
-          involvedCases: attyCasesCount + 1,
-        },
-      });
-
-      // 4. Sync matter to Appwrite
-      await syncToAppwrite("MATTERS", res.id, {
-        matterNumber: form.values.caseNumber.trim(),
-
-        leadAttorneyFirstName: leadAttorneyDetails?.first_name,
-        leadAttorneyLastName: leadAttorneyDetails?.last_name,
-
-        clientFirstName: clientDetails?.first_name,
-        clientLastName: clientDetails?.last_name,
-
-        status: "active",
-        matterType: values.caseType.join("&_&"),
-
-        leadAttorneyId: leadAttorneyDetails?.id,
-        clientId: clientDetails?.id,
-
-        search_blob: `${form.values.caseNumber.trim()} ${leadAttorneyDetails?.first_name} ${leadAttorneyDetails?.last_name} ${clientDetails?.first_name} ${clientDetails?.last_name} ${values.caseType.join(" ")}`,
-      });
-
-      // 5. Update tasks collection
-      await setDoc(doc(db, COLLECTIONS.TASKS, res.id), {
-        caseId: res.id,
-        totalTasks: 0,
-        totalPendingTasks: 0,
-        totalCompletedTasks: 0,
-        tasks: [],
-        createdAt: now,
-        updatedAt: now,
-      });
-
-      // 6. Add matter update
-      await addMatterUpdate(
-        user!,
-        res.id,
-        "system",
-        MatterUpdateType.SYSTEM,
-        "Matter Initiated",
-      );
-
-      appNotifications.success({
-        title: "Matter added successfully",
-        message: "The matter has been initiated successfully",
-      });
-      onClose();
-      router.push(`/matters/${res.id}`);
-    } catch {
+    if (!leadAttorneyDetails || !clientDetails) {
       appNotifications.error({
-        title: "Failed to add matter",
-        message: "The matter could not be added. Please try again.",
+        message: "Client or Attorney details are missing",
+        title: "Failed to create new Matter",
       });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (isClientFetchCalled && isAttorneyFetchCalled) {
-      form.reset();
       return;
     }
 
-    const fetchClientUsers = async () => {
-      const { data } = await axios.get("/api/clerk/organization/fetch", {
-        params: {
-          organization_id: CLERK_ORG_IDS.client,
-          limit: 500,
-        },
-      });
-
-      setClientUsers(data);
-      setIsClientFetchCalled(true);
+    const payload = {
+      ...values,
+      leadAttorney: {
+        fullname: leadAttorneyDetails?.fullname,
+        id: leadAttorneyDetails?.id,
+        email: leadAttorneyDetails?.email,
+        phone: leadAttorneyDetails?.phone || undefined,
+      },
+      clientData: {
+        fullname: clientDetails?.fullname,
+        id: clientDetails?.id,
+        email: clientDetails?.email,
+        phone: clientDetails?.phone || undefined,
+      },
+      caseNumber: form.values.caseNumber.trim(),
     };
 
-    const fetchAttorneyUsers = async () => {
-      const { data } = await axios.get("/api/clerk/organization/fetch", {
-        params: {
-          organization_id: CLERK_ORG_IDS.attorney,
-          limit: 500,
-        },
+    createNewMatterFn(payload)
+      .unwrap()
+      .then(({ data }) => {
+        const id = data?.id;
+
+        appNotifications.success({
+          title: "Matter added successfully",
+          message: "The matter has been initiated successfully",
+        });
+
+        onClose();
+
+        router.push(`/matters/${id}`);
+      })
+      .catch((e) => {
+        const message = e?.data?.message
+          ? e.data.message
+          : "The matter could not be added. Please try again.";
+
+        appNotifications.error({
+          title: "Failed to add matter",
+          message,
+        });
       });
+  };
 
-      setAttorneyUsers(data);
-      setIsAttorneyFetchCalled(true);
-    };
-
-    fetchAttorneyUsers();
-    fetchClientUsers();
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isClientFetchCalled, isAttorneyFetchCalled, opened]);
+  const isLoading = isFetchingUsers || isLoadingUsers;
 
   return (
-    <Modal
+    <AppModal
       opened={opened}
       onClose={onClose}
-      title="Add Matter"
-      centered
+      title="New Matter"
       transitionProps={{ transition: "pop" }}
       size="lg"
-      withCloseButton={!isLoading}
+      type="success"
+      closable={!isSubmitting}
     >
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack gap="md">
           <TextInput
             withAsterisk
             label="Matter Number"
-            placeholder="Enter Matter Number"
+            placeholder="JA_2020_01_20"
             {...form.getInputProps("caseNumber")}
           />
           <Select
             withAsterisk
             label="Lead Attorney"
-            placeholder="Select Lead Attorney"
-            data={attorneyUsers
-              .filter((user) => !user.banned)
-              .map((user) => ({
-                value: user.id,
-                label: `${user.first_name} ${user.last_name} (${user.email_addresses[0].email_address})`,
-              }))}
+            placeholder="Jane Doe (jane.doe@example.com)"
+            data={
+              users?.attorney?.map((u) => ({
+                value: u?.id || "",
+                label: `${u.fullname} (${u.email})`,
+              })) || []
+            }
+            rightSection={isLoading ? <Loader size="sm" /> : undefined}
+            disabled={isLoading}
             searchable
             clearable
             nothingFoundMessage="No attorneys found"
@@ -268,13 +167,17 @@ export default function AddMatterModal({
           <Select
             withAsterisk
             label="Client"
-            placeholder="Select Client"
-            data={clientUsers.map((user) => ({
-              value: user.id,
-              label: `${user.first_name} ${user.last_name} (${user.email_addresses[0].email_address})`,
-            }))}
+            placeholder="Jane Doe (jane.doe@example.com)"
+            data={
+              users?.client?.map((u) => ({
+                value: u?.id || "",
+                label: `${u.fullname} (${u.email})`,
+              })) || []
+            }
             searchable
             clearable
+            rightSection={isLoading ? <Loader size="sm" /> : undefined}
+            disabled={isLoading}
             nothingFoundMessage="No clients found"
             {...form.getInputProps("clientData.id")}
           />
@@ -282,7 +185,7 @@ export default function AddMatterModal({
           <TagsInput
             withAsterisk
             label="Matter Type"
-            placeholder="Select Matter Type"
+            placeholder="General Law, Civil Law"
             data={ATTY_PRACTICE_AREAS}
             clearable
             styles={{
@@ -297,7 +200,7 @@ export default function AddMatterModal({
           <Textarea
             withAsterisk
             label="Description"
-            placeholder="Enter description"
+            placeholder="Type here the matter's description"
             minRows={6}
             autosize
             styles={{ input: { paddingBlock: 6 } }}
@@ -305,12 +208,12 @@ export default function AddMatterModal({
           />
 
           <Group justify="end">
-            <Button variant="outline" onClick={onClose} disabled={isLoading}>
+            <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </Button>
             <Button
               type="submit"
-              loading={isLoading}
+              loading={isSubmitting}
               disabled={
                 !form.values.leadAttorney.id ||
                 !form.values.clientData.id ||
@@ -324,6 +227,6 @@ export default function AddMatterModal({
           </Group>
         </Stack>
       </form>
-    </Modal>
+    </AppModal>
   );
 }

@@ -1,10 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 import {
   Button,
-  Divider,
   Group,
-  Modal,
   NumberInput,
   Radio,
   SimpleGrid,
@@ -18,30 +16,28 @@ import {
 import { DatePickerInput } from "@mantine/dates";
 import { useForm } from "@mantine/form";
 import { useMediaQuery } from "@mantine/hooks";
-import { addDoc, collection, getDocs, query, where } from "firebase/firestore";
-import dayjs from "dayjs";
-import axios from "axios";
 
-import { ATTY_PRACTICE_AREAS, COLLECTIONS } from "@/constants/constants";
-import { db } from "@/firebase/config";
-import { syncToAppwrite } from "@/lib/syncToAppwrite";
+import { ATTY_PRACTICE_AREAS } from "@/constants/constants";
 import { appNotifications } from "@/utils/notifications/notifications";
+import { useCreateRetainerMutation } from "@/store/services/retainerService";
+import { nanoid } from "nanoid";
+import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
+import AppModal from "@/components/Common/modal/AppModal";
 
 interface AddRetainerModalProps {
   opened: boolean;
   onClose: () => void;
-  setIsDataChanged: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export default function AddRetainerModal({
   opened,
   onClose,
-  setIsDataChanged,
 }: AddRetainerModalProps) {
   const shrink = useMediaQuery("(max-width: 500px)");
   const theme = useMantineTheme();
 
-  const [isLoading, setIsLoading] = useState(false);
+  const [createRetainerFn, { isLoading: isSubmitting }] =
+    useCreateRetainerMutation();
 
   const form = useForm({
     initialValues: {
@@ -50,7 +46,7 @@ export default function AddRetainerModal({
       contactPerson: {
         fullname: "",
         email: "",
-        phoneNumber: "",
+        phone: "",
         address: "",
       },
       practiceAreas: [],
@@ -61,14 +57,15 @@ export default function AddRetainerModal({
     validate: {
       clientName: (value) => (!value.length ? "Client name is required" : null),
       contactPerson: {
-        fullname: (value) => (!value.length ? "Full name is required" : null),
+        fullname: (value) =>
+          !value.length ? "Contact Person Full name is required" : null,
         email: (value) =>
           !value?.length
             ? "Email is required"
             : /^\S+@\S+$/.test(value)
               ? null
               : "Invalid Email",
-        phoneNumber: (value) =>
+        phone: (value) =>
           String(value).length < 10 ? "Invalid Phone Number" : null,
         address: (value) =>
           !value || !String(value).length ? "Address is required" : null,
@@ -83,80 +80,48 @@ export default function AddRetainerModal({
   });
 
   const handleSubmit = async (values: typeof form.values) => {
-    setIsLoading(true);
-    try {
-      const now = dayjs().format("YYYY-MM-DD HH:mm:ss");
-      const snap = await getDocs(
-        query(
-          collection(db, COLLECTIONS.RETAINERS),
-          where("clientName", "==", values.clientName),
-        ),
-      );
+    const {
+      clientName,
+      clientType,
+      contactPerson,
+      description,
+      practiceAreas,
+      retainerSince,
+    } = values;
 
-      if (snap.docs.length > 0) {
-        appNotifications.error({
-          title: "Failed to add retainer",
-          message: "A retainer with the same client name already exists.",
+    createRetainerFn({
+      areas: practiceAreas,
+      clientName,
+      clientType,
+      contactPerson: {
+        phone: contactPerson.phone,
+        email: contactPerson.email,
+        fullname: contactPerson.fullname,
+        id: nanoid(12),
+        fullAddress: contactPerson.address,
+      },
+      description,
+      retainerSince: getDateFormatDisplay(retainerSince),
+    })
+      .unwrap()
+      .then(() => {
+        appNotifications.success({
+          title: "Retainer added successfully",
+          message: "The retainer has been added successfully",
         });
 
-        setIsLoading(false);
-        return;
-      }
-
-      // 1. Create Google Drive folder for the retainer
-      const { data: googleDriveFolder } = await axios.post(
-        "/api/google/drive/gFolders/create",
-        {
-          name: values.clientName,
-          parentId:
-            process.env.NEXT_PUBLIC_GOOGLE_DOCUMENTS_RETAINERS_FOLDER_ID,
-        },
-      );
-
-      // 2. Add retainer to database
-      await addDoc(collection(db, COLLECTIONS.RETAINERS), {
-        ...values,
-        clientType: values.clientType,
-        retainerSince: dayjs(values.retainerSince).format("YYYY-MM-DD"),
-        createdAt: now,
-        updatedAt: now,
-        googleDriveFolderId: googleDriveFolder.id,
+        onClose();
       })
-        .then(async (res) => {
-          // 3. Sync retainer to Appwrite
-          await syncToAppwrite("RETAINERS", res.id, {
-            client: values.clientName,
-            clientType: values.clientType,
-            contactPersonName: values.contactPerson.fullname,
-            contactPersonEmail: values.contactPerson.email,
-            matterType: values.practiceAreas.join("&_&"),
-            retainerSince: dayjs(values.retainerSince).format("YYYY-MM-DD"),
-            search_blob: `${values.clientName} ${values.contactPerson.fullname} ${values.contactPerson.email} ${values.practiceAreas.join(" ")} ${dayjs(values.retainerSince).format("YYYY-MM-DD")}`,
-          });
+      .catch((e) => {
+        const message = e?.data?.message
+          ? e.data.message
+          : "The matter could not be added. Please try again.";
 
-          appNotifications.success({
-            title: "Retainer added successfully",
-            message: "The retainer has been added successfully",
-          });
-
-          setIsDataChanged((p) => !p);
-          onClose();
-        })
-        .catch(() =>
-          appNotifications.error({
-            title: "Failed to add retainer",
-            message: "The retainer could not be added. Please try again.",
-          }),
-        )
-        .finally(() => setIsLoading(false));
-    } catch {
-      appNotifications.error({
-        title: "Failed to add retainer",
-        message: "The retainer could not be added. Please try again.",
+        appNotifications.error({
+          title: "Failed to add matter",
+          message,
+        });
       });
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   useEffect(() => {
@@ -165,23 +130,21 @@ export default function AddRetainerModal({
   }, [opened]);
 
   return (
-    <Modal
+    <AppModal
       opened={opened}
       onClose={onClose}
-      title="Add Retainer Client"
-      centered
-      transitionProps={{ transition: "pop" }}
+      title="New Retainer"
       size="lg"
-      withCloseButton={!isLoading}
+      closable={!isSubmitting}
+      type="success"
     >
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack gap="md">
           <Stack gap="xs" mb="xs">
-            <Divider label="Client" color="blue" />
             <TextInput
               withAsterisk
               label="Client Name"
-              placeholder="Enter client name"
+              placeholder="Acme Corp"
               {...form.getInputProps("clientName")}
             />
 
@@ -198,22 +161,21 @@ export default function AddRetainerModal({
           </Stack>
 
           <Stack gap="xs" mb="xs">
-            <Divider label="Contact Person" color="blue" />
             <SimpleGrid
               cols={shrink ? 1 : 2}
               verticalSpacing={shrink ? "2px" : "md"}
             >
               <TextInput
                 withAsterisk
-                label="Full Name"
-                placeholder="Enter full name"
+                label="Contact Person"
+                placeholder="Jane Doe"
                 {...form.getInputProps("contactPerson.fullname")}
               />
 
               <TextInput
                 withAsterisk
                 label="Email"
-                placeholder="Enter email"
+                placeholder="jane.doe@example.com"
                 {...form.getInputProps("contactPerson.email")}
               />
 
@@ -229,24 +191,23 @@ export default function AddRetainerModal({
                   </Text>
                 }
                 allowNegative={false}
-                {...form.getInputProps("contactPerson.phoneNumber")}
+                {...form.getInputProps("contactPerson.phone")}
               />
 
               <TextInput
                 withAsterisk
                 label="Full Address"
-                placeholder="Enter address"
+                placeholder="123 ABC Street, NYC"
                 {...form.getInputProps("contactPerson.address")}
               />
             </SimpleGrid>
           </Stack>
 
           <Stack gap="xs" mb="xs">
-            <Divider label="Other Details" color="blue" />
             <DatePickerInput
               withAsterisk
               label="Retainer Since"
-              placeholder="Select Retainer Start Date"
+              placeholder="January 1, 2000"
               clearable
               hideOutsideDates
               {...form.getInputProps("retainerSince")}
@@ -254,8 +215,8 @@ export default function AddRetainerModal({
 
             <TagsInput
               withAsterisk
-              label="Matter Type"
-              placeholder="Select Matter Type"
+              label="Areas"
+              placeholder="General Law, Civil Law"
               data={ATTY_PRACTICE_AREAS}
               clearable
               styles={{
@@ -270,7 +231,7 @@ export default function AddRetainerModal({
             <Textarea
               withAsterisk
               label="Description"
-              placeholder="Enter description"
+              placeholder="Type here the retainer's description"
               minRows={6}
               autosize
               styles={{ input: { paddingBlock: 6 } }}
@@ -279,12 +240,12 @@ export default function AddRetainerModal({
           </Stack>
 
           <Group justify="end">
-            <Button variant="outline" onClick={onClose} disabled={isLoading}>
+            <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </Button>
             <Button
               type="submit"
-              loading={isLoading}
+              loading={isSubmitting}
               disabled={!form.isValid()}
             >
               Add Retainer
@@ -292,6 +253,6 @@ export default function AddRetainerModal({
           </Group>
         </Stack>
       </form>
-    </Modal>
+    </AppModal>
   );
 }

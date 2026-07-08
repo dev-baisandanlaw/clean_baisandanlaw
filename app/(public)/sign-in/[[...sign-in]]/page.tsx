@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Alert,
   Anchor,
   Box,
   Button,
@@ -17,7 +16,6 @@ import {
 
 import Image from "next/image";
 import logo from "@/public/images/logo.png";
-import { IconAlertCircle } from "@tabler/icons-react";
 import { useForm } from "@mantine/form";
 import { useState } from "react";
 import { useSignIn } from "@clerk/nextjs";
@@ -27,6 +25,21 @@ import { ClerkAPIError } from "@clerk/types";
 import { useMediaQuery } from "@mantine/hooks";
 import { useRouter, useSearchParams } from "next/navigation";
 import { appNotifications } from "@/utils/notifications/notifications";
+import AuthErrorAlert from "@/components/Common/alert/AuthErrorAlert";
+
+const getSignInErrorMessage = (errors: ClerkAPIError[]) => {
+  const message = errors[0]?.message || "An error occurred";
+
+  if (
+    message.includes("Identifier is invalid") ||
+    message.includes("Indentifier is invalid") ||
+    message.includes("Password is incorrect. Try again, or use another method.")
+  ) {
+    return "Invalid Email or Password";
+  }
+
+  return message;
+};
 
 export default function Page() {
   const router = useRouter();
@@ -124,20 +137,9 @@ export default function Page() {
               </Title>
               <Text mb={16}>Hi, Welcome back!</Text>
 
-              {!!errors.length &&
-                errors.map(({ code, longMessage }) => (
-                  <Alert
-                    key={code}
-                    title={longMessage}
-                    color="red.9"
-                    icon={<IconAlertCircle />}
-                    styles={{
-                      icon: { marginBlock: "auto" },
-                      title: { fontSize: "12px" },
-                    }}
-                    mb={16}
-                  />
-                ))}
+              {!!errors.length && (
+                <AuthErrorAlert title={getSignInErrorMessage(errors)} />
+              )}
             </header>
 
             <form onSubmit={form.onSubmit(handleSubmit)}>
@@ -178,14 +180,14 @@ export default function Page() {
               </Button>
             </form>
 
-            <Text size="xs" mt={16} mx="auto">
+            <Text size="sm" mt={16} mx="auto">
               Don&apos;t have an account?{" "}
               <Anchor underline="always" href="/sign-up" size="sm">
                 Create an account
               </Anchor>
             </Text>
 
-            <Text size="xs" mt={8}>
+            <Text size="sm" mt={8}>
               Want to book an appointment?{" "}
               <Anchor underline="always" href="/booking" size="sm">
                 Book now
