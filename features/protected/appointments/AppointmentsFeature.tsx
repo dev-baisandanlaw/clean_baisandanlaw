@@ -173,6 +173,7 @@ export default function AppointmentsFeature() {
               <Group
                 justify="space-between"
                 {...(isMobile ? { grow: true } : {})}
+                mt={isMobile ? 8 : undefined}
               >
                 <Button
                   leftSection={<IconCirclePlus />}
