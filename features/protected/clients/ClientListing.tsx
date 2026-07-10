@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Flex, Group, TextInput } from "@mantine/core";
 import { useDebouncedValue, useDisclosure } from "@mantine/hooks";
 import { IconSearch } from "@tabler/icons-react";
+import { useAuth } from "@clerk/nextjs";
 
 import DataTable from "@/components/data-table/DataTable";
 import { useGetUsersQuery } from "@/store/services/userService";
@@ -17,6 +18,8 @@ import DowngradeSubscriptionModal from "@/components/clients/modals/DowngradeSub
 import DeleteUserModal from "@/components/Common/modal/DeleteUserModal";
 
 export default function ClientListing() {
+  const { isLoaded, isSignedIn } = useAuth();
+
   const [selectedClient, setSelectedClient] = useState<ClientRow | null>(null);
 
   const [search, setSearch] = useState("");
@@ -73,6 +76,7 @@ export default function ClientListing() {
             organization_id: "client",
             search: debouncedSearch,
           }}
+          queryOptions={{ skip: !isLoaded || !isSignedIn }}
         />
       </Flex>
 

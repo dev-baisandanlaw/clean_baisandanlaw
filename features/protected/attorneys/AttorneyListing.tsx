@@ -7,6 +7,7 @@ import {
   useMediaQuery,
 } from "@mantine/hooks";
 import { IconCirclePlus, IconSearch } from "@tabler/icons-react";
+import { useAuth } from "@clerk/nextjs";
 import { useState } from "react";
 import { useGetUsersQuery } from "@/store/services/userService";
 import DataTable from "@/components/data-table/DataTable";
@@ -22,6 +23,7 @@ import { UpdateAttorneyModal } from "@/components/attorneys/modals/UpdateAttorne
 
 export default function AttorneyListing() {
   const shrink = useMediaQuery("(max-width: 768px)");
+  const { isLoaded, isSignedIn } = useAuth();
 
   const [selectedAtty, setSelectedAtty] = useState<AttorneyRow | null>(null);
 
@@ -109,6 +111,7 @@ export default function AttorneyListing() {
             organization_id: "attorney",
             search: debouncedSearch,
           }}
+          queryOptions={{ skip: !isLoaded || !isSignedIn }}
         />
       </Flex>
 
