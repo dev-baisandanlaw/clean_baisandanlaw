@@ -9,7 +9,7 @@ import AppModal from "@/components/Common/modal/AppModal";
 import SpoilerComp from "@/components/Common/SpoilerComp";
 import { Booking } from "@/types/booking";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
-import { Button, Group, SimpleGrid, Stack } from "@mantine/core";
+import { Button, Group, SimpleGrid, Stack, Text } from "@mantine/core";
 import dayjs from "dayjs";
 
 type ViewAppointmentModalProps = {
@@ -29,7 +29,14 @@ export default function ViewAppointmentModal({
     <AppModal
       opened={opened}
       onClose={onClose}
-      title="Appointment Information"
+      title={
+        <Group gap="sm">
+          <Text fw={600} c="green.0">
+            Appointment Details
+          </Text>
+          <BookingViaBadge via={booking.via} />
+        </Group>
+      }
       size="xl"
       type="success"
       closable
@@ -64,10 +71,13 @@ export default function ViewAppointmentModal({
         <BasicCard
           title="Booking Information"
           actionButton={
-            <PaymentBadge
-              hasReceiptUploaded={!!booking.paymentFields?.fileId}
-              isPaid={!!booking.paymentFields?.isApproved}
-            />
+            <Group gap={4}>
+              <Text size="xs">Payment Status: </Text>
+              <PaymentBadge
+                hasReceiptUploaded={!!booking.paymentFields?.fileId}
+                isPaid={!!booking.paymentFields?.isApproved}
+              />
+            </Group>
           }
         >
           <SimpleGrid cols={{ base: 2, xs: 3 }} mb="md">
@@ -92,10 +102,7 @@ export default function ViewAppointmentModal({
                     : undefined
               }
             />
-            <DetailField
-              title="Via"
-              value={<BookingViaBadge via={booking.via} />}
-            />
+            <DetailField title="Adverse Party" value={booking?.adverseParty} />
             <DetailField
               title="Represented by previous lawyer"
               value={booking?.representedByPreviousLawyer ? "Yes" : "No"}

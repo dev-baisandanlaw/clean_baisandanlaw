@@ -11,7 +11,7 @@ import { IconX } from "@tabler/icons-react";
 import { ReactNode } from "react";
 
 interface AppModalProps extends ModalProps {
-  title: string;
+  title: string | ReactNode;
   children: ReactNode;
   type: "success" | "danger" | "secondary";
   closable?: boolean;
@@ -60,9 +60,13 @@ export default function AppModal({
       }}
       title={
         <Group wrap="nowrap" justify="space-between">
-          <Text fw={600} c={getColorTheme()?.font}>
-            {title}
-          </Text>
+          {typeof title === "string" ? (
+            <Text fw={600} c={getColorTheme()?.font}>
+              {title}
+            </Text>
+          ) : (
+            title
+          )}
 
           {closable && (
             <ActionIcon
