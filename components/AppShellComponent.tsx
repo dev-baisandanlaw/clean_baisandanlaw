@@ -14,11 +14,13 @@ import {
   Container,
   Divider,
   Group,
+  Indicator,
   Menu,
   NavLink,
   ScrollArea,
   Stack,
   Text,
+  Tooltip,
   useMantineTheme,
 } from "@mantine/core";
 import { useDisclosure, useMediaQuery } from "@mantine/hooks";
@@ -29,6 +31,7 @@ import { NAV_LINKS } from "@/constants/constants";
 import { appNotifications } from "@/utils/notifications/notifications";
 import logo from "@/public/images/logo.png";
 import { useGetCurrentClientSubscriptionQuery } from "@/store/services/userService";
+import { useGetClientRequestsListingQuery } from "@/store/services/clientRequestService";
 
 import styles from "./Appshell.module.css";
 
@@ -44,6 +47,16 @@ export default function AppShellComponent({
     { clientEmail: userEmail || "" },
     { skip: userRole !== "client" || !userEmail },
   );
+  const { data: submittedClientRequests } = useGetClientRequestsListingQuery(
+    { page: 1, limit: 1, status: "submitted" },
+    {
+      skip: !userRole || userRole === "client",
+      refetchOnReconnect: true,
+      refetchOnMountOrArgChange: true,
+    },
+  );
+  const hasSubmittedClientRequests =
+    (submittedClientRequests?.metadata.total ?? 0) > 0;
 
   const { signOut } = useClerk();
   const pathname = usePathname();
@@ -214,6 +227,19 @@ export default function AppShellComponent({
                       },
                     }}
                     leftSection={<link.icon color="white" />}
+                    rightSection={
+                      link.href === "/client-requests" &&
+                      hasSubmittedClientRequests ? (
+                        <Tooltip
+                          label="There are pending client requests that require your attention."
+                          withArrow
+                          position="right"
+                          offset={8}
+                        >
+                          <Indicator inline color="red" size={8} processing />
+                        </Tooltip>
+                      ) : undefined
+                    }
                     mb="sm"
                   />
 
