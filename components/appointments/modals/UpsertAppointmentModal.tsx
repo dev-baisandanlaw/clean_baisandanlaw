@@ -10,6 +10,7 @@ import {
   Group,
   Loader,
   NumberInput,
+  Paper,
   Radio,
   Select,
   SimpleGrid,
@@ -20,16 +21,25 @@ import {
   Text,
   Textarea,
   TextInput,
+  ThemeIcon,
   useMantineTheme,
 } from "@mantine/core";
 import { DatePickerInput, getTimeRange, TimeValue } from "@mantine/dates";
 import { useForm } from "@mantine/form";
 import { useMediaQuery } from "@mantine/hooks";
-import { IconInfoCircle } from "@tabler/icons-react";
+import {
+  IconCheck,
+  IconInfoCircle,
+  IconMapPin,
+  IconVideo,
+} from "@tabler/icons-react";
 import dayjs from "dayjs";
 
 import AppModal from "@/components/Common/modal/AppModal";
-import { ATTY_PRACTICE_AREAS } from "@/constants/constants";
+import {
+  ATTY_PRACTICE_AREAS,
+  IN_PERSON_OFFICE_ADDRESS,
+} from "@/constants/constants";
 import {
   useGetBookingsByMonthQuery,
   useManualBookNewAppointmentMutation,
@@ -42,6 +52,7 @@ import { BookingSettings } from "@/types/bookingSettings";
 import { UserReference } from "@/types/user-reference";
 import { appNotifications } from "@/utils/notifications/notifications";
 import {
+  buildAppointmentDetails,
   buildClientDetails,
   getInitialManualAppointmentValues,
   type ManualAppointmentFormValues,
@@ -74,6 +85,10 @@ export default function UpsertAppointmentModal({
   const form = useForm<ManualAppointmentFormValues>({
     initialValues: getInitialManualAppointmentValues(),
     validate: {
+      adverseParty: (value, values) =>
+        values.hasAdverseParty && !value.trim()
+          ? "Adverse party name is required"
+          : null,
       clientDetails: {
         fullname: (value) => (!value.length ? "Full name is required" : null),
         email: (value) =>
@@ -93,10 +108,12 @@ export default function UpsertAppointmentModal({
     ? dayjs(form.values.dateValue).format("YYYY-MM-DD")
     : dayjs().format("YYYY-MM-DD");
 
-  const { data: monthBookings = [] } = useGetBookingsByMonthQuery(
-    { month: selectedMonth },
-    { skip: !opened },
-  );
+  const {
+    currentData: monthBookings = [],
+    isFetching: isFetchingBookings,
+    isSuccess: hasLoadedBookings,
+    isError: hasBookingsError,
+  } = useGetBookingsByMonthQuery({ month: selectedMonth }, { skip: !opened });
 
   const attorneyUsers = usersByOrg?.attorney ?? [];
   const clientUsers = usersByOrg?.client ?? [];
@@ -152,8 +169,10 @@ export default function UpsertAppointmentModal({
   const selectedDate = form.values.date || "";
 
   const {
-    data: attorneyMatterSchedules = [],
+    currentData: attorneyMatterSchedules = [],
     isFetching: isFetchingMatterSchedules,
+    isSuccess: hasLoadedMatterSchedules,
+    isError: hasMatterSchedulesError,
   } = useGetAttorneyMatterSchedulesByDateQuery(
     { attorneyId: form.values.attorneyId || "", date: selectedDate },
     { skip: !opened || !form.values.attorneyId || !selectedDate },
@@ -171,12 +190,25 @@ export default function UpsertAppointmentModal({
         .sort((a, b) => a.time.localeCompare(b.time)),
     [booking?.id, form.values.attorneyId, monthBookings, selectedDate],
   );
-  const shouldShowAttorneyDateNotice =
+  const hasAttorneyAndDate =
+    opened &&
     !!form.values.dateValue &&
     !!form.values.attorneyId &&
-    (isFetchingMatterSchedules ||
-      attyBookings.length > 0 ||
-      attorneyMatterSchedules.length > 0);
+    !!selectedDate;
+  const isCheckingAttorneySchedule =
+    hasAttorneyAndDate && (isFetchingBookings || isFetchingMatterSchedules);
+  const hasCheckedAttorneySchedule =
+    hasAttorneyAndDate &&
+    !isCheckingAttorneySchedule &&
+    hasLoadedBookings &&
+    hasLoadedMatterSchedules &&
+    !hasBookingsError &&
+    !hasMatterSchedulesError;
+  const hasAttorneyDateEntries =
+    attyBookings.length > 0 || attorneyMatterSchedules.length > 0;
+  const shouldShowAttorneyDateNotice =
+    hasCheckedAttorneySchedule && hasAttorneyDateEntries;
+  const isAttorneyFree = hasCheckedAttorneySchedule && !hasAttorneyDateEntries;
 
   const times = useMemo(() => {
     if (!bookingSettings) return [];
@@ -213,9 +245,7 @@ export default function UpsertAppointmentModal({
       message: values.message.trim(),
       via: values.via,
       areas: values.areas,
-      consultationMode: values.consultationMode,
-      branch:
-        values.consultationMode === "in-person" ? values.branch : undefined,
+      ...buildAppointmentDetails(values, booking),
     };
 
     const mutation = booking
@@ -272,13 +302,34 @@ export default function UpsertAppointmentModal({
       via: booking.via,
       areas: booking.areas || [],
       consultationMode: booking.consultationMode || "in-person",
-      branch: booking.branch || "",
+      hasAdverseParty: !!booking.adverseParty,
+      adverseParty: booking.adverseParty || "",
       representedByPreviousLawyer: !!booking.representedByPreviousLawyer,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [booking, opened]);
 
   const isLoading = isSaving || isUpdating || isFetchingUsers;
+  const inPersonLocation =
+    booking?.consultationMode === "in-person" &&
+    booking.branch &&
+    booking.branch !== "Angeles branch"
+      ? `Saved location: ${booking.branch}`
+      : IN_PERSON_OFFICE_ADDRESS;
+  const consultationOptions = [
+    {
+      value: "in-person",
+      label: "In-person consultation",
+      description: inPersonLocation,
+      icon: IconMapPin,
+    },
+    {
+      value: "online",
+      label: "Online consultation",
+      description: "Via Zoom",
+      icon: IconVideo,
+    },
+  ];
 
   return (
     <AppModal
@@ -328,7 +379,22 @@ export default function UpsertAppointmentModal({
                   value: user.id!,
                   label: user.fullname,
                 }))}
-              rightSection={isFetchingUsers ? <Loader size="sm" /> : null}
+              rightSection={
+                isFetchingUsers || isCheckingAttorneySchedule ? (
+                  <Loader
+                    size="sm"
+                    aria-label="Loading attorney availability"
+                  />
+                ) : isAttorneyFree ? (
+                  <IconCheck
+                    size={20}
+                    color={theme.colors.green[7]}
+                    role="img"
+                    aria-label="Attorney is free on this date"
+                  />
+                ) : undefined
+              }
+              rightSectionPointerEvents="none"
               nothingFoundMessage="No attorneys found"
               {...form.getInputProps("attorneyId")}
             />
@@ -359,19 +425,6 @@ export default function UpsertAppointmentModal({
                     </Table.Thead>
 
                     <Table.Tbody>
-                      {isFetchingMatterSchedules && (
-                        <Table.Tr>
-                          <Table.Td colSpan={3}>
-                            <Group gap="xs">
-                              <Loader size="xs" />
-                              <Text size="xs" c="dimmed">
-                                Checking matter schedules
-                              </Text>
-                            </Group>
-                          </Table.Td>
-                        </Table.Tr>
-                      )}
-
                       {attyBookings.map((bookingItem) => (
                         <Table.Tr key={bookingItem.id}>
                           <Table.Td fw={600} fz="xs">
@@ -406,15 +459,18 @@ export default function UpsertAppointmentModal({
             )}
           </Stack>
 
-          <Stack gap="xs">
+          <Stack gap="md">
             <SimpleGrid
               cols={isMobile ? 1 : 2}
-              verticalSpacing={isMobile ? "2px" : "md"}
+              spacing="sm"
+              verticalSpacing="md"
+              style={{ alignItems: "start" }}
             >
               <TextInput
                 withAsterisk
                 label="Full Name"
                 placeholder="Enter Full Name"
+                style={{ gridColumn: "1 / -1" }}
                 {...form.getInputProps("clientDetails.fullname")}
               />
 
@@ -458,16 +514,54 @@ export default function UpsertAppointmentModal({
               <TextInput
                 label="Full Address"
                 placeholder="Enter Full Address"
-                style={{ gridColumn: isMobile ? undefined : "1 / -1" }}
                 {...form.getInputProps("clientDetails.fullAddress")}
               />
             </SimpleGrid>
+
+            <Paper
+              withBorder
+              p="md"
+              radius="md"
+              style={{
+                borderColor: form.values.hasAdverseParty
+                  ? theme.colors.green[6]
+                  : theme.colors.gray[3],
+                backgroundColor: form.values.hasAdverseParty
+                  ? theme.colors.green[0]
+                  : theme.colors.gray[0],
+              }}
+            >
+              <Stack gap="md">
+                <Checkbox
+                  label="Adverse party"
+                  description="Is there someone you're having a problem with?"
+                  color="green"
+                  styles={{
+                    label: { fontWeight: 600 },
+                    description: { lineHeight: 1.5 },
+                  }}
+                  {...form.getInputProps("hasAdverseParty", {
+                    type: "checkbox",
+                  })}
+                />
+                {form.values.hasAdverseParty && (
+                  <TextInput
+                    required
+                    label="Adverse Party Name"
+                    placeholder="Enter the adverse party's name"
+                    {...form.getInputProps("adverseParty")}
+                  />
+                )}
+              </Stack>
+            </Paper>
           </Stack>
 
-          <Stack gap="xs">
+          <Stack gap="md">
             <SimpleGrid
               cols={isMobile ? 1 : 2}
-              verticalSpacing={isMobile ? "2px" : "md"}
+              spacing="sm"
+              verticalSpacing="md"
+              style={{ alignItems: "start" }}
             >
               <DatePickerInput
                 withAsterisk
@@ -508,24 +602,56 @@ export default function UpsertAppointmentModal({
               withAsterisk
               {...form.getInputProps("consultationMode")}
             >
-              <Group mt="xs">
-                <Radio value="in-person" label="In person consultation" />
-                <Radio value="online" label="Online consultation" />
-              </Group>
-            </Radio.Group>
+              <SimpleGrid cols={isMobile ? 1 : 2} spacing="sm" mt="xs">
+                {consultationOptions.map((option) => {
+                  const selected =
+                    form.values.consultationMode === option.value;
 
-            {form.values.consultationMode === "in-person" && (
-              <Select
-                withAsterisk
-                label="Branch"
-                placeholder="Select Branch"
-                data={[
-                  { value: "Angeles branch", label: "Angeles branch" },
-                  { value: "Magalang branch", label: "Magalang branch" },
-                ]}
-                {...form.getInputProps("branch")}
-              />
-            )}
+                  return (
+                    <Radio.Card
+                      key={option.value}
+                      value={option.value}
+                      radius="md"
+                      p="md"
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "flex-start",
+                        backgroundColor: selected
+                          ? theme.colors.green[0]
+                          : theme.white,
+                        border: `1px solid ${
+                          selected
+                            ? theme.colors.green[6]
+                            : theme.colors.gray[3]
+                        }`,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <Group wrap="nowrap" align="flex-start">
+                        <ThemeIcon
+                          variant="light"
+                          color="green"
+                          size="md"
+                          radius="xl"
+                        >
+                          <option.icon size={17} />
+                        </ThemeIcon>
+                        <Stack gap={3} style={{ flex: 1, minWidth: 0 }}>
+                          <Text size="sm" fw={600}>
+                            {option.label}
+                          </Text>
+                          <Text size="xs" c="dimmed" lh={1.45}>
+                            {option.description}
+                          </Text>
+                        </Stack>
+                        <Radio.Indicator />
+                      </Group>
+                    </Radio.Card>
+                  );
+                })}
+              </SimpleGrid>
+            </Radio.Group>
           </Stack>
 
           <Stack gap="xs">
@@ -593,8 +719,6 @@ export default function UpsertAppointmentModal({
                 !form.values.message ||
                 !form.values.via ||
                 !form.values.areas.length ||
-                (form.values.consultationMode === "in-person" &&
-                  !form.values.branch) ||
                 !form.isValid()
               }
             >

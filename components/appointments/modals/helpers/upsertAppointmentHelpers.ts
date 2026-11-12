@@ -1,11 +1,14 @@
 import { type CreateBookingDto } from "@/store/service-types/type-booking-service";
+import { type Booking } from "@/types/booking";
 import { type UserReference } from "@/types/user-reference";
 import dayjs from "dayjs";
 
 export type ManualAppointmentFormValues = Omit<
   CreateBookingDto,
-  "clientDetails"
+  "clientDetails" | "branch"
 > & {
+  hasAdverseParty: boolean;
+  adverseParty: string;
   clientDetails: Omit<UserReference, "birthday"> & {
     birthday?: Date | null;
   };
@@ -25,6 +28,8 @@ export const getInitialManualAppointmentValues =
       birthday: null,
     },
     existingClient: false,
+    hasAdverseParty: false,
+    adverseParty: "",
     representedByPreviousLawyer: false,
     dateValue: new Date(),
     date: dayjs().format("YYYY-MM-DD"),
@@ -33,8 +38,25 @@ export const getInitialManualAppointmentValues =
     via: "Walk-in",
     areas: [],
     consultationMode: "in-person",
-    branch: "",
   });
+
+export const buildAppointmentDetails = (
+  values: ManualAppointmentFormValues,
+  booking: Pick<Booking, "consultationMode" | "branch" | "adverseParty"> | null,
+): Pick<CreateBookingDto, "consultationMode" | "branch" | "adverseParty"> => ({
+  consultationMode: values.consultationMode,
+  branch:
+    values.consultationMode === "in-person"
+      ? booking?.consultationMode === "in-person"
+        ? (booking.branch ?? undefined)
+        : "Angeles branch"
+      : undefined,
+  adverseParty: values.hasAdverseParty
+    ? values.adverseParty.trim()
+    : booking?.adverseParty
+      ? ""
+      : undefined,
+});
 
 export const buildClientDetails = (
   clientDetails: ManualAppointmentFormValues["clientDetails"],

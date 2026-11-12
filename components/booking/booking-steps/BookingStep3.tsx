@@ -10,6 +10,7 @@ import {
   Tooltip,
 } from "@mantine/core";
 import {
+  IconAlertTriangle,
   IconCash,
   IconCopy,
   IconCheck,
@@ -46,6 +47,32 @@ export default function BookingStepThree({
 
   return (
     <Stack>
+      <Alert
+        color="red"
+        variant="light"
+        icon={<IconAlertTriangle size={22} stroke={2.25} />}
+        styles={(theme) => ({
+          root: {
+            backgroundColor: theme.colors.red[0],
+            border: `1px solid ${theme.colors.red[5]}`,
+          },
+          icon: { color: theme.colors.red[7] },
+          title: {
+            color: theme.colors.red[9],
+            fontSize: theme.fontSizes.md,
+            fontWeight: 700,
+          },
+          message: { color: theme.colors.red[9] },
+          body: { gap: 4 },
+        })}
+        title="Important: Payments are non-refundable"
+      >
+        <Text size="sm" fw={500}>
+          All payments are strictly non-refundable. Please review your booking
+          details carefully before completing your payment.
+        </Text>
+      </Alert>
+
       <Alert
         color="blue"
         variant="light"

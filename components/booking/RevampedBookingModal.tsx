@@ -40,9 +40,9 @@ export type BookingFormTypeValues = {
   phone: string;
   fullAddress: string;
   birthday: null | Date;
+  hasAdverseParty: boolean;
   adverseParty: string;
   consultationType: string;
-  branch: string;
   areas: string[];
   message: string;
   representedByPreviousLawyer: boolean;
@@ -84,9 +84,9 @@ export default function RevampedBookingModal({
       phone: "",
       fullAddress: "",
       birthday: null as Date | null,
+      hasAdverseParty: false,
       adverseParty: "",
       consultationType: "in-person",
-      branch: "",
       areas: [],
       message: "",
       representedByPreviousLawyer: false,
@@ -106,9 +106,9 @@ export default function RevampedBookingModal({
       fullAddress: (value) =>
         !value || !String(value).length ? "Full address is required" : null,
       birthday: (value) => (value ? null : "Birthday is required"),
-      branch: (value, values) =>
-        values.consultationType === "in-person" && !value
-          ? "Please select a branch"
+      adverseParty: (value, values) =>
+        values.hasAdverseParty && !value.trim()
+          ? "Adverse party name is required"
           : null,
       areas: (value) =>
         !value.length ? "Please select at least one area" : null,
@@ -143,7 +143,9 @@ export default function RevampedBookingModal({
         .then((uploadedFile) => {
           const normalizedEmail = values.email.trim().toLowerCase();
           const payload = {
-            adverseParty: values.adverseParty.trim() || undefined,
+            adverseParty: values.hasAdverseParty
+              ? values.adverseParty.trim()
+              : undefined,
             areas: values.areas,
             clientDetails: {
               fullname:
@@ -162,7 +164,7 @@ export default function RevampedBookingModal({
             consultationMode: values.consultationType,
             branch:
               values.consultationType === "in-person"
-                ? values.branch
+                ? "Angeles branch"
                 : undefined,
             date: dayjs(selectedDate).format("YYYY-MM-DD"),
             time: selectedTime,
