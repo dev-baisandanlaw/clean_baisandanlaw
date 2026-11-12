@@ -1,4 +1,4 @@
-import { Matter, MatterSchedule } from "@/types/matter";
+import { Matter, MatterSchedule, type MatterStatus } from "@/types/matter";
 import { GenericPaginatedResponse } from "@/types/pagination";
 import { UserReference } from "@/types/user-reference";
 
@@ -12,6 +12,7 @@ export type MatterListingResponse = GenericPaginatedResponse<
     | "leadAttorney"
     | "createdAt"
     | "updatedAt"
+    | "status"
   >
 >;
 
@@ -22,6 +23,10 @@ export interface CreateNewMatterDto {
   caseType: string[];
   caseDescription: string;
 }
+
+export type UpdateMatterDto = Partial<CreateNewMatterDto> & {
+  status?: MatterStatus;
+};
 
 export interface CreateNewMatterTaskDto {
   caseId: string;

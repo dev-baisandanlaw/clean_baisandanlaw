@@ -1,4 +1,27 @@
 import { Badge, useMantineTheme } from "@mantine/core";
+import { type MatterStatus } from "@/types/matter";
+
+const matterStatusColors: Record<MatterStatus, string> = {
+  Active: "green",
+  "On Hold": "yellow",
+  Closed: "gray",
+  Cancelled: "red",
+  Withdrawn: "orange",
+  Dismissed: "grape",
+};
+
+const MatterStatusBadge = ({ status }: { status?: string | null }) => {
+  const normalizedStatus = status?.trim() || "Active";
+  const [label, color] = Object.entries(matterStatusColors).find(
+    ([value]) => value.toLowerCase() === normalizedStatus.toLowerCase(),
+  ) ?? [normalizedStatus, "gray"];
+
+  return (
+    <Badge size="xs" radius="xs" variant="filled" color={color} tt="none">
+      {label}
+    </Badge>
+  );
+};
 
 const clientRequestStatusLabels: Record<string, string> = {
   submitted: "Submitted",
@@ -104,6 +127,7 @@ const ClientRequestBadge = ({ status }: { status: string }) => {
 };
 
 export {
+  MatterStatusBadge,
   AreaBadge,
   PaymentBadge,
   BookingViaBadge,

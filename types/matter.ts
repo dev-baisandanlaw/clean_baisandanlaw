@@ -3,6 +3,9 @@ import { Note } from "./notes";
 import { TaskStatus } from "./task";
 import { Update } from "./updates";
 import { UserReference } from "./user-reference";
+import { type MATTER_STATUSES } from "@/constants/constants";
+
+export type MatterStatus = (typeof MATTER_STATUSES)[number];
 
 export interface Matter {
   id: string;
@@ -23,7 +26,7 @@ export interface Matter {
   updates?: Update[];
 
   googleDriveFolderId: string;
-  status: string;
+  status: string | null;
 
   createdAt: string;
   updatedAt: string;

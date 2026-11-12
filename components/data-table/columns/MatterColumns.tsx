@@ -2,7 +2,7 @@ import { type ColumnDef } from "@tanstack/react-table";
 import { ActionIcon, Group, Text, Tooltip } from "@mantine/core";
 import { type MatterListingResponse } from "@/store/service-types/type-matter-service";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
-import { AreaBadge } from "@/components/Common/BadgeComp";
+import { AreaBadge, MatterStatusBadge } from "@/components/Common/BadgeComp";
 import { IconPointer2 } from "@tabler/icons-react";
 import TableUserField from "@/components/Common/TableUserField";
 
@@ -82,6 +82,12 @@ export const matterColumns: ColumnDef<MatterRow>[] = [
           : "-"}
       </Text>
     ),
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    size: 120,
+    cell: ({ row }) => <MatterStatusBadge status={row.original.status} />,
   },
   {
     id: "actions",

@@ -11,6 +11,7 @@ import { ReactNode } from "react";
 interface BasicCardProps extends Omit<CardProps, "children"> {
   children: ReactNode;
   title?: string;
+  titleBadge?: ReactNode;
   headerProps?: CardSectionProps;
   bodyProps?: CardSectionProps;
   containerProps?: CardProps;
@@ -20,6 +21,7 @@ interface BasicCardProps extends Omit<CardProps, "children"> {
 const BasicCard = ({
   children,
   title,
+  titleBadge,
   headerProps,
   bodyProps,
   containerProps,
@@ -36,9 +38,12 @@ const BasicCard = ({
     >
       <CardSection withBorder p="sm" bg="gray.0" {...headerProps}>
         <Group justify="space-between">
-          <Text fz="sm" fw={700} c="green">
-            {title}
-          </Text>
+          <Group gap="xs">
+            <Text fz="sm" fw={700} c="green">
+              {title}
+            </Text>
+            {titleBadge}
+          </Group>
           {actionButton && actionButton}
         </Group>
       </CardSection>

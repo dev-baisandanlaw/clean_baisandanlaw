@@ -71,6 +71,15 @@ export const CLERK_API_CONFIG = {
 export const IN_PERSON_OFFICE_ADDRESS =
   "Block 7, Lot 3, Unit D, Fil-Am Friendship Hwy, Brgy. Cutcut, Angeles City";
 
+export const MATTER_STATUSES = [
+  "Active",
+  "On Hold",
+  "Closed",
+  "Cancelled",
+  "Withdrawn",
+  "Dismissed",
+] as const;
+
 export const ATTY_PRACTICE_AREAS = [
   "General Law",
   "Civil Law",
