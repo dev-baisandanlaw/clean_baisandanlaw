@@ -6,6 +6,7 @@ import DetailField from "@/components/Common/DetailField";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
 import { AreaBadge } from "@/components/Common/BadgeComp";
 import SpoilerComp from "@/components/Common/SpoilerComp";
+import { IN_PERSON_OFFICE_ADDRESS } from "@/constants/constants";
 
 export default function BookingStepTwo({
   form,
@@ -30,7 +31,10 @@ export default function BookingStepTwo({
             title="Birthdate"
             value={getDateFormatDisplay(values.birthday!)}
           />
-          <DetailField title="Adverse Party" value={values.adverseParty} />
+          <DetailField
+            title="Adverse Party"
+            value={values.hasAdverseParty ? values.adverseParty.trim() : "None"}
+          />
         </SimpleGrid>
         <DetailField title="Full address" value={values.fullAddress} />
       </BasicCard>
@@ -41,8 +45,12 @@ export default function BookingStepTwo({
             value={values.consultationType}
           />
           <DetailField
-            title="Branch"
-            value={values.consultationType === "online" ? "-" : values.branch}
+            title="Location"
+            value={
+              values.consultationType === "online"
+                ? "Via Zoom"
+                : IN_PERSON_OFFICE_ADDRESS
+            }
           />
           <DetailField
             title="Areas"

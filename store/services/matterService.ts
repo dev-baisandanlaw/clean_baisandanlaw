@@ -7,6 +7,7 @@ import {
   MatterScheduleResponse,
   MatterListingResponse,
   UpsertMatterScheduleDto,
+  UpdateMatterDto,
 } from "../service-types/type-matter-service";
 import { Matter, MatterSchedule } from "@/types/matter";
 import { Booking } from "@/types/booking";
@@ -67,7 +68,7 @@ export const matterService = createApi({
 
     updateMatter: builder.mutation<
       { message: string },
-      Partial<CreateNewMatterDto> & { id: string }
+      UpdateMatterDto & { id: string }
     >({
       query: ({ id, ...payload }) => ({
         method: "PATCH",

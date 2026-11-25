@@ -6,17 +6,23 @@ import {
   Textarea,
   Flex,
   NumberInput,
+  Paper,
   Radio,
   Group,
-  Select,
+  SimpleGrid,
   TagsInput,
+  ThemeIcon,
   useMantineTheme,
 } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
 import type { BookingFormTypeValues } from "../RevampedBookingModal";
 import { DateInput } from "@mantine/dates";
 import dayjs from "dayjs";
-import { ATTY_PRACTICE_AREAS } from "@/constants/constants";
+import {
+  ATTY_PRACTICE_AREAS,
+  IN_PERSON_OFFICE_ADDRESS,
+} from "@/constants/constants";
+import { IconMapPin, IconVideo } from "@tabler/icons-react";
 
 export default function BookingStepOne({
   form,
@@ -77,7 +83,11 @@ export default function BookingStepOne({
         />
       </Flex>
 
-      <Flex gap="sm" direction={{ base: "column", sm: "row" }}>
+      <Flex
+        gap="sm"
+        direction={{ base: "column", sm: "row" }}
+        align="flex-start"
+      >
         <DateInput
           withAsterisk
           label="Birthday"
@@ -91,22 +101,53 @@ export default function BookingStepOne({
             )
           }
           flex={1}
+          w={{ base: "100%", sm: "auto" }}
         />
 
         <TextInput
-          label="Adverse Party"
-          placeholder="Adverse Party"
-          {...form.getInputProps("adverseParty")}
+          withAsterisk
+          label="Full Address"
+          placeholder="House number, street, barangay, city"
+          {...form.getInputProps("fullAddress")}
           flex={1}
+          w={{ base: "100%", sm: "auto" }}
         />
       </Flex>
 
-      <TextInput
-        withAsterisk
-        label="Full Address"
-        placeholder="123 ABC Street, NYC"
-        {...form.getInputProps("fullAddress")}
-      />
+      <Paper
+        withBorder
+        p="md"
+        radius="md"
+        style={{
+          borderColor: form.values.hasAdverseParty
+            ? theme.colors.green[6]
+            : theme.colors.gray[3],
+          backgroundColor: form.values.hasAdverseParty
+            ? theme.colors.green[0]
+            : theme.colors.gray[0],
+        }}
+      >
+        <Stack gap="md">
+          <Checkbox
+            label="Adverse party"
+            description="Is there someone you're having a problem with?"
+            color="green"
+            styles={{
+              label: { fontWeight: 600 },
+              description: { lineHeight: 1.5 },
+            }}
+            {...form.getInputProps("hasAdverseParty", { type: "checkbox" })}
+          />
+          {form.values.hasAdverseParty && (
+            <TextInput
+              required
+              label="Adverse Party Name"
+              placeholder="Enter the adverse party's name"
+              {...form.getInputProps("adverseParty")}
+            />
+          )}
+        </Stack>
+      </Paper>
 
       <Radio.Group
         name="consultationMode"
@@ -114,24 +155,84 @@ export default function BookingStepOne({
         withAsterisk
         {...form.getInputProps("consultationType")}
       >
-        <Group mt="xs">
-          <Radio value="in-person" label="In person consultation" />
-          <Radio value="online" label="Online consultation" />
-        </Group>
-      </Radio.Group>
+        <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm" mt="xs">
+          <Radio.Card
+            value="in-person"
+            radius="md"
+            p="md"
+            style={(theme) => ({
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "flex-start",
+              backgroundColor:
+                form.values.consultationType === "in-person"
+                  ? theme.colors.green[0]
+                  : theme.white,
+              border: `1px solid ${
+                form.values.consultationType === "in-person"
+                  ? theme.colors.green[6]
+                  : theme.colors.gray[3]
+              }`,
+              cursor: "pointer",
+              transition:
+                "border-color 150ms ease, background-color 150ms ease",
+            })}
+          >
+            <Group wrap="nowrap" align="flex-start">
+              <ThemeIcon variant="light" color="green" size="md" radius="xl">
+                <IconMapPin size={17} />
+              </ThemeIcon>
+              <Stack gap={3} style={{ flex: 1 }}>
+                <Text size="sm" fw={600}>
+                  In-person consultation
+                </Text>
+                <Text size="xs" c="dimmed" lh={1.45}>
+                  {IN_PERSON_OFFICE_ADDRESS}
+                </Text>
+              </Stack>
+              <Radio.Indicator />
+            </Group>
+          </Radio.Card>
 
-      {form.values.consultationType === "in-person" && (
-        <Select
-          withAsterisk
-          label="Branch"
-          placeholder="Angeles, Magalang"
-          data={[
-            { value: "Angeles branch", label: "Angeles branch" },
-            { value: "Magalang branch", label: "Magalang branch" },
-          ]}
-          {...form.getInputProps("branch")}
-        />
-      )}
+          <Radio.Card
+            value="online"
+            radius="md"
+            p="md"
+            style={(theme) => ({
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "flex-start",
+              backgroundColor:
+                form.values.consultationType === "online"
+                  ? theme.colors.green[0]
+                  : theme.white,
+              border: `1px solid ${
+                form.values.consultationType === "online"
+                  ? theme.colors.green[6]
+                  : theme.colors.gray[3]
+              }`,
+              cursor: "pointer",
+              transition:
+                "border-color 150ms ease, background-color 150ms ease",
+            })}
+          >
+            <Group wrap="nowrap" align="flex-start">
+              <ThemeIcon variant="light" color="green" size="md" radius="xl">
+                <IconVideo size={17} />
+              </ThemeIcon>
+              <Stack gap={3} style={{ flex: 1 }}>
+                <Text size="sm" fw={600}>
+                  Online consultation
+                </Text>
+                <Text size="xs" c="dimmed" lh={1.45}>
+                  Via Zoom
+                </Text>
+              </Stack>
+              <Radio.Indicator />
+            </Group>
+          </Radio.Card>
+        </SimpleGrid>
+      </Radio.Group>
 
       <TagsInput
         withAsterisk

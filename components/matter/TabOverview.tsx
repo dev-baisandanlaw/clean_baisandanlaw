@@ -25,14 +25,15 @@ import { useMediaQuery } from "@mantine/hooks";
 import { IconPencil } from "@tabler/icons-react";
 import { useUser } from "@clerk/nextjs";
 
-import { ATTY_PRACTICE_AREAS } from "@/constants/constants";
+import { ATTY_PRACTICE_AREAS, MATTER_STATUSES } from "@/constants/constants";
 import { appNotifications } from "@/utils/notifications/notifications";
 import { getDateFormatDisplay } from "@/utils/getDateFormatDisplay";
-import { AreaBadge } from "../Common/BadgeComp";
+import { AreaBadge, MatterStatusBadge } from "../Common/BadgeComp";
 
-import { Matter } from "@/types/matter";
+import { Matter, type MatterStatus } from "@/types/matter";
 import { UserReference } from "@/types/user-reference";
 import { useUpdateMatterMutation } from "@/store/services/matterService";
+import { type UpdateMatterDto } from "@/store/service-types/type-matter-service";
 import BasicCard from "../Common/BasicCard";
 import { useGetUsersByOrgQuery } from "@/store/services/userService";
 import NoteSection from "../Common/notes/NoteSection";
@@ -46,6 +47,7 @@ interface MatterTabOverviewProps {
 
 interface VerticalTableProps {
   title: string;
+  titleBadge?: React.ReactNode;
   data: { th: string; td: React.ReactNode }[];
   editButton?: React.ReactNode;
 }
@@ -53,6 +55,7 @@ interface VerticalTableProps {
 interface EditFormValues {
   caseNumber: string;
   caseType: string[];
+  status: MatterStatus;
   clientId: string;
   attorneyId: string;
   description: string;
@@ -78,11 +81,17 @@ export default function TabOverview({ matterData }: MatterTabOverviewProps) {
   );
 
   const [editModule, setEditModule] = useState("");
+  const savedStatus =
+    MATTER_STATUSES.find(
+      (status) =>
+        status.toLowerCase() === matterData.status?.trim().toLowerCase(),
+    ) ?? "Active";
 
   const form = useForm<EditFormValues>({
     initialValues: {
       caseNumber: matterData.caseNumber,
       caseType: matterData.caseType,
+      status: savedStatus,
       clientId: matterData.clientData.id || "",
       attorneyId: matterData.leadAttorney.id || "",
       description: matterData.caseDescription || "",
@@ -100,18 +109,13 @@ export default function TabOverview({ matterData }: MatterTabOverviewProps) {
       : null;
 
   const handleUpdateMatter = () => {
-    const preparePayload = (): Partial<{
-      caseNumber: string;
-      caseType: string[];
-      caseDescription: string;
-      clientData: UserReference;
-      leadAttorney: UserReference;
-    }> => {
+    const preparePayload = (): UpdateMatterDto => {
       switch (editModule) {
         case "matter":
           return {
             caseNumber: form.values.caseNumber,
             caseType: form.values.caseType,
+            status: form.values.status,
           };
 
         case "description":
@@ -174,6 +178,7 @@ export default function TabOverview({ matterData }: MatterTabOverviewProps) {
       case "matter":
         form.setFieldValue("caseNumber", matterData.caseNumber);
         form.setFieldValue("caseType", matterData.caseType);
+        form.setFieldValue("status", savedStatus);
         break;
       case "client":
         form.setFieldValue("clientId", matterData.clientData.id || "");
@@ -337,12 +342,13 @@ export default function TabOverview({ matterData }: MatterTabOverviewProps) {
     form.setValues({
       caseNumber: matterData.caseNumber,
       caseType: matterData.caseType,
+      status: savedStatus,
       clientId: matterData.clientData.id || "",
       attorneyId: matterData.leadAttorney.id || "",
       description: matterData.caseDescription || "",
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [matterData]);
+  }, [matterData, savedStatus]);
 
   // --- Edit button helper ---
 
@@ -391,11 +397,27 @@ export default function TabOverview({ matterData }: MatterTabOverviewProps) {
       <SimpleGrid cols={shrink ? 1 : 3}>
         <VerticalTable
           title="Matter Details"
+          titleBadge={
+            editModule === "matter" ? (
+              <Select
+                aria-label="Matter status"
+                size="xs"
+                w={130}
+                data={MATTER_STATUSES}
+                allowDeselect={false}
+                disabled={isUpdatingMatter}
+                {...form.getInputProps("status")}
+              />
+            ) : (
+              <MatterStatusBadge status={matterData.status} />
+            )
+          }
           data={caseDetailsCardData}
           editButton={renderEditButton(
             "matter",
             !form.values.caseNumber.trim().length ||
-              !form.values.caseType.length,
+              !form.values.caseType.length ||
+              !form.values.status,
           )}
         />
         <VerticalTable
@@ -473,10 +495,16 @@ export default function TabOverview({ matterData }: MatterTabOverviewProps) {
 
 const VerticalTable = ({
   title,
+  titleBadge,
   data = [],
   editButton,
 }: VerticalTableProps) => (
-  <BasicCard title={title} actionButton={editButton} bodyProps={{ p: 0 }}>
+  <BasicCard
+    title={title}
+    titleBadge={titleBadge}
+    actionButton={editButton}
+    bodyProps={{ p: 0 }}
+  >
     <Table variant="vertical" layout="fixed">
       <Table.Tbody>
         {data.map((item, index) => (
